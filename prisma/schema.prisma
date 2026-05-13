@@ -1,0 +1,105 @@
+// Slotto.gg — Neon Postgres
+// https://www.prisma.io/docs/orm/prisma-schema/overview
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  // Optional: Neon recommends an unpooled URL for migrations when DATABASE_URL uses `-pooler`.
+  // directUrl = env("DIRECT_URL")
+}
+
+// --- Auth.js (NextAuth) adapter tables — wire when Discord/Twitter login lands ---
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// --- Admin: Solana wallet allowlist (SIWS / wallet gate later) ---
+
+model AdminWallet {
+  id        String    @id @default(cuid())
+  /// Solana public key (base58), case-sensitive — store exactly as shown in wallet
+  address   String    @unique
+  label     String?
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  projects  Project[]
+}
+
+// --- Public listings ---
+
+model Project {
+  id               String       @id @default(cuid())
+  slug             String       @unique
+  name             String
+  tagline          String?
+  likes            Int          @default(0)
+  reviewMd         String       @db.Text
+  meUrl            String?
+  discordUrl       String?
+  twitterUrl       String?
+  tokenMint        String?
+  /// { floor, supply, listings, volume, sales24h } as strings for display
+  stats            Json?
+  /// [{ "label": "Magic Eden", "href": "https://..." }]
+  marketplaces     Json?
+  bannerImageUrl   String?
+  published        Boolean      @default(false)
+  createdById      String?
+  createdBy        AdminWallet? @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@index([published, likes])
+  @@index([published, name])
+}
