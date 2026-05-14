@@ -13,6 +13,20 @@ type Props = { params: Promise<{ slug: string }> };
 
 type MpRow = { label: string; href: string };
 
+function listingsStatValue(listings: string, totalSupply: string | null): string {
+  const listed = Number(String(listings).replace(/,/g, ""));
+  const total =
+    totalSupply != null && String(totalSupply).trim() !== ""
+      ? Number(String(totalSupply).replace(/,/g, ""))
+      : NaN;
+  if (!Number.isFinite(listed) || !Number.isFinite(total) || total <= 0) {
+    return listings;
+  }
+  const pct = (listed / total) * 100;
+  const pctStr = String(parseFloat(pct.toFixed(2)));
+  return `${listings} (${pctStr}%)`;
+}
+
 function asMarketplaces(raw: unknown): MpRow[] {
   if (!Array.isArray(raw)) return [];
   return raw.filter(
@@ -39,7 +53,12 @@ export default async function ProjectPage({ params }: Props) {
   if (live.ok) {
     if (live.floorSol) statRows.push({ label: "Floor", value: `${live.floorSol} SOL` });
     if (live.supply) statRows.push({ label: "Total supply", value: live.supply });
-    if (live.listings) statRows.push({ label: "Listings", value: live.listings });
+    if (live.listings) {
+      statRows.push({
+        label: "Listings",
+        value: listingsStatValue(live.listings, live.supply),
+      });
+    }
     if (live.volumeSol) statRows.push({ label: "Volume (all-time)", value: `${live.volumeSol} SOL` });
     if (live.avg24hSol) statRows.push({ label: "24h avg sale", value: `${live.avg24hSol} SOL` });
   }
