@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { Suspense } from "react";
 
 import { FeaturedProjectOfWeek } from "@/components/project/featured-project-of-week";
@@ -95,25 +94,11 @@ export default async function ProjectsPage({ searchParams }: Props) {
     })) as ProjectRow[];
     const featuredPick = pickFeatured(all);
     featured = featuredPick;
-    const rest = featuredPick ? all.filter((p) => p.slug !== featuredPick.slug) : all;
-    grid = sortProjects(rest, sort);
+    grid = sortProjects(all, sort);
   }
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight">Projects</h1>
-        </div>
-        <Suspense
-          fallback={
-            <div className="h-[4.5rem] w-full max-w-sm animate-pulse rounded-xl bg-surface/40 sm:ml-auto sm:w-72" />
-          }
-        >
-          <ProjectsToolbar defaultSort="likes" />
-        </Suspense>
-      </div>
-
       {!query && featured ? (
         <FeaturedProjectOfWeek
           slug={featured.slug}
@@ -123,6 +108,22 @@ export default async function ProjectsPage({ searchParams }: Props) {
           imageUrl={thumb(featured)}
         />
       ) : null}
+
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-3xl font-semibold tracking-tight">Projects</h1>
+          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">
+            All listings are independent and unbiased. Slotto.gg does not offer paid promotion of any kind.
+          </p>
+        </div>
+        <Suspense
+          fallback={
+            <div className="h-[4.5rem] w-full max-w-sm animate-pulse rounded-xl bg-surface/40 sm:ml-auto sm:w-72" />
+          }
+        >
+          <ProjectsToolbar defaultSort="likes" />
+        </Suspense>
+      </div>
 
       {grid.length === 0 && !featured ? (
         <div className="rounded-2xl border border-border bg-bg-elevated/70 px-6 py-14 text-center text-sm text-muted">
