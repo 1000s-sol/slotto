@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "node ./node_modules/next/dist/bin/next dev --turbopack",
+    "dev": "node ./node_modules/next/dist/bin/next dev",
+    "dev:turbo": "node ./node_modules/next/dist/bin/next dev --turbopack",
     "build": "node ./node_modules/next/dist/bin/next build",
     "start": "node ./node_modules/next/dist/bin/next start",
     "lint": "eslint",
@@ -12,15 +13,21 @@
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
     "db:seed": "prisma db seed",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "fix:npm-temp": "node scripts/rm-npm-temp-dirs.mjs",
+    "reinstall": "node scripts/move-node-modules-aside.mjs && npm install --no-fund --no-audit",
+    "reinstall:rm": "rm -rf node_modules && npm install --no-fund --no-audit"
   },
   "dependencies": {
     "@prisma/client": "^6.19.0",
+    "@noble/curves": "^1.8.0",
     "@solana/wallet-adapter-base": "^0.9.27",
     "@solana/wallet-adapter-react": "^0.15.39",
     "@solana/wallet-adapter-react-ui": "^0.9.39",
     "@solana/wallet-adapter-wallets": "^0.19.37",
     "@solana/web3.js": "^1.98.4",
+    "@vercel/blob": "^0.27.3",
+    "bs58": "^6.0.0",
     "buffer": "^6.0.3",
     "next": "^15.3.0",
     "react": "^19.0.0",
@@ -29,7 +36,8 @@
   },
   "overrides": {
     "react": "$react",
-    "react-dom": "$react-dom"
+    "react-dom": "$react-dom",
+    "undici": "5.28.4"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
@@ -39,6 +47,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "^15.3.0",
+    "dotenv": "^16.4.7",
     "prisma": "^6.19.0",
     "tailwindcss": "^4",
     "tsx": "^4.19.4",

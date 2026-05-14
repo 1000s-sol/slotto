@@ -86,6 +86,8 @@ model Project {
   likes            Int          @default(0)
   reviewMd         String       @db.Text
   meUrl            String?
+  /// string[] — Magic Eden collection URLs; first entry is primary (live stats + main collection link)
+  meUrls           Json?
   discordUrl       String?
   twitterUrl       String?
   tokenMint        String?
@@ -94,6 +96,8 @@ model Project {
   /// [{ "label": "Magic Eden", "href": "https://..." }]
   marketplaces     Json?
   bannerImageUrl   String?
+  /// Square / ~1:1 image for directory & mobile listings (URL or /uploads/... from upload)
+  listingImageUrl  String?
   published        Boolean      @default(false)
   createdById      String?
   createdBy        AdminWallet? @relation(fields: [createdById], references: [id], onDelete: SetNull)

@@ -6,8 +6,7 @@ export default function AdminLotteriesPage() {
       </a>
       <h1 className="text-2xl font-semibold">Lotteries (admin)</h1>
       <p className="text-sm text-muted">
-        Coming next: create lottery with start/end, SPL mint rows (allocation cap + per-token
-        fields), blocked if an active lottery exists, auto-archive at end time.
+        Coming next: one active lottery at a time; blocked while a draw is running.
       </p>
     </div>
   );

@@ -37,3 +37,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Admin-uploaded project images (local / self-hosted; use blob/S3 on serverless)
+/public/uploads/projects/

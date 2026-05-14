@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { BrandPng } from "@/components/brand-png";
 import { HomeLotterySection } from "@/components/home-lottery-section";
+import { HomeDrawsSection } from "@/components/home-draws-section";
 
 export default function HomePage() {
   return (
@@ -40,6 +41,8 @@ export default function HomePage() {
       </section>
 
       <HomeLotterySection />
+
+      <HomeDrawsSection />
     </div>
   );
 }

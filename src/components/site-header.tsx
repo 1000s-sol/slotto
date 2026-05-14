@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { BrandPng } from "@/components/brand-png";
 import { XSocialLink } from "@/components/x-social-link";
+import { AdminNavLink } from "@/components/solana/admin-nav-link";
 import { WalletConnectButton } from "@/components/solana/wallet-connect-button";
 
 const links = [{ href: "/projects", label: "Projects" }];
@@ -34,12 +35,7 @@ export function SiteHeader() {
         >
           Profile
         </Link>
-        <Link
-          href="/admin"
-          className="rounded-lg border border-border px-3 py-2 text-sm font-semibold text-muted transition hover:border-accent-purple/50 hover:text-foreground"
-        >
-          Admin
-        </Link>
+        <AdminNavLink className="rounded-lg border border-border px-3 py-2 text-sm font-semibold text-muted transition hover:border-accent-purple/50 hover:text-foreground" />
         <XSocialLink className="inline-flex items-center justify-center rounded-lg px-2 py-2 text-accent-cyan transition hover:bg-surface hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-purple/50" />
         <WalletConnectButton />
       </nav>
