@@ -130,7 +130,7 @@ export default async function ProjectsPage({ searchParams }: Props) {
           {query ? "No published projects match that search." : "No published projects yet."}
         </div>
       ) : grid.length > 0 ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-3 lg:grid-cols-5">
           {grid.map((p) => (
             <ProjectCardTile
               key={p.slug}

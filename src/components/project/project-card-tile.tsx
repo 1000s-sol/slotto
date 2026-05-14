@@ -26,14 +26,14 @@ export function ProjectCardTile({ slug, name, likes, imageUrl }: TileProps) {
         )}
         <Link href={`/projects/${slug}`} className="absolute inset-0 z-10" aria-label={`Open ${name}`} />
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-bg-deep/80 via-transparent to-transparent opacity-90" />
-        <div className="absolute right-2 top-2 z-20 sm:right-3 sm:top-3">
+        <div className="absolute right-1.5 top-1.5 z-20 sm:right-2 sm:top-2">
           <ProjectLikePill slug={slug} initialLikes={likes} variant="compact" />
         </div>
       </div>
-      <div className="relative z-30 border-t border-border/60 bg-bg-elevated/95 px-3 py-3">
+      <div className="relative z-30 border-t border-border/60 bg-bg-elevated/95 px-2 py-2 sm:px-3 sm:py-2.5">
         <Link
           href={`/projects/${slug}`}
-          className="line-clamp-2 text-sm font-semibold leading-snug text-foreground transition hover:text-accent-cyan"
+          className="line-clamp-2 text-xs font-semibold leading-snug text-foreground transition hover:text-accent-cyan sm:text-sm"
         >
           {name}
         </Link>
