@@ -20,6 +20,7 @@ export type ProjectFormDefaults = {
   meUrlsInitial: string[];
   discordUrl: string;
   twitterUrl: string;
+  websiteUrl: string;
   tokenMint: string;
   bannerImageUrl: string;
   listingImageUrl: string;
@@ -34,6 +35,7 @@ const emptyDefaults: ProjectFormDefaults = {
   meUrlsInitial: ["", ""],
   discordUrl: "",
   twitterUrl: "",
+  websiteUrl: "",
   tokenMint: "",
   bannerImageUrl: "",
   listingImageUrl: "",
@@ -360,6 +362,18 @@ export function ProjectForm({
 
       <MagicEdenUrlsEditor key={projectId ?? "new-project"} initialUrls={merged.meUrlsInitial} />
 
+      <label className="flex flex-col gap-2 text-xs text-muted">
+        Project website (optional)
+        <input
+          name="websiteUrl"
+          type="text"
+          inputMode="url"
+          defaultValue={merged.websiteUrl}
+          placeholder="https://example.com"
+          className="rounded-xl border border-border bg-surface/60 px-3 py-2 text-sm text-foreground outline-none focus:border-accent-purple/40 focus:ring-4 focus:ring-accent-purple/15"
+        />
+      </label>
+
       <div className="grid gap-6 sm:grid-cols-2">
         <label className="flex flex-col gap-2 text-xs text-muted">
           Discord URL
@@ -434,6 +448,7 @@ export function defaultsFromProject(p: {
   meUrls: unknown;
   discordUrl: string | null;
   twitterUrl: string | null;
+  websiteUrl: string | null;
   tokenMint: string | null;
   bannerImageUrl: string | null;
   listingImageUrl: string | null;
@@ -447,6 +462,7 @@ export function defaultsFromProject(p: {
     meUrlsInitial: padMeUrlsMinTwo(magicEdenCollectionUrls(p.meUrls, p.meUrl)),
     discordUrl: p.discordUrl ?? "",
     twitterUrl: p.twitterUrl ?? "",
+    websiteUrl: p.websiteUrl ?? "",
     tokenMint: p.tokenMint ?? "",
     bannerImageUrl: p.bannerImageUrl ?? "",
     listingImageUrl: p.listingImageUrl ?? "",

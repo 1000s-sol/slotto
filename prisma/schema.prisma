@@ -90,6 +90,7 @@ model Project {
   meUrls           Json?
   discordUrl       String?
   twitterUrl       String?
+  websiteUrl       String?
   tokenMint        String?
   /// { floor, supply, listings, volume, sales24h } as strings for display
   stats            Json?

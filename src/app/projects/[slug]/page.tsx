@@ -82,6 +82,16 @@ export default async function ProjectPage({ params }: Props) {
               ) : null}
             </div>
             <div className="flex flex-wrap gap-2">
+              {project.websiteUrl ? (
+                <a
+                  href={project.websiteUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-lg border border-border px-3 py-2 text-xs font-medium text-muted hover:border-accent-purple/40 hover:text-foreground"
+                >
+                  Website
+                </a>
+              ) : null}
               {project.discordUrl ? (
                 <a
                   href={project.discordUrl}
