@@ -104,7 +104,20 @@ model Project {
   createdBy        AdminWallet? @relation(fields: [createdById], references: [id], onDelete: SetNull)
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
+  projectLikes     ProjectLike[]
 
   @@index([published, likes])
   @@index([published, name])
+}
+
+/// One like per wallet per published project (wallet = Solana address base58).
+model ProjectLike {
+  id        String   @id @default(cuid())
+  projectId String
+  wallet    String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([projectId, wallet])
+  @@index([projectId])
 }

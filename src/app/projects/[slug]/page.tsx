@@ -1,8 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { ProjectDetailActions } from "@/components/project/project-detail-actions";
+import { ProjectMeLinks } from "@/components/project/project-me-links";
+import { ProjectTokenBlock } from "@/components/project/project-token-block";
 import { fetchLiveMagicEdenStats, magicEdenCollectionUrls } from "@/lib/magiceden-stats";
 import { prisma } from "@/lib/prisma";
+import { fetchProjectTokenDisplay } from "@/lib/project-token-display";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -39,6 +43,9 @@ export default async function ProjectPage({ params }: Props) {
     if (live.avg24hSol) statRows.push({ label: "24h avg sale", value: `${live.avg24hSol} SOL` });
   }
 
+  const tokenMint = project.tokenMint?.trim() ?? "";
+  const tokenDisplay = tokenMint ? await fetchProjectTokenDisplay(tokenMint) : null;
+
   return (
     <div className="space-y-6">
       <Link href="/projects" className="inline-flex items-center gap-2 text-sm text-muted hover:text-foreground">
@@ -47,7 +54,7 @@ export default async function ProjectPage({ params }: Props) {
 
       <div className="overflow-hidden rounded-2xl border border-border bg-bg-elevated/80">
         {project.bannerImageUrl ? (
-          <div className="relative h-44 w-full sm:h-52">
+          <div className="relative h-56 w-full sm:h-72 md:h-80">
             <img
               src={project.bannerImageUrl}
               alt=""
@@ -57,86 +64,26 @@ export default async function ProjectPage({ params }: Props) {
             <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-bg-elevated via-transparent to-transparent" />
           </div>
         ) : (
-          <div className="h-40 bg-gradient-to-r from-accent-purple/30 via-surface to-accent-blue/30" />
+          <div className="min-h-52 bg-gradient-to-r from-accent-purple/30 via-surface to-accent-blue/30 sm:min-h-64" />
         )}
         <div className="space-y-6 px-6 pb-8 pt-6 sm:px-8">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-            <div>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0 flex-1">
               <h1 className="text-3xl font-semibold tracking-tight">{project.name}</h1>
-              {meCollectionUrls.length > 0 ? (
-                <div className="mt-2 space-y-1 text-sm text-muted">
-                  <p className="text-[11px] uppercase tracking-wide text-muted/80">Magic Eden</p>
-                  <ul className="list-inside list-disc space-y-0.5">
-                    {meCollectionUrls.map((url, i) => (
-                      <li key={`${url}-${i}`} className="marker:text-muted/50">
-                        {i === 0 ? (
-                          <span className="text-[11px] text-muted/70">Primary (stats) · </span>
-                        ) : null}
-                        <a className="text-accent-cyan hover:underline" href={url}>
-                          {url}
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
+              <ProjectMeLinks urls={meCollectionUrls} />
             </div>
-            <div className="flex flex-wrap gap-2">
-              {project.websiteUrl ? (
-                <a
-                  href={project.websiteUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="rounded-lg border border-border px-3 py-2 text-xs font-medium text-muted hover:border-accent-purple/40 hover:text-foreground"
-                >
-                  Website
-                </a>
-              ) : null}
-              {project.discordUrl ? (
-                <a
-                  href={project.discordUrl}
-                  className="rounded-lg border border-border px-3 py-2 text-xs font-medium text-muted hover:border-accent-purple/40 hover:text-foreground"
-                >
-                  Discord
-                </a>
-              ) : null}
-              {project.twitterUrl ? (
-                <a
-                  href={project.twitterUrl}
-                  className="rounded-lg border border-border px-3 py-2 text-xs font-medium text-muted hover:border-accent-purple/40 hover:text-foreground"
-                >
-                  X
-                </a>
-              ) : null}
-            </div>
+            <ProjectDetailActions
+              slug={slug}
+              initialLikes={project.likes}
+              websiteUrl={project.websiteUrl}
+              discordUrl={project.discordUrl}
+              twitterUrl={project.twitterUrl}
+            />
           </div>
 
           {live.ok && statRows.length > 0 ? (
             <div>
-              <p className="text-[11px] uppercase tracking-wide text-muted/90">
-                Live stats ·{" "}
-                {live.symbol ? (
-                  <a
-                    href={`https://magiceden.io/marketplace/${encodeURIComponent(live.symbol)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-accent-cyan hover:underline"
-                  >
-                    {live.symbol}
-                  </a>
-                ) : (
-                  <a
-                    href="https://magiceden.io/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-accent-cyan hover:underline"
-                  >
-                    Magic Eden
-                  </a>
-                )}{" "}
-                · cached ~2 min
-              </p>
-              <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
                 {statRows.map((row) => (
                   <div key={row.label} className="rounded-xl border border-border bg-surface/50 px-3 py-3 text-sm">
                     <div className="text-xs uppercase tracking-wide text-muted">{row.label}</div>
@@ -151,11 +98,8 @@ export default async function ProjectPage({ params }: Props) {
             </div>
           ) : null}
 
-          {project.tokenMint ? (
-            <div className="rounded-xl border border-border bg-surface/40 p-4 text-sm">
-              <div className="text-xs uppercase tracking-wide text-muted">Project token</div>
-              <div className="mt-1 break-all font-mono text-xs text-foreground">{project.tokenMint}</div>
-            </div>
+          {tokenMint && tokenDisplay ? (
+            <ProjectTokenBlock mint={tokenMint} symbol={tokenDisplay.symbol} logoUrl={tokenDisplay.logoUrl} />
           ) : null}
 
           {marketplaces.length > 0 ? (

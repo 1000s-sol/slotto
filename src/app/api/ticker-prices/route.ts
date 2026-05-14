@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 
+import { fetchHeliusTokenMeta, normalizeImageUrl } from "@/lib/helius-token-meta";
+
 /** Wrapped SOL — DexScreener / Jupiter “SOL” spot price */
 const SOL_MINT = "So11111111111111111111111111111111111111112";
 
@@ -31,20 +33,8 @@ type DexRow = {
   info?: { imageUrl?: string };
 };
 
-type HeliusMeta = { symbol?: string; image?: string };
-
 function abbrevMint(mint: string) {
   return `${mint.slice(0, 4)}…${mint.slice(-4)}`;
-}
-
-/** Many token images are ipfs:// — img src needs https gateway */
-function normalizeImageUrl(url: string | undefined): string | null {
-  if (!url) return null;
-  const u = url.trim();
-  if (!u) return null;
-  if (u.startsWith("ipfs://")) return `https://ipfs.io/ipfs/${u.slice(7)}`;
-  if (u.startsWith("http://") || u.startsWith("https://") || u.startsWith("data:")) return u;
-  return u;
 }
 
 async function fetchJupiterUsd(mints: readonly string[]): Promise<Record<string, number | null>> {
@@ -63,55 +53,6 @@ async function fetchJupiterUsd(mints: readonly string[]): Promise<Record<string,
     /* keep nulls */
   }
   return out;
-}
-
-async function fetchHeliusMeta(mint: string): Promise<HeliusMeta | null> {
-  const key = process.env.HELIUS_API_KEY;
-  if (!key) return null;
-  try {
-    const res = await fetch(`https://mainnet.helius-rpc.com/?api-key=${key}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        jsonrpc: "2.0",
-        id: "slotto-ticker",
-        method: "getAsset",
-        params: {
-          id: mint,
-          displayOptions: { showFungible: true },
-        },
-      }),
-      next: { revalidate: 300 },
-    });
-    if (!res.ok) return null;
-    const json = (await res.json()) as { result?: Record<string, unknown> };
-    const r = json.result as Record<string, unknown> | undefined;
-    if (!r) return null;
-    const content = r.content as Record<string, unknown> | undefined;
-    const metadata = content?.metadata as Record<string, unknown> | undefined;
-    const links = content?.links as Record<string, unknown> | undefined;
-    const tokenInfo = r.token_info as Record<string, unknown> | undefined;
-    const files = content?.files as Array<{ uri?: string; mime?: string }> | undefined;
-
-    const symRaw =
-      (metadata?.symbol as string | undefined)?.trim() ||
-      (tokenInfo?.symbol as string | undefined)?.trim();
-
-    const rawImage =
-      (links?.image as string | undefined)?.trim() ||
-      (typeof metadata?.image === "string" ? metadata.image.trim() : undefined) ||
-      files?.find((f) => f.uri && (!f.mime || f.mime.startsWith("image/")))?.uri?.trim() ||
-      files?.[0]?.uri?.trim();
-
-    const image = normalizeImageUrl(rawImage);
-
-    return {
-      symbol: symRaw || undefined,
-      image: image || undefined,
-    };
-  } catch {
-    return null;
-  }
 }
 
 export async function GET() {
@@ -139,10 +80,10 @@ export async function GET() {
       return !row?.info?.imageUrl?.trim();
     });
 
-    const heliusMap = new Map<string, HeliusMeta | null>();
+    const heliusMap = new Map<string, Awaited<ReturnType<typeof fetchHeliusTokenMeta>>>();
     await Promise.all(
       needsHelius.map(async (mint) => {
-        heliusMap.set(mint, await fetchHeliusMeta(mint));
+        heliusMap.set(mint, await fetchHeliusTokenMeta(mint));
       }),
     );
 
