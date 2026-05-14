@@ -7,6 +7,12 @@ type MeStats = {
   listedCount?: number;
   avgPrice24hr?: number;
   volumeAll?: number;
+  /** Present on some ME v2 responses */
+  totalSupply?: number;
+  supply?: number;
+  size?: number;
+  nftCount?: number;
+  count?: number;
 };
 
 type MeCollection = Record<string, unknown>;
@@ -32,15 +38,56 @@ function fmtSolLamports(lamports: number | undefined | null): string | null {
   return sol.toExponential(2);
 }
 
-function pickSupply(col: MeCollection | null): string | null {
-  if (!col) return null;
-  const candidates = ["size", "totalSupply", "supply", "nftCount", "count"];
-  for (const k of candidates) {
-    const v = col[k];
-    if (typeof v === "number" && Number.isFinite(v)) return String(Math.round(v));
+function asSupplyRecord(v: unknown): Record<string, unknown> | null {
+  return v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
+}
+
+const SUPPLY_KEYS = [
+  "size",
+  "totalSupply",
+  "supply",
+  "nftCount",
+  "count",
+  "totalItems",
+  "numItems",
+  "itemCount",
+  "items",
+  "minted",
+  "totalMints",
+  "maxSupply",
+  "collectionSize",
+] as const;
+
+/** Read total supply from a flat object (collection doc, stats doc, or nested metadata). */
+function pickSupplyFromObject(obj: Record<string, unknown> | null, depth = 0): string | null {
+  if (!obj || depth > 4) return null;
+  for (const k of SUPPLY_KEYS) {
+    const v = obj[k];
+    if (typeof v === "number" && Number.isFinite(v) && v >= 0) return String(Math.round(v));
     if (typeof v === "string" && /^\d+$/.test(v.trim())) return v.trim();
   }
+  const nestKeys = [
+    "onChainCollectionData",
+    "chainCollectionData",
+    "collection",
+    "meta",
+    "metadata",
+  ] as const;
+  for (const nk of nestKeys) {
+    const nested = asSupplyRecord(obj[nk]);
+    const s = pickSupplyFromObject(nested, depth + 1);
+    if (s) return s;
+  }
   return null;
+}
+
+function pickSupply(col: MeCollection | null): string | null {
+  return pickSupplyFromObject(asSupplyRecord(col), 0);
+}
+
+function pickSupplyFromStats(stats: MeStats | null): string | null {
+  if (!stats) return null;
+  return pickSupplyFromObject(asSupplyRecord(stats), 0);
 }
 
 /** Ordered Magic Eden collection URLs: `meUrls` JSON array, else legacy `meUrl`. */
@@ -139,6 +186,9 @@ export async function fetchLiveMagicEdenStats(
     fetchJson<MeCollection>(collectionUrl, revalidateSec),
   ]);
 
+  const supply =
+    pickSupply(collection) ?? pickSupplyFromStats(stats);
+
   if (!stats || (stats.floorPrice == null && stats.listedCount == null && stats.volumeAll == null)) {
     return {
       symbol,
@@ -146,7 +196,7 @@ export async function fetchLiveMagicEdenStats(
       listings: null,
       volumeSol: null,
       avg24hSol: null,
-      supply: pickSupply(collection),
+      supply,
       ok: false,
       message: "Magic Eden did not return stats for this collection. Check the URL or try again later.",
     };
@@ -161,7 +211,7 @@ export async function fetchLiveMagicEdenStats(
         : null,
     volumeSol: fmtSolLamports(stats.volumeAll),
     avg24hSol: fmtSolLamports(stats.avgPrice24hr),
-    supply: pickSupply(collection),
+    supply,
     ok: true,
     message: null,
   };

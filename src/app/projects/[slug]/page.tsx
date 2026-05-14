@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { ProjectDetailActions } from "@/components/project/project-detail-actions";
+import { MarketplaceLinkChip } from "@/components/project/marketplace-link-chip";
+import { ProjectLikePill, ProjectSocialLinks } from "@/components/project/project-detail-actions";
 import { ProjectMeLinks } from "@/components/project/project-me-links";
 import { ProjectTokenBlock } from "@/components/project/project-token-block";
 import { fetchLiveMagicEdenStats, magicEdenCollectionUrls } from "@/lib/magiceden-stats";
@@ -37,7 +38,7 @@ export default async function ProjectPage({ params }: Props) {
   const statRows: { label: string; value: string }[] = [];
   if (live.ok) {
     if (live.floorSol) statRows.push({ label: "Floor", value: `${live.floorSol} SOL` });
-    if (live.supply) statRows.push({ label: "Supply", value: live.supply });
+    if (live.supply) statRows.push({ label: "Total supply", value: live.supply });
     if (live.listings) statRows.push({ label: "Listings", value: live.listings });
     if (live.volumeSol) statRows.push({ label: "Volume (all-time)", value: `${live.volumeSol} SOL` });
     if (live.avg24hSol) statRows.push({ label: "24h avg sale", value: `${live.avg24hSol} SOL` });
@@ -62,9 +63,20 @@ export default async function ProjectPage({ params }: Props) {
               referrerPolicy="no-referrer"
             />
             <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-bg-elevated via-transparent to-transparent" />
+            <ProjectLikePill
+              slug={slug}
+              initialLikes={project.likes}
+              className="absolute right-3 top-3 z-20 sm:right-4 sm:top-4"
+            />
           </div>
         ) : (
-          <div className="min-h-52 bg-gradient-to-r from-accent-purple/30 via-surface to-accent-blue/30 sm:min-h-64" />
+          <div className="relative min-h-52 bg-gradient-to-r from-accent-purple/30 via-surface to-accent-blue/30 sm:min-h-64">
+            <ProjectLikePill
+              slug={slug}
+              initialLikes={project.likes}
+              className="absolute right-3 top-3 z-20 sm:right-4 sm:top-4"
+            />
+          </div>
         )}
         <div className="space-y-6 px-6 pb-8 pt-6 sm:px-8">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -72,9 +84,7 @@ export default async function ProjectPage({ params }: Props) {
               <h1 className="text-3xl font-semibold tracking-tight">{project.name}</h1>
               <ProjectMeLinks urls={meCollectionUrls} />
             </div>
-            <ProjectDetailActions
-              slug={slug}
-              initialLikes={project.likes}
+            <ProjectSocialLinks
               websiteUrl={project.websiteUrl}
               discordUrl={project.discordUrl}
               twitterUrl={project.twitterUrl}
@@ -83,11 +93,16 @@ export default async function ProjectPage({ params }: Props) {
 
           {live.ok && statRows.length > 0 ? (
             <div>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+              <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
                 {statRows.map((row) => (
-                  <div key={row.label} className="rounded-xl border border-border bg-surface/50 px-3 py-3 text-sm">
-                    <div className="text-xs uppercase tracking-wide text-muted">{row.label}</div>
-                    <div className="mt-1 font-semibold text-foreground">{row.value}</div>
+                  <div
+                    key={row.label}
+                    className="rounded-xl border border-accent-gold/25 bg-surface/35 px-3 py-3 text-sm shadow-sm shadow-accent-gold/5"
+                  >
+                    <div className="text-xs font-medium uppercase tracking-wide text-accent-gold/75">
+                      {row.label}
+                    </div>
+                    <div className="mt-1 font-semibold tabular-nums text-accent-gold">{row.value}</div>
                   </div>
                 ))}
               </div>
@@ -105,15 +120,11 @@ export default async function ProjectPage({ params }: Props) {
           {marketplaces.length > 0 ? (
             <div>
               <h2 className="text-lg font-semibold">Marketplaces</h2>
-              <ul className="mt-2 space-y-2 text-sm">
+              <div className="mt-2 flex flex-wrap gap-2">
                 {marketplaces.map((m) => (
-                  <li key={m.href}>
-                    <a className="text-accent-cyan hover:underline" href={m.href}>
-                      {m.label}
-                    </a>
-                  </li>
+                  <MarketplaceLinkChip key={m.href} href={m.href} label={m.label} />
                 ))}
-              </ul>
+              </div>
             </div>
           ) : null}
 

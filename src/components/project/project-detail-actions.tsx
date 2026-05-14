@@ -4,24 +4,16 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { useCallback, useEffect, useState } from "react";
 
-type Props = {
+type LikeProps = {
   slug: string;
   initialLikes: number;
-  websiteUrl: string | null;
-  discordUrl: string | null;
-  twitterUrl: string | null;
+  className?: string;
 };
 
-const iconBtn =
-  "inline-flex h-10 w-10 items-center justify-center rounded-xl border border-border/70 bg-surface/40 text-muted backdrop-blur-sm transition hover:border-accent-purple/40 hover:text-foreground";
+const likePillBase =
+  "inline-flex items-center gap-2 rounded-full border border-accent-gold/35 bg-bg-deep/55 px-3 py-1.5 text-sm text-accent-gold shadow-lg backdrop-blur-md transition hover:border-accent-gold/55 hover:bg-bg-deep/70 disabled:opacity-60";
 
-export function ProjectDetailActions({
-  slug,
-  initialLikes,
-  websiteUrl,
-  discordUrl,
-  twitterUrl,
-}: Props) {
+export function ProjectLikePill({ slug, initialLikes, className = "" }: LikeProps) {
   const { connected, publicKey } = useWallet();
   const { setVisible } = useWalletModal();
   const [likes, setLikes] = useState(initialLikes);
@@ -72,67 +64,79 @@ export function ProjectDetailActions({
     }
   }
 
-  const starGoldFill = connected && liked;
-  const starGoldOutline = connected && !liked;
+  const filled = connected && liked;
 
   return (
-    <div className="flex shrink-0 flex-col items-stretch gap-3 sm:items-end">
-      <button
-        type="button"
-        onClick={() => void onLikeClick()}
-        disabled={busy}
-        className="inline-flex items-center gap-2 self-end rounded-full border border-border/60 bg-surface/45 px-3 py-1.5 text-sm backdrop-blur-md transition hover:border-accent-purple/35 disabled:opacity-60"
-        aria-pressed={connected ? liked : undefined}
-        aria-label={connected ? (liked ? "Unlike project" : "Like project") : "Connect wallet to like"}
-      >
-        <StarIcon goldFill={starGoldFill} goldOutline={starGoldOutline} />
-        <span className="min-w-[1ch] tabular-nums font-medium text-foreground">{likes}</span>
-      </button>
+    <button
+      type="button"
+      onClick={() => void onLikeClick()}
+      disabled={busy}
+      className={`${likePillBase} ${className}`.trim()}
+      aria-pressed={connected ? liked : undefined}
+      aria-label={connected ? (liked ? "Unlike project" : "Like project") : "Connect wallet to like"}
+    >
+      <StarIcon filled={filled} />
+      <span className="min-w-[1ch] tabular-nums font-semibold text-accent-gold">{likes}</span>
+    </button>
+  );
+}
 
-      <div className="flex flex-wrap justify-end gap-2">
-        {websiteUrl ? (
-          <a
-            href={websiteUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={iconBtn}
-            aria-label="Website"
-            title="Website"
-          >
-            <GlobeIcon className="h-5 w-5" />
-          </a>
-        ) : null}
-        {discordUrl ? (
-          <a
-            href={discordUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={iconBtn}
-            aria-label="Discord"
-            title="Discord"
-          >
-            <DiscordIcon className="h-5 w-5" />
-          </a>
-        ) : null}
-        {twitterUrl ? (
-          <a
-            href={twitterUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={iconBtn}
-            aria-label="X"
-            title="X"
-          >
-            <XIcon className="h-5 w-5" />
-          </a>
-        ) : null}
-      </div>
+type SocialProps = {
+  websiteUrl: string | null;
+  discordUrl: string | null;
+  twitterUrl: string | null;
+};
+
+const iconBtn =
+  "inline-flex h-10 w-10 items-center justify-center rounded-xl border border-border/70 bg-surface/40 text-muted backdrop-blur-sm transition hover:border-accent-purple/40 hover:text-foreground";
+
+export function ProjectSocialLinks({ websiteUrl, discordUrl, twitterUrl }: SocialProps) {
+  if (!websiteUrl && !discordUrl && !twitterUrl) return null;
+
+  return (
+    <div className="flex shrink-0 flex-wrap justify-end gap-2">
+      {websiteUrl ? (
+        <a
+          href={websiteUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={iconBtn}
+          aria-label="Website"
+          title="Website"
+        >
+          <GlobeIcon className="h-5 w-5" />
+        </a>
+      ) : null}
+      {discordUrl ? (
+        <a
+          href={discordUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={iconBtn}
+          aria-label="Discord"
+          title="Discord"
+        >
+          <DiscordIcon className="h-5 w-5" />
+        </a>
+      ) : null}
+      {twitterUrl ? (
+        <a
+          href={twitterUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={iconBtn}
+          aria-label="X"
+          title="X"
+        >
+          <XIcon className="h-5 w-5" />
+        </a>
+      ) : null}
     </div>
   );
 }
 
-function StarIcon({ goldFill, goldOutline }: { goldFill: boolean; goldOutline: boolean }) {
-  if (goldFill) {
+function StarIcon({ filled }: { filled: boolean }) {
+  if (filled) {
     return (
       <svg className="h-5 w-5 text-accent-gold" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
         <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
@@ -141,7 +145,7 @@ function StarIcon({ goldFill, goldOutline }: { goldFill: boolean; goldOutline: b
   }
   return (
     <svg
-      className={`h-5 w-5 ${goldOutline ? "text-accent-gold" : "text-muted"}`}
+      className="h-5 w-5 text-accent-gold"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
