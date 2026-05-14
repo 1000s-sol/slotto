@@ -97,11 +97,9 @@ export default async function ProjectPage({ params }: Props) {
                 {statRows.map((row) => (
                   <div
                     key={row.label}
-                    className="rounded-xl border border-accent-gold/25 bg-surface/35 px-3 py-3 text-sm shadow-sm shadow-accent-gold/5"
+                    className="rounded-xl border border-border bg-surface/50 px-3 py-3 text-sm"
                   >
-                    <div className="text-xs font-medium uppercase tracking-wide text-accent-gold/75">
-                      {row.label}
-                    </div>
+                    <div className="text-xs uppercase tracking-wide text-muted">{row.label}</div>
                     <div className="mt-1 font-semibold tabular-nums text-accent-gold">{row.value}</div>
                   </div>
                 ))}

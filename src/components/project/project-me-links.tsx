@@ -17,13 +17,13 @@ export function ProjectMeLinks({ urls }: { urls: string[] }) {
             href={url}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex max-w-[min(100%,14rem)] items-center gap-1.5 rounded-full border border-border/60 bg-surface/35 px-2 py-1 text-muted backdrop-blur-sm transition hover:border-accent-purple/35 hover:text-foreground"
+            className="inline-flex max-w-[min(100%,16rem)] items-center gap-2 rounded-full border border-border/60 bg-surface/35 px-2.5 py-1.5 text-muted backdrop-blur-sm transition hover:border-accent-purple/35 hover:text-foreground"
             title={url}
           >
             <img
               src={MARKETPLACE_ICON.magicEden}
               alt=""
-              className="h-4 w-4 shrink-0 rounded object-contain"
+              className="h-7 w-7 shrink-0 rounded-md object-contain sm:h-8 sm:w-8"
               loading="lazy"
               decoding="async"
             />

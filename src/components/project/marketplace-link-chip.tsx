@@ -1,7 +1,7 @@
 import { marketplaceIconForHref } from "@/lib/marketplace-icons";
 
 const chipClass =
-  "inline-flex max-w-[min(100%,18rem)] items-center gap-1.5 rounded-full border border-border/60 bg-surface/35 px-2.5 py-1 text-xs text-muted backdrop-blur-sm transition hover:border-accent-purple/35 hover:text-foreground";
+  "inline-flex max-w-[min(100%,20rem)] items-center gap-2 rounded-full border border-border/60 bg-surface/35 px-3 py-1.5 text-xs text-muted backdrop-blur-sm transition hover:border-accent-purple/35 hover:text-foreground";
 
 export function MarketplaceLinkChip({ href, label }: { href: string; label: string }) {
   const iconSrc = marketplaceIconForHref(href);
@@ -17,12 +17,12 @@ export function MarketplaceLinkChip({ href, label }: { href: string; label: stri
         <img
           src={iconSrc}
           alt=""
-          className="h-4 w-4 shrink-0 rounded object-contain"
+          className="h-7 w-7 shrink-0 rounded-md object-contain sm:h-8 sm:w-8"
           loading="lazy"
           decoding="async"
         />
       ) : (
-        <GenericLinkGlyph className="h-4 w-4 shrink-0 text-muted" />
+        <GenericLinkGlyph className="h-7 w-7 shrink-0 text-muted sm:h-8 sm:w-8" />
       )}
       <span className="truncate font-medium">{label}</span>
     </a>

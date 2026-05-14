@@ -1,3 +1,5 @@
+import { fetchCollectionNftCountViaHelius } from "@/lib/helius-collection-nft-count";
+
 const ME_API = "https://api-mainnet.magiceden.dev/v2";
 const LAMPORTS_PER_SOL = 1e9;
 
@@ -186,8 +188,10 @@ export async function fetchLiveMagicEdenStats(
     fetchJson<MeCollection>(collectionUrl, revalidateSec),
   ]);
 
-  const supply =
-    pickSupply(collection) ?? pickSupplyFromStats(stats);
+  let supply = pickSupply(collection) ?? pickSupplyFromStats(stats);
+  if (!supply) {
+    supply = await fetchCollectionNftCountViaHelius(symbol, collection, revalidateSec);
+  }
 
   if (!stats || (stats.floorPrice == null && stats.listedCount == null && stats.volumeAll == null)) {
     return {
