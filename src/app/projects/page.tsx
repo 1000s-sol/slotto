@@ -93,8 +93,9 @@ export default async function ProjectsPage({ searchParams }: Props) {
       where: { published: true },
       select,
     })) as ProjectRow[];
-    featured = pickFeatured(all);
-    const rest = featured ? all.filter((p) => p.slug !== featured.slug) : all;
+    const featuredPick = pickFeatured(all);
+    featured = featuredPick;
+    const rest = featuredPick ? all.filter((p) => p.slug !== featuredPick.slug) : all;
     grid = sortProjects(rest, sort);
   }
 

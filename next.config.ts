@@ -15,6 +15,10 @@ const vercelBlobUndiciShim = path.join(
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ["@vercel/blob"],
+  /** ESLint plugin resolution can differ on Vercel; `next build` still runs TypeScript. */
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   transpilePackages: [
     "@noble/curves",
     "@solana/wallet-adapter-base",

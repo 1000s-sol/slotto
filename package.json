@@ -19,8 +19,8 @@
     "reinstall:rm": "rm -rf node_modules && npm install --no-fund --no-audit"
   },
   "dependencies": {
-    "@prisma/client": "^6.19.0",
     "@noble/curves": "^1.8.0",
+    "@prisma/client": "^6.19.0",
     "@solana/wallet-adapter-base": "^0.9.27",
     "@solana/wallet-adapter-react": "^0.15.39",
     "@solana/wallet-adapter-react-ui": "^0.9.39",
@@ -41,14 +41,15 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@next/eslint-plugin-next": "^15.5.18",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "dotenv": "^16.4.7",
     "eslint": "^9",
     "eslint-config-next": "^15.3.0",
     "eslint-plugin-react-hooks": "^5.1.0",
-    "dotenv": "^16.4.7",
     "prisma": "^6.19.0",
     "tailwindcss": "^4",
     "tsx": "^4.19.4",
