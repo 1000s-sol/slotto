@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { DeleteProjectForm, ProjectForm, defaultsFromProject } from "@/components/admin/project-form";
+import { DeleteProjectForm, ProjectForm } from "@/components/admin/project-form";
+import { defaultsFromProject } from "@/lib/project-form-defaults";
 import { prisma } from "@/lib/prisma";
 
 type Props = {
