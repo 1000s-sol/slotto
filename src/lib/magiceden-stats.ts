@@ -44,7 +44,7 @@ function asSupplyRecord(v: unknown): Record<string, unknown> | null {
   return v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
 }
 
-const SUPPLY_KEYS = [
+const SUPPLY_KEYS_SHALLOW = [
   "size",
   "totalSupply",
   "supply",
@@ -53,29 +53,38 @@ const SUPPLY_KEYS = [
   "totalItems",
   "numItems",
   "itemCount",
-  "items",
   "minted",
   "totalMints",
   "maxSupply",
   "collectionSize",
 ] as const;
 
-/** Read total supply from a flat object (collection doc, stats doc, or nested metadata). */
+/** Deeper JSON often has per-NFT `supply: 1` — never treat those as collection size. */
+const SUPPLY_KEYS_DEEP = [
+  "size",
+  "totalSupply",
+  "nftCount",
+  "totalItems",
+  "numItems",
+  "itemCount",
+  "minted",
+  "totalMints",
+  "maxSupply",
+  "collectionSize",
+] as const;
+
+const NEST_KEYS = ["onChainCollectionData", "chainCollectionData", "collection"] as const;
+
+/** Read total supply from collection / stats JSON (skips token metadata nests). */
 function pickSupplyFromObject(obj: Record<string, unknown> | null, depth = 0): string | null {
   if (!obj || depth > 4) return null;
-  for (const k of SUPPLY_KEYS) {
+  const keys = depth === 0 ? SUPPLY_KEYS_SHALLOW : SUPPLY_KEYS_DEEP;
+  for (const k of keys) {
     const v = obj[k];
     if (typeof v === "number" && Number.isFinite(v) && v >= 0) return String(Math.round(v));
     if (typeof v === "string" && /^\d+$/.test(v.trim())) return v.trim();
   }
-  const nestKeys = [
-    "onChainCollectionData",
-    "chainCollectionData",
-    "collection",
-    "meta",
-    "metadata",
-  ] as const;
-  for (const nk of nestKeys) {
+  for (const nk of NEST_KEYS) {
     const nested = asSupplyRecord(obj[nk]);
     const s = pickSupplyFromObject(nested, depth + 1);
     if (s) return s;
@@ -90,6 +99,15 @@ function pickSupply(col: MeCollection | null): string | null {
 function pickSupplyFromStats(stats: MeStats | null): string | null {
   if (!stats) return null;
   return pickSupplyFromObject(asSupplyRecord(stats), 0);
+}
+
+/** ME-listed count cannot exceed true total supply — reject bogus JSON (e.g. per-NFT supply 1). */
+function isImplausibleSupplyVsListings(supplyStr: string | null, listedCount: number | null): boolean {
+  if (!supplyStr) return false;
+  const s = Number(supplyStr);
+  if (!Number.isFinite(s) || s < 1) return true;
+  if (listedCount == null || !Number.isFinite(listedCount) || listedCount < 1) return false;
+  return s < listedCount;
 }
 
 /** Ordered Magic Eden collection URLs: `meUrls` JSON array, else legacy `meUrl`. */
@@ -188,9 +206,15 @@ export async function fetchLiveMagicEdenStats(
     fetchJson<MeCollection>(collectionUrl, revalidateSec),
   ]);
 
+  const listedRounded =
+    stats?.listedCount != null && Number.isFinite(stats.listedCount) ? Math.round(stats.listedCount) : null;
+
   let supply = pickSupply(collection) ?? pickSupplyFromStats(stats);
+  if (isImplausibleSupplyVsListings(supply, listedRounded)) {
+    supply = null;
+  }
   if (!supply) {
-    supply = await fetchCollectionNftCountViaHelius(symbol, collection, revalidateSec);
+    supply = await fetchCollectionNftCountViaHelius(symbol, collection, revalidateSec, listedRounded);
   }
 
   if (!stats || (stats.floorPrice == null && stats.listedCount == null && stats.volumeAll == null)) {

@@ -115,37 +115,36 @@ async function heliusCollectionMintFromSampleNft(
 }
 
 /**
- * Total NFT count for a verified collection mint (Helius searchAssets + showGrandTotal).
- * Slower than ME stats; use when ME does not expose supply.
+ * Count NFTs in a verified Metaplex collection via Helius `getAssetsByGroup`
+ * (paginated). Avoids `searchAssets` pitfalls: `tokenType: "all"` returns no rows,
+ * and `showGrandTotal` + small `limit` can mirror the page size instead of supply.
  */
-async function heliusSearchAssetsCollectionGrandTotal(
+async function countNftsByCollectionMint(
   collectionMint: string,
   apiKey: string,
   revalidateSec: number,
 ): Promise<number | null> {
-  const result = await heliusRpc<Record<string, unknown>>(
-    apiKey,
-    "searchAssets",
-    {
-      grouping: ["collection", collectionMint.trim()],
-      limit: 1,
-      page: 1,
-      options: {
-        showGrandTotal: true,
-        showUnverifiedCollections: true,
+  const limit = 1000;
+  const maxPages = 100;
+  let sum = 0;
+  for (let page = 1; page <= maxPages; page++) {
+    const result = await heliusRpc<Record<string, unknown>>(
+      apiKey,
+      "getAssetsByGroup",
+      {
+        groupKey: "collection",
+        groupValue: collectionMint.trim(),
+        page,
+        limit,
       },
-    },
-    revalidateSec,
-  );
-  if (!result) return null;
-  if (typeof result.total === "number" && Number.isFinite(result.total) && result.total >= 0) {
-    return Math.round(result.total);
+      revalidateSec,
+    );
+    const items = result?.items;
+    const batch = Array.isArray(items) ? items.length : 0;
+    sum += batch;
+    if (batch < limit) break;
   }
-  const assets = result.assets as Record<string, unknown> | undefined;
-  if (typeof assets?.total === "number" && Number.isFinite(assets.total) && assets.total >= 0) {
-    return Math.round(assets.total);
-  }
-  return null;
+  return sum > 0 ? sum : null;
 }
 
 const ME_COLLECTION_MINT_KEYS = [
@@ -180,15 +179,18 @@ export function extractCollectionMintFromMeCollection(col: Record<string, unknow
 }
 
 /**
- * Resolve total supply when ME collection/stats omit it: Helius DAS counts assets
- * grouped by verified collection mint. Requires HELIUS_API_KEY.
+ * Resolve total supply when ME collection/stats omit it: Helius DAS
+ * `getAssetsByGroup` paginated count. Requires HELIUS_API_KEY.
  *
- * Tries, in order: collection doc mint fields → sample listing mint → getAsset → searchAssets total.
+ * Tries, in order: collection doc mint fields → sample listing mint → getAsset → paginated count.
+ *
+ * `listingsHint` is reserved for future sanity checks; supply is always derived from chain count.
  */
 export async function fetchCollectionNftCountViaHelius(
   symbol: string,
   meCollection: Record<string, unknown> | null,
   revalidateSec: number,
+  _listingsHint: number | null = null,
 ): Promise<string | null> {
   const apiKey = process.env.HELIUS_API_KEY;
   if (!apiKey) return null;
@@ -203,30 +205,6 @@ export async function fetchCollectionNftCountViaHelius(
   }
   if (!collectionMint) return null;
 
-  const total = await heliusSearchAssetsCollectionGrandTotal(collectionMint, apiKey, revalidateSec);
-  if (total != null) return String(total);
-
-  /** Last resort: paginate search results (capped) if grand total is unavailable. */
-  let sum = 0;
-  const limit = 1000;
-  const maxPages = 100;
-  for (let page = 1; page <= maxPages; page++) {
-    const pageResult = await heliusRpc<Record<string, unknown>>(
-      apiKey,
-      "searchAssets",
-      {
-        grouping: ["collection", collectionMint.trim()],
-        limit,
-        page,
-        tokenType: "all",
-        options: { showUnverifiedCollections: true },
-      },
-      revalidateSec,
-    );
-    const items = pageResult?.items;
-    const batch = Array.isArray(items) ? items.length : 0;
-    sum += batch;
-    if (batch < limit) break;
-  }
-  return sum > 0 ? String(sum) : null;
+  const n = await countNftsByCollectionMint(collectionMint, apiKey, revalidateSec);
+  return n != null ? String(n) : null;
 }
