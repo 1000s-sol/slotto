@@ -1,108 +1,145 @@
 import Link from "next/link";
+import { Suspense } from "react";
 
+import { FeaturedProjectOfWeek } from "@/components/project/featured-project-of-week";
+import { ProjectCardTile } from "@/components/project/project-card-tile";
+import { ProjectsToolbar } from "@/components/project/projects-toolbar";
+import { floorSolSortKey } from "@/lib/project-floor-sort";
 import { prisma } from "@/lib/prisma";
 
-type Props = { searchParams: Promise<{ q?: string }> };
+type Props = { searchParams: Promise<{ q?: string; sort?: string }> };
+
+type SortMode = "likes" | "name" | "floor";
+
+type ProjectRow = {
+  slug: string;
+  name: string;
+  likes: number;
+  reviewMd: string;
+  bannerImageUrl: string | null;
+  listingImageUrl: string | null;
+  stats: unknown;
+};
+
+function parseSort(raw: string | undefined): SortMode {
+  if (raw === "name" || raw === "floor") return raw;
+  return "likes";
+}
+
+function sortProjects(list: ProjectRow[], sort: SortMode): ProjectRow[] {
+  const out = [...list];
+  if (sort === "name") {
+    out.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+  } else if (sort === "floor") {
+    out.sort((a, b) => {
+      const fa = floorSolSortKey(a.stats);
+      const fb = floorSolSortKey(b.stats);
+      if (fa !== fb) return fa - fb;
+      return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+    });
+  } else {
+    out.sort((a, b) => {
+      if (b.likes !== a.likes) return b.likes - a.likes;
+      return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+    });
+  }
+  return out;
+}
+
+function pickFeatured(all: ProjectRow[]): ProjectRow | null {
+  if (all.length === 0) return null;
+  const envSlug = process.env.FEATURED_PROJECT_SLUG?.trim();
+  if (envSlug) {
+    const hit = all.find((p) => p.slug === envSlug);
+    if (hit) return hit;
+  }
+  const byLikes = [...all].sort((a, b) => b.likes - a.likes || a.name.localeCompare(b.name));
+  return byLikes[0] ?? null;
+}
+
+function thumb(p: Pick<ProjectRow, "listingImageUrl" | "bannerImageUrl">) {
+  return p.listingImageUrl || p.bannerImageUrl;
+}
 
 export default async function ProjectsPage({ searchParams }: Props) {
-  const { q } = await searchParams;
+  const { q, sort: sortRaw } = await searchParams;
   const query = q?.trim();
+  const sort = parseSort(sortRaw);
 
-  const projects = await prisma.project.findMany({
-    where: {
-      published: true,
-      ...(query
-        ? {
-            name: {
-              contains: query,
-              mode: "insensitive" as const,
-            },
-          }
-        : {}),
-    },
-    orderBy: [{ name: "asc" }],
-    select: {
-      slug: true,
-      name: true,
-      bannerImageUrl: true,
-      listingImageUrl: true,
-    },
-  });
+  const select = {
+    slug: true,
+    name: true,
+    likes: true,
+    reviewMd: true,
+    bannerImageUrl: true,
+    listingImageUrl: true,
+    stats: true,
+  } as const;
+
+  let featured: ProjectRow | null = null;
+  let grid: ProjectRow[];
+
+  if (query) {
+    const raw = await prisma.project.findMany({
+      where: {
+        published: true,
+        name: { contains: query, mode: "insensitive" as const },
+      },
+      select,
+    });
+    grid = sortProjects(raw as ProjectRow[], sort);
+  } else {
+    const all = (await prisma.project.findMany({
+      where: { published: true },
+      select,
+    })) as ProjectRow[];
+    featured = pickFeatured(all);
+    const rest = featured ? all.filter((p) => p.slug !== featured.slug) : all;
+    grid = sortProjects(rest, sort);
+  }
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">Projects</h1>
-          <p className="mt-2 max-w-xl text-sm text-muted">
-            Curated listings in alphabetical order. Search filters the public directory.
-          </p>
         </div>
-        <form className="flex w-full flex-col gap-2 text-xs text-muted sm:w-72" action="/projects" method="get">
-          <label htmlFor="q">Search</label>
-          <input
-            id="q"
-            name="q"
-            defaultValue={query ?? ""}
-            placeholder="Search by project name"
-            className="rounded-xl border border-border bg-surface/60 px-3 py-2 text-sm text-foreground outline-none ring-accent-purple/0 transition focus:border-accent-purple/40 focus:ring-4 focus:ring-accent-purple/15"
-          />
-        </form>
+        <Suspense
+          fallback={
+            <div className="h-[4.5rem] w-full max-w-sm animate-pulse rounded-xl bg-surface/40 sm:ml-auto sm:w-72" />
+          }
+        >
+          <ProjectsToolbar defaultSort="likes" />
+        </Suspense>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-border bg-bg-elevated/70">
-        <table className="w-full text-left text-sm">
-          <thead className="border-b border-border bg-surface/40 text-xs uppercase tracking-wide text-muted">
-            <tr>
-              <th className="px-4 py-3 font-medium">Project</th>
-            </tr>
-          </thead>
-          <tbody>
-            {projects.length === 0 ? (
-              <tr>
-                <td className="px-4 py-10 text-center text-sm text-muted">
-                  {query ? "No published projects match that search." : "No published projects yet."}
-                </td>
-              </tr>
-            ) : (
-              projects.map((p) => {
-                const thumb = p.listingImageUrl || p.bannerImageUrl;
-                return (
-                <tr key={p.slug} className="border-b border-border/60 last:border-0">
-                  <td className="px-4 py-4">
-                    <div className="flex items-start gap-3">
-                      <div className="relative size-14 shrink-0 overflow-hidden rounded-xl border border-border bg-surface/50 sm:size-16">
-                        {thumb ? (
-                          <img
-                            src={thumb}
-                            alt=""
-                            className="h-full w-full object-cover"
-                            loading="lazy"
-                            referrerPolicy="no-referrer"
-                          />
-                        ) : (
-                          <div className="flex h-full w-full items-center justify-center text-[10px] text-muted">
-                            —
-                          </div>
-                        )}
-                      </div>
-                      <div className="min-w-0">
-                        <Link
-                          href={`/projects/${p.slug}`}
-                          className="font-medium text-foreground hover:text-accent-cyan"
-                        >
-                          {p.name}
-                        </Link>
-                      </div>
-                    </div>
-                  </td>
-                </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
+      {!query && featured ? (
+        <FeaturedProjectOfWeek
+          slug={featured.slug}
+          name={featured.name}
+          likes={featured.likes}
+          reviewMd={featured.reviewMd}
+          imageUrl={thumb(featured)}
+        />
+      ) : null}
+
+      {grid.length === 0 && !featured ? (
+        <div className="rounded-2xl border border-border bg-bg-elevated/70 px-6 py-14 text-center text-sm text-muted">
+          {query ? "No published projects match that search." : "No published projects yet."}
+        </div>
+      ) : grid.length > 0 ? (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {grid.map((p) => (
+            <ProjectCardTile
+              key={p.slug}
+              slug={p.slug}
+              name={p.name}
+              likes={p.likes}
+              imageUrl={thumb(p)}
+            />
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }

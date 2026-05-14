@@ -8,12 +8,17 @@ type LikeProps = {
   slug: string;
   initialLikes: number;
   className?: string;
+  /** Smaller pill for directory tiles */
+  variant?: "default" | "compact";
 };
 
-const likePillBase =
+const likePillDefault =
   "inline-flex items-center gap-2 rounded-full border border-accent-gold/35 bg-bg-deep/55 px-3 py-1.5 text-sm text-accent-gold shadow-lg backdrop-blur-md transition hover:border-accent-gold/55 hover:bg-bg-deep/70 disabled:opacity-60";
 
-export function ProjectLikePill({ slug, initialLikes, className = "" }: LikeProps) {
+const likePillCompact =
+  "inline-flex items-center gap-1.5 rounded-full border border-accent-gold/35 bg-bg-deep/55 px-2 py-1 text-xs text-accent-gold shadow-md backdrop-blur-md transition hover:border-accent-gold/55 hover:bg-bg-deep/70 disabled:opacity-60";
+
+export function ProjectLikePill({ slug, initialLikes, className = "", variant = "default" }: LikeProps) {
   const { connected, publicKey } = useWallet();
   const { setVisible } = useWalletModal();
   const [likes, setLikes] = useState(initialLikes);
@@ -66,16 +71,18 @@ export function ProjectLikePill({ slug, initialLikes, className = "" }: LikeProp
 
   const filled = connected && liked;
 
+  const base = variant === "compact" ? likePillCompact : likePillDefault;
+
   return (
     <button
       type="button"
       onClick={() => void onLikeClick()}
       disabled={busy}
-      className={`${likePillBase} ${className}`.trim()}
+      className={`${base} ${className}`.trim()}
       aria-pressed={connected ? liked : undefined}
       aria-label={connected ? (liked ? "Unlike project" : "Like project") : "Connect wallet to like"}
     >
-      <StarIcon filled={filled} />
+      <StarIcon filled={filled} compact={variant === "compact"} />
       <span className="min-w-[1ch] tabular-nums font-semibold text-accent-gold">{likes}</span>
     </button>
   );
@@ -135,17 +142,18 @@ export function ProjectSocialLinks({ websiteUrl, discordUrl, twitterUrl }: Socia
   );
 }
 
-function StarIcon({ filled }: { filled: boolean }) {
+function StarIcon({ filled, compact }: { filled: boolean; compact?: boolean }) {
+  const sz = compact ? "h-4 w-4" : "h-5 w-5";
   if (filled) {
     return (
-      <svg className="h-5 w-5 text-accent-gold" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <svg className={`${sz} text-accent-gold`} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
         <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
       </svg>
     );
   }
   return (
     <svg
-      className="h-5 w-5 text-accent-gold"
+      className={`${sz} text-accent-gold`}
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
