@@ -9,7 +9,7 @@ import {
 } from "@/app/admin/(dashboard)/projects/actions";
 import type { ProjectFormState } from "@/lib/project-form-state";
 import { projectFormInitialState } from "@/lib/project-form-state";
-import { emptyDefaults, type ProjectFormDefaults } from "@/lib/project-form-defaults";
+import { emptyDefaults, padMeUrlsMinTwo, type ProjectFormDefaults } from "@/lib/project-form-defaults";
 
 function MagicEdenUrlsEditor({ initialUrls }: { initialUrls: string[] }) {
   const [rows, setRows] = useState<string[]>(() => padMeUrlsMinTwo(initialUrls));

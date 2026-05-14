@@ -31,7 +31,7 @@ export const emptyDefaults: ProjectFormDefaults = {
   marketplacesJson: "[]",
 };
 
-function padMeUrlsMinTwo(urls: string[]): string[] {
+export function padMeUrlsMinTwo(urls: string[]): string[] {
   const out = urls.map((s) => s.trim());
   while (out.length < 2) out.push("");
   return out;
