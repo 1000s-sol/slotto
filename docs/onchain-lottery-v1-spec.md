@@ -78,16 +78,80 @@ Solana **does not run cron jobs**. “Automatic” means: the program **enforces
 
 **Product intent:** one **marketing “draw end”** time = **`sales_close_ts`**. Engineering reality: **winner + SOL payout** lands in **`settle`**, shortly after close when VRF is ready.
 
-### Edge case
+### Edge case (`N == 0`)
 
-- **Require `total_tickets >= 1`** before VRF/settle **or** provide **`refund_seed`** if `N == 0`** so SOL cannot lock forever (defensive; ops assumes N ≥ 1).
+Ops assumes **at least one ticket**, but the program must not strand SOL.
+
+- After **`close_sales`**, if **`total_tickets == 0`**, the draw **does not** enter VRF/settle.
+- **`refund_empty_draw`** (new instruction): **permissionless** once draw is **`sales_closed`** and **`total_tickets == 0`**. Transfers **100%** of the draw **prize vault** SOL lamports to **`seed_refund`** (pubkey set in **`create_draw`**, default **same as authority** in client). Draw transitions to a terminal **`refunded`** state. **No SPL** path in this branch (no SPL inventory if no tickets, or if SPL-only zero tickets treat same — caps mean SPL sold is 0).
+
+If **`total_tickets >= 1`**, flow is **`request_vrf` → `settle`** as above.
+
+---
+
+## Program design (v1) — locked
+
+Concrete layout for Anchor implementation. Revise only if a constraint (rent, account size, Switchboard account list) forces it.
+
+### PDA seeds (string literals are examples; use one consistent scheme in code)
+
+| Account | Seeds (conceptual) | Notes |
+|--------|---------------------|--------|
+| **Global config** | `["global_config"]` | Singleton: `next_draw_id`, team/setup/authority pubkeys, program bump refs as needed. |
+| **Draw** | `["draw", draw_id_le_u64]` | `draw_id` assigned from **`next_draw_id`** at **`create_draw`** (monotonic). |
+| **Prize vault (SOL)** | `["prize_vault", draw_key]` | PDA with **no data** (or minimal discriminator); holds **native SOL** for the pot. **All** jackpot lamports live here until **`settle`** or **`refund_empty_draw`**. |
+| **Ticket chunk** | `["tickets", draw_key, chunk_idx_le_u32]` | See §Ticket storage. |
+| **SPL treasury ATA** | Standard **ATA** (mint, **vault authority** PDA) | One token account per allowlisted mint; authority PDA e.g. `["spl_vault_auth", draw_key]` or reuse draw PDA as signer per Anchor pattern. |
+
+### Global config account
+
+- **`team_vault`**, **`setup_vault`** (pubkeys — SOL recipients for splits).  
+- **`authority`** (create_draw, withdraw_spl).  
+- **`next_draw_id: u64`** (starts at **0** or **1**; pick one and document in IDL).  
+- **v1:** **Immutable** after **`initialize`** (no `update_config`); changes require **program upgrade** unless we explicitly add an instruction later.
+
+### Draw account (fixed max size)
+
+- **Identity:** `draw_id`, `bump` (draw), `prize_vault_bump`.  
+- **Schedule:** `sales_open_ts`, `sales_close_ts` (i64 Unix).  
+- **State machine:** `Created` → `Selling` (optional: implicit with timestamps) → **`SalesClosed`** → **`VrfRequested`** → **`Settled`** **or** **`Refunded`** (empty draw). Use a compact enum in Rust.  
+- **Counts:** `total_tickets: u32` (or u64 if you expect huge draws — must match ticket id width).  
+- **VRF:** Store whatever Switchboard requires (request account pubkey, slot, etc.) per their template.  
+- **Post-settle:** `winning_ticket_id`, `winner` (pubkey), optional commitment hash if needed by template.  
+- **`seed_refund`** pubkey for **`refund_empty_draw`**.  
+- **SPL table (inline):** **`SPL_MINT_MAX = 16`** rows per draw (constant). Each row: `mint`, `price_per_ticket` (u64 base units), `mint_decimals` (u8), `cap` (u32), `sold` (u32). **Reject `create_draw`** if caller supplies **> 16** mints. Raises rent bound; document for ops.
+
+### Ticket storage (owners on-chain)
+
+- **Ticket IDs:** **0 … N-1** inclusive (`u32` or `u64` — **same width** as `total_tickets` counter). First minted ticket is **0**.  
+- **Chunked PDAs:** constant **`TICKETS_PER_CHUNK`** (e.g. **256**). Ticket `id` lives in chunk **`id / TICKETS_PER_CHUNK`**, index **`id % TICKETS_PER_CHUNK`**. Each chunk account stores **`[Pubkey; TICKETS_PER_CHUNK]`** (owner wallet per ticket id). **`buy_*`** uses **`init_if_needed`** on the chunk account when crossing a chunk boundary.  
+- **Winner pick:** `random_u256 % total_tickets` (or 64-bit equivalent) → **`winning_ticket_id`**, load owner from chunk accounts in **`settle`**.
+
+### SPL rent / bounds
+
+- **16 mints ×** per-mint ATA + draw row: acceptable for v1.  
+- If product needs **> 16** mints per draw later, add a **v2** account type (e.g. extension PDA) rather than growing draw unbounded in v1.
+
+### Instruction ↔ account summary
+
+| Instruction | Who | Key accounts |
+|-------------|-----|----------------|
+| `initialize` | Deployer / one-shot | Global config PDA |
+| `create_draw` | Authority | Global config, new draw PDA, prize vault PDA, **payer** funds seed → vault, SPL ATAs created per mint row |
+| `buy_sol_tickets` | Anyone | Draw, prize vault, ticket chunk PDAs, team/setup system accounts, buyer |
+| `buy_spl_tickets` | Anyone | Draw, SPL ATA, buyer token, ticket chunks, fee SOL split accounts |
+| `close_sales` | Permissionless | Draw, clock sysvar |
+| `request_vrf` | Permissionless | Draw + Switchboard accounts per SDK |
+| `settle` | Permissionless | Draw, prize vault, ticket chunks, winner wallet, VRF account |
+| `refund_empty_draw` | Permissionless | Draw, prize vault, `seed_refund` |
+| `withdraw_spl` | Authority | Draw, settled SPL ATA, authority destination |
 
 ---
 
 ## Tickets & winner
 
-- **Global sequential ticket IDs** (`0 … N-1` or `1 … N` — pick one convention in code and keep consistent).  
-- **`owner` per ticket id** stored on-chain (exact account layout TBD in program design).  
+- **Global sequential ticket IDs:** **`0 … N-1`** (see §Program design).  
+- **Owner per ticket id:** stored in **ticket chunk** PDAs (see §Program design).  
 - **One winner**, **one winning ticket**; **uniform** probability per ticket.  
 - **Prize amount:** entire **SOL balance** of the **prize vault** for that draw at settlement (seed + cumulative **0.009** per SOL ticket). **Do not** include team/setup buckets or SPL.
 
@@ -105,7 +169,7 @@ Solana **does not run cron jobs**. “Automatic” means: the program **enforces
 - **Setup / recoup** recipient pubkey  
 - **Authority** pubkey  
 
-Changing these later: **program upgrade** or dedicated **`update_config`** instruction if you add it (user preference was **fixed** addresses — clarify in code whether immutable after init or authority-updatable without upgrade).
+**v1:** Immutable after **`initialize`** (see §Program design); changing recipients requires **program upgrade** (or a future `update_config` if added).
 
 ---
 
@@ -132,10 +196,10 @@ Changing these later: **program upgrade** or dedicated **`update_config`** instr
 
 ## Open implementation checklist
 
-- [ ] Anchor program layout: global config PDA, draw PDA, prize vault (SOL), ticket ownership accounts/Mapping.  
+- [x] Anchor program layout (see §Program design): global config PDA, draw PDA, prize vault (SOL), chunked ticket PDAs, SPL inline table max 16.  
 - [ ] **Switchboard** devnet + mainnet queue / feed addresses.  
 - [ ] **Recipient** pubkeys at `initialize`.  
-- [ ] **Rent** and account size bounds for max SPL mints per draw.  
+- [x] **Rent** / account size: **16 SPL mints** max per draw (inline rows) + chunked tickets — see §Program design.  
 - [ ] Tests: splits, bulk buy math, SPL cap exhaustion, settlement + payout, `N=0` guard.  
 - [ ] Optional **keeper** (script / cron) that calls `close_sales` → `request_vrf` → `settle` in order so draws don’t stall if public cranks are slow.
 

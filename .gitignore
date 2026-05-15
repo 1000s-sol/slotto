@@ -38,5 +38,10 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# Anchor / Rust
+/target/
+.anchor/
+**/*.rs.bk
+
 # Admin-uploaded project images (local / self-hosted; use blob/S3 on serverless)
 /public/uploads/projects/
