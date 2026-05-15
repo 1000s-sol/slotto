@@ -202,6 +202,7 @@ Concrete layout for Anchor implementation. Revise only if a constraint (rent, ac
 
 - [x] Anchor program layout (see §Program design): global config PDA, draw PDA, prize vault (SOL), chunked ticket PDAs, SPL inline table max 16.  
 - [x] **`create_draw`** (program): draw + prize vault PDAs, timestamps, seed transfer, SPL table.  
+- [x] **`buy_sol_tickets`** (program): sales window, 0.0105 SOL splits, chunked ticket PDAs (`remaining_accounts` = chunk PDAs sorted by chunk index).  
 - [ ] **Switchboard** devnet + mainnet queue / feed addresses.  
 - [ ] **Recipient** pubkeys at `initialize`.  
 - [x] **Rent** / account size: **16 SPL mints** max per draw (inline rows) + chunked tickets — see §Program design.  
@@ -218,3 +219,4 @@ Concrete layout for Anchor implementation. Revise only if a constraint (rent, ac
 | 2026-05-15 | **Sales open / close** timestamps for UI countdown; **permissionless** `close_sales` / VRF / `settle` pipeline; note on Solana “automatic” vs wall clock + optional keeper. |
 | 2026-05-15 | **§Program design (v1) locked:** PDAs, chunked tickets, prize vault, SPL ≤16, **`refund_empty_draw`**, immutable global config. |
 | 2026-05-15 | Anchor workspace + **`initialize`** + **`create_draw`** (schedule, seed SOL, SPL rows); SPL treasury ATAs **lazy** in `buy_spl_tickets` (`init_if_needed`). |
+| 2026-05-15 | **`buy_sol_tickets`:** 0.0105 SOL/ticket splits, sales window, ticket chunk PDAs + `ticket_chunk_indices_for_range` (sorted `remaining_accounts`). |
