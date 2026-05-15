@@ -145,8 +145,8 @@ Concrete layout for Anchor implementation. Revise only if a constraint (rent, ac
 | `buy_sol_tickets` | Anyone | Draw, prize vault, ticket chunk PDAs, team/setup system accounts, buyer |
 | `buy_spl_tickets` | Anyone | Draw, `mint`, buyer ATA, treasury ATA (`init_if_needed`, auth `spl_vault_auth`), team/setup SOL vaults, token + ATA programs, clock; **remaining:** ticket chunk PDAs (sorted) |
 | `close_sales` | Permissionless | Draw, clock sysvar |
-| `request_vrf` | Permissionless | Draw + Switchboard accounts per SDK |
-| `settle` | Permissionless | Draw, prize vault, ticket chunks, winner wallet, VRF account |
+| `request_vrf` | Permissionless | Draw only (**v1 devnet stub:** sets `vrf_request = VRF_STUB_MARKER`; **production:** Switchboard CPI + real VRF account pubkey). |
+| `settle` | Permissionless | Draw, prize vault, clock, rent, system; **remaining:** `[ticket_chunk_pda, winner]` (**v1 devnet stub:** `hashv` randomness from draw + clock — **not** mainnet-safe; replace with Switchboard read + verify). |
 | `refund_empty_draw` | Permissionless | Draw, prize vault, `seed_refund` (must match `draw.seed_refund`), system, rent — transfers **withdrawable** SOL (vault lamports **minus** rent-exempt minimum for the vault account). |
 | `withdraw_spl` | Authority | Draw, settled SPL ATA, authority destination |
 
@@ -163,7 +163,8 @@ Concrete layout for Anchor implementation. Revise only if a constraint (rent, ac
 
 ## Randomness
 
-- **Switchboard VRF** (or equivalent verifiable randomness) on **mainnet**; devnet uses same integration against **devnet** queue/feed IDs.
+- **Target (mainnet):** **Switchboard VRF** (or equivalent verifiable randomness) with devnet queue / feed IDs for testing.
+- **Current program (v1 devnet / integration):** **`request_vrf`** sets `draw.vrf_request` to a fixed **`VRF_STUB_MARKER`** (no oracle CPI yet). **`settle`** derives a pseudo-random ticket index from **`hashv(["slotto::settle_stub_v1", draw, slot, unix_timestamp])`** — sufficient to exercise the full draw lifecycle on devnet, **not** fair against block producers and **must** be replaced before mainnet.
 
 ---
 
@@ -205,8 +206,9 @@ Concrete layout for Anchor implementation. Revise only if a constraint (rent, ac
 - [x] **`buy_sol_tickets`** (program): sales window, 0.0105 SOL splits, chunked ticket PDAs (`remaining_accounts` = chunk PDAs sorted by chunk index).  
 - [x] **`buy_spl_tickets`** (program): allowlisted mint, cap, treasury ATA `init_if_needed`, SPL transfer, **0.0005 SOL × count** fee (2:1 team:setup), shared ticket chunks.  
 - [x] **`close_sales`** + **`refund_empty_draw`** (program): time-gated close; empty-draw refund (prize vault **above rent-exempt** minimum → `seed_refund`).  
+- [x] **`request_vrf`** + **`settle`** (program, **stub VRF** — see §Randomness; Switchboard CPI still TODO).  
 - [ ] **Switchboard** devnet + mainnet queue / feed addresses.  
-- [ ] **Recipient** pubkeys at `initialize`.  
+- [x] **Recipient** pubkeys at `initialize`.  
 - [x] **Rent** / account size: **16 SPL mints** max per draw (inline rows) + chunked tickets — see §Program design.  
 - [ ] Tests: splits, bulk buy math, SPL cap exhaustion, settlement + payout, `N=0` guard.  
 - [ ] Optional **keeper** (script / cron) that calls `close_sales` → `request_vrf` → `settle` in order so draws don’t stall if public cranks are slow.
@@ -221,4 +223,4 @@ Concrete layout for Anchor implementation. Revise only if a constraint (rent, ac
 | 2026-05-15 | **Sales open / close** timestamps for UI countdown; **permissionless** `close_sales` / VRF / `settle` pipeline; note on Solana “automatic” vs wall clock + optional keeper. |
 | 2026-05-15 | **§Program design (v1) locked:** PDAs, chunked tickets, prize vault, SPL ≤16, **`refund_empty_draw`**, immutable global config. |
 | 2026-05-15 | Anchor workspace + **`initialize`** + **`create_draw`** (schedule, seed SOL, SPL rows); SPL treasury ATAs **lazy** in `buy_spl_tickets` (`init_if_needed`). |
-| 2026-05-15 | **`close_sales`** + **`refund_empty_draw`** implemented (Selling→SalesClosed; empty draw refund with rent-safe vault transfer). |
+| 2026-05-15 | **`request_vrf`** + **`settle`** (stub: `VRF_STUB_MARKER` + `hashv`; prize payout; remaining `[chunk, winner]`). |

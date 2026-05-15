@@ -2,6 +2,7 @@
 //! Spec: `docs/onchain-lottery-v1-spec.md`. Run `anchor keys sync` so `declare_id!` matches deploy keys.
 
 use anchor_lang::prelude::*;
+use anchor_lang::solana_program::hash::hashv;
 use anchor_lang::solana_program::program::invoke_signed;
 use anchor_lang::solana_program::system_instruction;
 use anchor_lang::system_program;
@@ -27,6 +28,13 @@ pub const LAMPORTS_SOL_TICKET_TOTAL: u64 = 10_500_000;
 
 /// Hard cap per tx so chunk `remaining_accounts` + compute stay bounded.
 pub const MAX_SOL_TICKETS_PER_BUY: u32 = 256;
+
+/// **Devnet / integration stub:** marks that `request_vrf` ran without a live Switchboard account yet.
+/// `settle` only accepts this marker until Switchboard CPI + account layout is wired (see spec).
+pub const VRF_STUB_MARKER: Pubkey = Pubkey::new_from_array([
+    b'S', b'L', b'O', b'T', b'T', b'O', b'_', b'V', b'R', b'F', b'_', b'S', b'T', b'U', b'B', b'_',
+    b'v', b'1', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+]);
 
 /// Same cap for SPL buys (per tx).
 pub const MAX_SPL_TICKETS_PER_BUY: u32 = 256;
@@ -469,6 +477,114 @@ pub mod slotto_lottery {
         ctx.accounts.draw.state = DrawState::Refunded as u8;
         Ok(())
     }
+
+    /// Records that randomness was requested. **v1 devnet:** sets `vrf_request` to [`VRF_STUB_MARKER`].
+    /// **Production:** replace with Switchboard CPI and store the real VRF / randomness account pubkey.
+    pub fn request_vrf(ctx: Context<RequestVrf>) -> Result<()> {
+        let state = ctx.accounts.draw.state;
+        let total = ctx.accounts.draw.total_tickets;
+        let vrf = ctx.accounts.draw.vrf_request;
+        require!(
+            state == DrawState::SalesClosed as u8,
+            ErrorCode::InvalidDrawStateForVrf
+        );
+        require!(total >= 1, ErrorCode::VrfNeedsTickets);
+        require_keys_eq!(vrf, Pubkey::default(), ErrorCode::VrfAlreadyRequested);
+
+        ctx.accounts.draw.vrf_request = VRF_STUB_MARKER;
+        ctx.accounts.draw.state = DrawState::VrfRequested as u8;
+        Ok(())
+    }
+
+    /// Picks winner (stub: `hashv` over draw + clock), pays **withdrawable** prize vault SOL to winner.
+    ///
+    /// **Remaining accounts:** `[ticket_chunk_pda, winner_system_account]` — chunk must contain the winning ticket id.
+    pub fn settle(ctx: Context<SettleDraw>) -> Result<()> {
+        let draw_key = ctx.accounts.draw.key();
+        let state = ctx.accounts.draw.state;
+        let vrf_request = ctx.accounts.draw.vrf_request;
+        let n = ctx.accounts.draw.total_tickets;
+        let prize_bump = ctx.accounts.draw.prize_vault_bump;
+
+        require!(
+            state == DrawState::VrfRequested as u8,
+            ErrorCode::InvalidDrawStateForSettle
+        );
+        require_keys_eq!(vrf_request, VRF_STUB_MARKER, ErrorCode::VrfNotStubMode);
+        require!(n >= 1, ErrorCode::VrfNeedsTickets);
+
+        require_eq!(
+            ctx.remaining_accounts.len(),
+            2,
+            ErrorCode::SettleAccountsWrongLen
+        );
+
+        let slot = ctx.accounts.clock.slot;
+        let ts = ctx.accounts.clock.unix_timestamp;
+        let h = hashv(&[
+            b"slotto::settle_stub_v1",
+            draw_key.as_ref(),
+            &slot.to_le_bytes(),
+            &ts.to_le_bytes(),
+        ]);
+        let roll = {
+            let b = h.to_bytes();
+            u64::from_le_bytes(b[0..8].try_into().unwrap())
+        };
+        let winning_ticket_id = (roll % n as u64) as u32;
+        let chunk_idx = winning_ticket_id / (TICKETS_PER_CHUNK as u32);
+        let chunk_start = chunk_idx * (TICKETS_PER_CHUNK as u32);
+        let slot_in_chunk = (winning_ticket_id - chunk_start) as usize;
+
+        let chunk_ai = &ctx.remaining_accounts[0];
+        let winner_ai = &ctx.remaining_accounts[1];
+
+        let (expected_chunk, _) = Pubkey::find_program_address(
+            &[b"tickets", draw_key.as_ref(), &chunk_idx.to_le_bytes()],
+            ctx.program_id,
+        );
+        require_keys_eq!(chunk_ai.key(), expected_chunk);
+
+        let owner = {
+            let data = chunk_ai.try_borrow_data()?;
+            let mut slice: &[u8] = &data[..];
+            let tc = TicketChunk::try_deserialize(&mut slice)?;
+            let pk = tc.owners[slot_in_chunk];
+            require_keys_neq!(pk, Pubkey::default(), ErrorCode::EmptyTicketOwner);
+            pk
+        };
+        require_keys_eq!(winner_ai.key(), owner, ErrorCode::WinnerMismatch);
+
+        let vault_info = ctx.accounts.prize_vault.to_account_info();
+        let min_balance = ctx
+            .accounts
+            .rent
+            .minimum_balance(vault_info.data_len());
+        let available = vault_info.lamports().saturating_sub(min_balance);
+
+        if available > 0 {
+            let seeds: &[&[u8]] = &[b"prize_vault", draw_key.as_ref(), &[prize_bump]];
+            invoke_signed(
+                &system_instruction::transfer(
+                    vault_info.key,
+                    winner_ai.key,
+                    available,
+                ),
+                &[
+                    vault_info.clone(),
+                    winner_ai.clone(),
+                    ctx.accounts.system_program.to_account_info(),
+                ],
+                &[seeds],
+            )?;
+        }
+
+        let draw = &mut ctx.accounts.draw;
+        draw.winning_ticket_id = winning_ticket_id;
+        draw.winner = owner;
+        draw.state = DrawState::Settled as u8;
+        Ok(())
+    }
 }
 
 /// Sorted unique chunk indices for ticket ids `[base, base + count)`.
@@ -779,6 +895,27 @@ pub struct RefundEmptyDraw<'info> {
     pub rent: Sysvar<'info, Rent>,
 }
 
+#[derive(Accounts)]
+pub struct RequestVrf<'info> {
+    #[account(mut)]
+    pub draw: Account<'info, Draw>,
+}
+
+#[derive(Accounts)]
+pub struct SettleDraw<'info> {
+    #[account(mut)]
+    pub draw: Account<'info, Draw>,
+    #[account(
+        mut,
+        seeds = [b"prize_vault", draw.key().as_ref()],
+        bump = draw.prize_vault_bump
+    )]
+    pub prize_vault: Account<'info, PrizeVault>,
+    pub clock: Sysvar<'info, Clock>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
+}
+
 #[error_code]
 pub enum ErrorCode {
     #[msg("signer is not the configured authority")]
@@ -829,4 +966,20 @@ pub enum ErrorCode {
     RefundDrawHasTickets,
     #[msg("seed_refund account must match draw.seed_refund")]
     InvalidSeedRefund,
+    #[msg("draw must be SalesClosed to request VRF")]
+    InvalidDrawStateForVrf,
+    #[msg("VRF requires at least one ticket sold")]
+    VrfNeedsTickets,
+    #[msg("VRF already requested for this draw")]
+    VrfAlreadyRequested,
+    #[msg("draw must be VrfRequested to settle")]
+    InvalidDrawStateForSettle,
+    #[msg("settle stub only supports VRF_STUB_MARKER; wire Switchboard for production")]
+    VrfNotStubMode,
+    #[msg("settle requires [ticket_chunk, winner] remaining accounts")]
+    SettleAccountsWrongLen,
+    #[msg("winning ticket owner is missing on-chain")]
+    EmptyTicketOwner,
+    #[msg("winner account does not match ticket owner")]
+    WinnerMismatch,
 }
