@@ -132,12 +132,16 @@ Concrete layout for Anchor implementation. Revise only if a constraint (rent, ac
 - **16 mints ×** per-mint ATA + draw row: acceptable for v1.  
 - If product needs **> 16** mints per draw later, add a **v2** account type (e.g. extension PDA) rather than growing draw unbounded in v1.
 
+### SPL treasury ATAs
+
+- **v1 implementation:** SPL mint rows are written on **`create_draw`**. Per-mint **treasury ATAs** (authority PDA `["spl_vault_auth", draw]`) are created on first need inside **`buy_spl_tickets`** via **`init_if_needed`**, so `create_draw` stays a single compact transaction.
+
 ### Instruction ↔ account summary
 
 | Instruction | Who | Key accounts |
 |-------------|-----|----------------|
 | `initialize` | Deployer / one-shot | Global config PDA |
-| `create_draw` | Authority | Global config, new draw PDA, prize vault PDA, **payer** funds seed → vault, SPL ATAs created per mint row |
+| `create_draw` | Authority | Global config, new draw PDA, prize vault PDA, **payer** funds seed → vault; SPL rows persisted on draw (treasury ATAs created lazily in `buy_spl_tickets` with `init_if_needed` for smaller `create_draw` txs). |
 | `buy_sol_tickets` | Anyone | Draw, prize vault, ticket chunk PDAs, team/setup system accounts, buyer |
 | `buy_spl_tickets` | Anyone | Draw, SPL ATA, buyer token, ticket chunks, fee SOL split accounts |
 | `close_sales` | Permissionless | Draw, clock sysvar |
@@ -197,6 +201,7 @@ Concrete layout for Anchor implementation. Revise only if a constraint (rent, ac
 ## Open implementation checklist
 
 - [x] Anchor program layout (see §Program design): global config PDA, draw PDA, prize vault (SOL), chunked ticket PDAs, SPL inline table max 16.  
+- [x] **`create_draw`** (program): draw + prize vault PDAs, timestamps, seed transfer, SPL table.  
 - [ ] **Switchboard** devnet + mainnet queue / feed addresses.  
 - [ ] **Recipient** pubkeys at `initialize`.  
 - [x] **Rent** / account size: **16 SPL mints** max per draw (inline rows) + chunked tickets — see §Program design.  
@@ -211,3 +216,5 @@ Concrete layout for Anchor implementation. Revise only if a constraint (rent, ac
 |------|------|
 | 2026-05-15 | Initial spec from product Q&A. SPL allocation confirmed **per-draw** at `create_draw` (sum of per-mint caps; not a fixed 600 globally). |
 | 2026-05-15 | **Sales open / close** timestamps for UI countdown; **permissionless** `close_sales` / VRF / `settle` pipeline; note on Solana “automatic” vs wall clock + optional keeper. |
+| 2026-05-15 | **§Program design (v1) locked:** PDAs, chunked tickets, prize vault, SPL ≤16, **`refund_empty_draw`**, immutable global config. |
+| 2026-05-15 | Anchor workspace + **`initialize`** + **`create_draw`** (schedule, seed SOL, SPL rows); SPL treasury ATAs **lazy** in `buy_spl_tickets` (`init_if_needed`). |
