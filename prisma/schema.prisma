@@ -76,6 +76,15 @@ model AdminWallet {
   projects  Project[]
 }
 
+// --- Site-wide admin toggles (singleton row id = "default") ---
+
+model SiteSettings {
+  id                  String   @id @default("default")
+  /// Published project `slug` shown in the featured block on /projects; null = use env then likes
+  featuredProjectSlug String?
+  updatedAt           DateTime @updatedAt
+}
+
 // --- Public listings ---
 
 model Project {

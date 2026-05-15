@@ -45,6 +45,10 @@ export default async function AdminDashboardLayout({
             Projects
           </Link>
           <span className="text-muted">·</span>
+          <Link href="/admin/settings" className="text-muted hover:text-foreground">
+            Settings
+          </Link>
+          <span className="text-muted">·</span>
           <Link href="/admin/lotteries" className="text-muted hover:text-foreground">
             Lotteries
           </Link>

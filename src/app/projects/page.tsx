@@ -3,8 +3,10 @@ import { Suspense } from "react";
 import { FeaturedProjectOfWeek } from "@/components/project/featured-project-of-week";
 import { ProjectCardTile } from "@/components/project/project-card-tile";
 import { ProjectsToolbar } from "@/components/project/projects-toolbar";
+import { pickFeaturedProject } from "@/lib/pick-featured-project";
 import { floorSolSortKey } from "@/lib/project-floor-sort";
 import { prisma } from "@/lib/prisma";
+import { getFeaturedProjectSlugFromDb } from "@/lib/site-settings";
 
 type Props = { searchParams: Promise<{ q?: string; sort?: string }> };
 
@@ -45,17 +47,6 @@ function sortProjects(list: ProjectRow[], sort: SortMode): ProjectRow[] {
   return out;
 }
 
-function pickFeatured(all: ProjectRow[]): ProjectRow | null {
-  if (all.length === 0) return null;
-  const envSlug = process.env.FEATURED_PROJECT_SLUG?.trim();
-  if (envSlug) {
-    const hit = all.find((p) => p.slug === envSlug);
-    if (hit) return hit;
-  }
-  const byLikes = [...all].sort((a, b) => b.likes - a.likes || a.name.localeCompare(b.name));
-  return byLikes[0] ?? null;
-}
-
 function thumb(p: Pick<ProjectRow, "listingImageUrl" | "bannerImageUrl">) {
   return p.listingImageUrl || p.bannerImageUrl;
 }
@@ -88,12 +79,15 @@ export default async function ProjectsPage({ searchParams }: Props) {
     });
     grid = sortProjects(raw as ProjectRow[], sort);
   } else {
-    const all = (await prisma.project.findMany({
-      where: { published: true },
-      select,
-    })) as ProjectRow[];
-    const featuredPick = pickFeatured(all);
-    featured = featuredPick;
+    const [allRows, adminFeaturedSlug] = await Promise.all([
+      prisma.project.findMany({
+        where: { published: true },
+        select,
+      }),
+      getFeaturedProjectSlugFromDb(),
+    ]);
+    const all = allRows as ProjectRow[];
+    featured = pickFeaturedProject(all, adminFeaturedSlug);
     grid = sortProjects(all, sort);
   }
 

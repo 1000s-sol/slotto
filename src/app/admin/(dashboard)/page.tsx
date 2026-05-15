@@ -10,13 +10,20 @@ export default function AdminHomePage() {
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <a
           href="/admin/projects"
           className="rounded-2xl border border-border bg-bg-elevated/70 p-6 transition hover:border-accent-purple/40"
         >
           <div className="text-lg font-semibold">Projects</div>
           <div className="mt-2 text-sm text-muted">Create / edit listings, review copy, links, publish.</div>
+        </a>
+        <a
+          href="/admin/settings"
+          className="rounded-2xl border border-border bg-bg-elevated/70 p-6 transition hover:border-accent-purple/40"
+        >
+          <div className="text-lg font-semibold">Site settings</div>
+          <div className="mt-2 text-sm text-muted">Featured project on the public projects page.</div>
         </a>
         <a
           href="/admin/lotteries"
