@@ -409,6 +409,66 @@ pub mod slotto_lottery {
         draw.spl_mint_rows[row_ix].sold = new_sold;
         Ok(())
     }
+
+    /// Permissionless: once `now >= sales_close_ts`, move draw from **Selling** → **SalesClosed** (no more tickets).
+    pub fn close_sales(ctx: Context<CloseSales>) -> Result<()> {
+        require!(
+            ctx.accounts.draw.state == DrawState::Selling as u8,
+            ErrorCode::InvalidDrawStateForCloseSales
+        );
+        let now = ctx.accounts.clock.unix_timestamp;
+        require!(
+            now >= ctx.accounts.draw.sales_close_ts,
+            ErrorCode::SalesPeriodNotEnded
+        );
+        ctx.accounts.draw.state = DrawState::SalesClosed as u8;
+        Ok(())
+    }
+
+    /// Permissionless: after **SalesClosed**, if **`total_tickets == 0`**, send prize vault SOL (above rent-exempt
+    /// minimum for the vault account) to **`seed_refund`**, then **Refunded**.
+    pub fn refund_empty_draw(ctx: Context<RefundEmptyDraw>) -> Result<()> {
+        require!(
+            ctx.accounts.draw.state == DrawState::SalesClosed as u8,
+            ErrorCode::InvalidDrawStateForRefund
+        );
+        require!(
+            ctx.accounts.draw.total_tickets == 0,
+            ErrorCode::RefundDrawHasTickets
+        );
+
+        let draw_key = ctx.accounts.draw.key();
+        let bump = ctx.accounts.draw.prize_vault_bump;
+        let vault_info = ctx.accounts.prize_vault.to_account_info();
+        let min_balance = ctx
+            .accounts
+            .rent
+            .minimum_balance(vault_info.data_len());
+        let vault_lamports = **vault_info.try_borrow_lamports()?;
+        let available = vault_lamports
+            .checked_sub(min_balance)
+            .ok_or(error!(ErrorCode::ArithmeticOverflow))?;
+
+        if available > 0 {
+            let seeds: &[&[u8]] = &[b"prize_vault", draw_key.as_ref(), &[bump]];
+            invoke_signed(
+                &system_instruction::transfer(
+                    vault_info.key,
+                    ctx.accounts.seed_refund.key,
+                    available,
+                ),
+                &[
+                    vault_info.clone(),
+                    ctx.accounts.seed_refund.to_account_info(),
+                    ctx.accounts.system_program.to_account_info(),
+                ],
+                &[seeds],
+            )?;
+        }
+
+        ctx.accounts.draw.state = DrawState::Refunded as u8;
+        Ok(())
+    }
 }
 
 /// Sorted unique chunk indices for ticket ids `[base, base + count)`.
@@ -695,6 +755,30 @@ pub struct BuySplTickets<'info> {
     pub clock: Sysvar<'info, Clock>,
 }
 
+#[derive(Accounts)]
+pub struct CloseSales<'info> {
+    #[account(mut)]
+    pub draw: Account<'info, Draw>,
+    pub clock: Sysvar<'info, Clock>,
+}
+
+#[derive(Accounts)]
+pub struct RefundEmptyDraw<'info> {
+    #[account(mut)]
+    pub draw: Account<'info, Draw>,
+    #[account(
+        mut,
+        seeds = [b"prize_vault", draw.key().as_ref()],
+        bump = draw.prize_vault_bump
+    )]
+    pub prize_vault: Account<'info, PrizeVault>,
+    /// CHECK: must match `draw.seed_refund` (receives returned seed SOL).
+    #[account(mut, constraint = seed_refund.key() == draw.seed_refund @ ErrorCode::InvalidSeedRefund)]
+    pub seed_refund: UncheckedAccount<'info>,
+    pub system_program: Program<'info, System>,
+    pub rent: Sysvar<'info, Rent>,
+}
+
 #[error_code]
 pub enum ErrorCode {
     #[msg("signer is not the configured authority")]
@@ -735,4 +819,14 @@ pub enum ErrorCode {
     SplCapExceeded,
     #[msg("mint decimals do not match draw config")]
     SplMintDecimalsMismatch,
+    #[msg("draw must be Selling to close sales")]
+    InvalidDrawStateForCloseSales,
+    #[msg("sales_close_ts has not been reached yet")]
+    SalesPeriodNotEnded,
+    #[msg("draw must be SalesClosed to refund empty draw")]
+    InvalidDrawStateForRefund,
+    #[msg("cannot refund: tickets were sold")]
+    RefundDrawHasTickets,
+    #[msg("seed_refund account must match draw.seed_refund")]
+    InvalidSeedRefund,
 }

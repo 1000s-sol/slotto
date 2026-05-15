@@ -83,7 +83,7 @@ Solana **does not run cron jobs**. “Automatic” means: the program **enforces
 Ops assumes **at least one ticket**, but the program must not strand SOL.
 
 - After **`close_sales`**, if **`total_tickets == 0`**, the draw **does not** enter VRF/settle.
-- **`refund_empty_draw`** (new instruction): **permissionless** once draw is **`sales_closed`** and **`total_tickets == 0`**. Transfers **100%** of the draw **prize vault** SOL lamports to **`seed_refund`** (pubkey set in **`create_draw`**, default **same as authority** in client). Draw transitions to a terminal **`refunded`** state. **No SPL** path in this branch (no SPL inventory if no tickets, or if SPL-only zero tickets treat same — caps mean SPL sold is 0).
+- **`refund_empty_draw`** (new instruction): **permissionless** once draw is **`sales_closed`** and **`total_tickets == 0`**. Transfers **all withdrawable** prize vault SOL (vault lamports **minus** the **rent-exempt minimum** for the vault account, so the PDA stays valid) to **`seed_refund`**. Draw transitions to a terminal **`refunded`** state. **No SPL** path in this branch (no SPL inventory if no tickets, or if SPL-only zero tickets treat same — caps mean SPL sold is 0).
 
 If **`total_tickets >= 1`**, flow is **`request_vrf` → `settle`** as above.
 
@@ -147,7 +147,7 @@ Concrete layout for Anchor implementation. Revise only if a constraint (rent, ac
 | `close_sales` | Permissionless | Draw, clock sysvar |
 | `request_vrf` | Permissionless | Draw + Switchboard accounts per SDK |
 | `settle` | Permissionless | Draw, prize vault, ticket chunks, winner wallet, VRF account |
-| `refund_empty_draw` | Permissionless | Draw, prize vault, `seed_refund` |
+| `refund_empty_draw` | Permissionless | Draw, prize vault, `seed_refund` (must match `draw.seed_refund`), system, rent — transfers **withdrawable** SOL (vault lamports **minus** rent-exempt minimum for the vault account). |
 | `withdraw_spl` | Authority | Draw, settled SPL ATA, authority destination |
 
 ---
@@ -204,6 +204,7 @@ Concrete layout for Anchor implementation. Revise only if a constraint (rent, ac
 - [x] **`create_draw`** (program): draw + prize vault PDAs, timestamps, seed transfer, SPL table.  
 - [x] **`buy_sol_tickets`** (program): sales window, 0.0105 SOL splits, chunked ticket PDAs (`remaining_accounts` = chunk PDAs sorted by chunk index).  
 - [x] **`buy_spl_tickets`** (program): allowlisted mint, cap, treasury ATA `init_if_needed`, SPL transfer, **0.0005 SOL × count** fee (2:1 team:setup), shared ticket chunks.  
+- [x] **`close_sales`** + **`refund_empty_draw`** (program): time-gated close; empty-draw refund (prize vault **above rent-exempt** minimum → `seed_refund`).  
 - [ ] **Switchboard** devnet + mainnet queue / feed addresses.  
 - [ ] **Recipient** pubkeys at `initialize`.  
 - [x] **Rent** / account size: **16 SPL mints** max per draw (inline rows) + chunked tickets — see §Program design.  
@@ -220,4 +221,4 @@ Concrete layout for Anchor implementation. Revise only if a constraint (rent, ac
 | 2026-05-15 | **Sales open / close** timestamps for UI countdown; **permissionless** `close_sales` / VRF / `settle` pipeline; note on Solana “automatic” vs wall clock + optional keeper. |
 | 2026-05-15 | **§Program design (v1) locked:** PDAs, chunked tickets, prize vault, SPL ≤16, **`refund_empty_draw`**, immutable global config. |
 | 2026-05-15 | Anchor workspace + **`initialize`** + **`create_draw`** (schedule, seed SOL, SPL rows); SPL treasury ATAs **lazy** in `buy_spl_tickets` (`init_if_needed`). |
-| 2026-05-15 | **`buy_spl_tickets`:** SPL → treasury ATA, caps, **0.0005 SOL** fee (2:1 team:setup), same ticket chunks as SOL. |
+| 2026-05-15 | **`close_sales`** + **`refund_empty_draw`** implemented (Selling→SalesClosed; empty draw refund with rent-safe vault transfer). |
