@@ -1,0 +1,38 @@
+---
+description: How to write Slotto.gg public project listing reviews (reviewMd) — tone, structure, and constraints
+alwaysApply: true
+---
+
+# Slotto.gg project listing reviews (`reviewMd`)
+
+Use this when drafting or editing copy for published project pages and admin **Review** fields.
+
+## Structure
+
+- **Three paragraphs by default** unless the user asks for another length.
+- **Continuous prose only**: no `#` headings, no `##` subheadings, no `===` underlines, no horizontal rules.
+- **No markdown lists**: do not use `-`, `*`, or numbered list syntax in the review body.
+
+## Voice
+
+- **Matter-of-fact and third-person**: describe the project as it operates and what it offers; avoid meta phrases like “the website says”, “according to the homepage”, “the team frames itself as”, or “X bills itself as” when a direct statement works.
+- Prefer **catalogue / analysis** over hype: who it suits, how the pieces fit together, what differentiates it from a generic mint.
+- One **closing orientation sentence** is fine (e.g. who should care, what to weigh when comparing listings), in the same register as “For visitors comparing listings…” in the house style.
+
+## Content
+
+- **Ground claims in what you actually know** from official sources the user provided or from research they asked for. Do not invent roadmap dates, partner names, or token mechanics.
+- **Name concrete entities** when relevant: collections, products, tokens, platforms (e.g. Solana, Discord, specific game modes) so the read feels specific, not generic Web3 filler.
+- **Risks and caveats** belong inside normal sentences, not as a separate “Risks” section header.
+
+## Things to omit unless asked
+
+- **No URLs** in the review body unless the user explicitly wants links.
+- **No editorial sign-off line** (e.g. “— Slotto.gg”) unless the user asks for it.
+- **No `*` emphasis**, `**bold**`, or backticks in the stored review unless the user explicitly wants markdown there (the public page renders `reviewMd` in a `<pre>` block, so markdown does not render as rich text).
+
+## Quick negative examples
+
+- Bad: “At a glance”, bullet lists, “The verdict” as a subheading, bracketed links.
+- Bad: “According to their site, they offer…”
+- Good: “The project runs several collection lines under one hub, with daily payouts in $TOKEN tied to verified, unlisted holdings…”
