@@ -4,7 +4,13 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-export function AdminNavLink({ className }: { className: string }) {
+export function AdminNavLink({
+  className,
+  onNavigate,
+}: {
+  className: string;
+  onNavigate?: () => void;
+}) {
   const { connected, publicKey } = useWallet();
   const [isAdmin, setIsAdmin] = useState(false);
 
@@ -35,7 +41,7 @@ export function AdminNavLink({ className }: { className: string }) {
 
   if (!isAdmin) return null;
   return (
-    <Link href="/admin" className={className}>
+    <Link href="/admin" className={className} onClick={onNavigate}>
       Admin
     </Link>
   );

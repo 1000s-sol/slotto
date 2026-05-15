@@ -9,7 +9,12 @@ function shortenAddress(address: string) {
   return `${address.slice(0, 4)}…${address.slice(-4)}`;
 }
 
-export function WalletConnectButton() {
+export function WalletConnectButton({
+  variant = "default",
+}: {
+  /** Hides Disconnect — use when Disconnect is offered elsewhere (e.g. mobile menu). */
+  variant?: "default" | "toolbar";
+}) {
   const { publicKey, disconnect, connecting, connected } = useWallet();
   const { setVisible } = useWalletModal();
 
@@ -32,13 +37,15 @@ export function WalletConnectButton() {
         >
           {label}
         </button>
-        <button
-          type="button"
-          className="rounded-xl border border-border px-4 py-2 text-sm font-semibold text-muted transition hover:border-accent-purple/40 hover:text-foreground"
-          onClick={() => disconnect().catch(() => undefined)}
-        >
-          Disconnect
-        </button>
+        {variant === "default" ? (
+          <button
+            type="button"
+            className="rounded-xl border border-border px-4 py-2 text-sm font-semibold text-muted transition hover:border-accent-purple/40 hover:text-foreground"
+            onClick={() => disconnect().catch(() => undefined)}
+          >
+            Disconnect
+          </button>
+        ) : null}
       </div>
     );
   }
