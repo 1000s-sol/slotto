@@ -34,7 +34,7 @@ export default function HomePage() {
               />
             </span>
           </h1>
-          <p className="mt-4 w-full text-justify text-2xl font-semibold leading-snug text-accent-gold hyphens-auto [text-wrap:pretty] sm:text-3xl lg:max-w-2xl lg:text-balance lg:text-left lg:text-3xl">
+          <p className="mt-4 w-full text-left text-2xl font-semibold leading-snug text-accent-gold hyphens-none sm:text-3xl lg:max-w-2xl lg:text-3xl">
             Supporting your favorite trusted and transparent Solana projects
           </p>
           <ul className="mt-6 list-disc space-y-2 pl-5 text-lg leading-relaxed text-muted sm:text-xl lg:text-lg">
