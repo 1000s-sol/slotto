@@ -4,7 +4,11 @@ import { XSocialLink } from "@/components/x-social-link";
 import { AdminNavLink } from "@/components/solana/admin-nav-link";
 import { WalletConnectButton } from "@/components/solana/wallet-connect-button";
 
-const links = [{ href: "/projects", label: "Projects" }];
+const links = [
+  { href: "/", label: "Home" },
+  { href: "/projects", label: "Projects" },
+  { href: "/contact", label: "Contact" },
+];
 
 export function SiteHeader() {
   return (
