@@ -1,3 +1,4 @@
+import { ProfileMyTicketsSection } from "@/components/profile/profile-my-tickets-section";
 import { ProfileWalletsSection } from "@/components/solana/profile-wallets-section";
 
 export default function ProfilePage() {
@@ -5,9 +6,6 @@ export default function ProfilePage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-semibold tracking-tight">Profile</h1>
-        <p className="mt-2 max-w-2xl text-sm text-muted">
-          Next: Discord + X linking (Auth.js) and multi-wallet display. This page is a layout shell.
-        </p>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -31,6 +29,8 @@ export default function ProfilePage() {
 
         <ProfileWalletsSection />
       </div>
+
+      <ProfileMyTicketsSection />
     </div>
   );
 }

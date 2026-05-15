@@ -130,3 +130,40 @@ model ProjectLike {
   @@unique([projectId, wallet])
   @@index([projectId])
 }
+
+// --- Lottery (one active draw; ticket rows keyed by wallet) ---
+
+enum LotteryDrawStatus {
+  ACTIVE
+  COMPLETED
+}
+
+model LotteryDraw {
+  id               String                @id @default(cuid())
+  drawNumber       Int                   @unique
+  status           LotteryDrawStatus     @default(ACTIVE)
+  completedAt      DateTime?
+  /// Denormalized / cached; profile API also sums purchases for pool display
+  totalTicketsSold Int                   @default(0)
+  winnerWallet     String?
+  prizeSol         Decimal?              @db.Decimal(20, 9)
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  purchases        LotteryTicketPurchase[]
+
+  @@index([status])
+}
+
+model LotteryTicketPurchase {
+  id            String      @id @default(cuid())
+  drawId        String
+  draw          LotteryDraw @relation(fields: [drawId], references: [id], onDelete: Cascade)
+  wallet        String
+  tickets       Int
+  /// string[] mint addresses used for payment chips (same convention as home draws)
+  paidWithMints Json?
+  createdAt     DateTime    @default(now())
+
+  @@index([wallet])
+  @@index([drawId])
+}
