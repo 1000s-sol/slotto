@@ -72,8 +72,8 @@ Solana **does not run cron jobs**. “Automatic” means: the program **enforces
    - Writes SPL config (mints, prices, per-mint caps).  
 2. **Selling tickets** while `sales_open_ts <= now < sales_close_ts` (and SPL per-mint caps not exhausted). **`buy_*` fails** outside that window.  
 3. **`close_sales`** — **permissionless** after `now >= sales_close_ts` (and SPL caps / state ok). Transitions draw to **“sales closed”** so no more purchases.  
-4. **`request_vrf`** — **permissionless** once draw is **sales closed** and VRF not yet requested (exact Switchboard flow per SDK).  
-5. **`settle`** — **permissionless** once VRF result is **available on-chain**. Computes winning **ticket id**, **pays 100% of prize vault SOL** to winner **in this instruction** (no separate claim).  
+4. **`request_vrf`** — **permissionless** once draw is **sales closed**, tickets sold, and VRF not yet requested. **v1 program:** records stub marker (see §Randomness); **production:** Switchboard CPI + real VRF account pubkey in `draw.vrf_request`.  
+5. **`settle`** — **permissionless** once VRF step is satisfied (**v1:** stub path using `hashv`; **production:** verified Switchboard output). Computes winning **ticket id**, **pays withdrawable prize vault SOL** to winner **in this instruction** (no separate claim).  
 6. **`withdraw_spl`** — **authority-only**, after **settled**, per mint.
 
 **Product intent:** one **marketing “draw end”** time = **`sales_close_ts`**. Engineering reality: **winner + SOL payout** lands in **`settle`**, shortly after close when VRF is ready.
