@@ -12,7 +12,20 @@ Reference for implementing the Solana program (Anchor) + frontend integration. D
 
 ## Roles
 
-- **Authority** (single pubkey): create draws, configure per-draw SPL table, fund seed in `create_draw`, run `close_sales` if required by design, request VRF, run settle + auto-payout, withdraw SPL after settle. Pays oracle / priority fees for VRF + settlement flow (v1).
+- **Authority** (single pubkey): **`create_draw`** (with seed + SPL table + **start / end** timestamps), **`withdraw_spl`** after settle. Does **not** need to manually “click through” the draw if we use **permissionless** transition instructions (see §Draw lifecycle). **Oracle / priority fees** for VRF + settle are paid by **whoever submits** those txs (often you run a small **keeper** script so costs stay predictable).
+
+---
+
+## Draw schedule (countdown on home page)
+
+At **`create_draw`**, store **two Unix timestamps** (source of truth for the Next.js countdown):
+
+| Field | Meaning |
+|-------|--------|
+| **`sales_open_ts`** | Before this time, **`buy_*`** instructions **fail** (draw “not started” yet). |
+| **`sales_close_ts`** | After this time, **`buy_*`** instructions **fail** (sales ended). Must be **`> sales_open_ts`**. |
+
+The **home page countdown** should read these values from the **active draw account** (or an API that mirrors it) so marketing and chain stay aligned.
 
 ---
 
@@ -31,7 +44,7 @@ User pays **in one purchase**:
 
 **Bulk buys:** `buy_sol_tickets(count)` — user pays **`count * 0.0105` SOL**, receives **`count`** sequential **ticket IDs**.
 
-SOL ticket sales are **uncapped** until sales close (time-based, see §Draw lifecycle).
+SOL ticket sales are **uncapped** until **`sales_close_ts`** (and `buy_sol` rejected before **`sales_open_ts`**).
 
 ---
 
@@ -51,15 +64,19 @@ SOL ticket sales are **uncapped** until sales close (time-based, see §Draw life
 
 ## Draw lifecycle
 
+Solana **does not run cron jobs**. “Automatic” means: the program **enforces timestamps** and exposes **permissionless** instructions that **anyone** can call once conditions are met (you, a user, or a **keeper** bot you run). Wall-clock “everything happens at `sales_close_ts`” becomes **one or more transactions** submitted at/after that time; **VRF fulfillment** usually adds **a short delay** (seconds–minutes) before **`settle`** can complete.
+
 1. **`create_draw`** (authority)  
-   - Sets **close timestamp** (Unix).  
-   - Deposits **seed SOL** (e.g. ~5 SOL) **in the same transaction** into the draw’s **prize vault**.  
+   - Sets **`sales_open_ts`** and **`sales_close_ts`**.  
+   - Deposits **seed SOL** in the **same transaction** into the draw’s **prize vault**.  
    - Writes SPL config (mints, prices, per-mint caps).  
-2. **Open sales** until `now >= close_time` **or** SPL mint exhausted on a mint (per-mint cap).  
-3. **`close_sales`** after `close_time` (v1: **time-based** — callable after timestamp; confirm whether **anyone** or **authority-only** in implementation).  
-4. **`request_vrf`** / consume Switchboard (authority pays fees in v1).  
-5. **`settle`** — derive winning **ticket id**, **transfer 100% of prize vault SOL** to winner **in this flow** (no claim).  
-6. **`withdraw_spl`** — authority pulls SPL balances for OTC (post-settle).
+2. **Selling tickets** while `sales_open_ts <= now < sales_close_ts` (and SPL per-mint caps not exhausted). **`buy_*` fails** outside that window.  
+3. **`close_sales`** — **permissionless** after `now >= sales_close_ts` (and SPL caps / state ok). Transitions draw to **“sales closed”** so no more purchases.  
+4. **`request_vrf`** — **permissionless** once draw is **sales closed** and VRF not yet requested (exact Switchboard flow per SDK).  
+5. **`settle`** — **permissionless** once VRF result is **available on-chain**. Computes winning **ticket id**, **pays 100% of prize vault SOL** to winner **in this instruction** (no separate claim).  
+6. **`withdraw_spl`** — **authority-only**, after **settled**, per mint.
+
+**Product intent:** one **marketing “draw end”** time = **`sales_close_ts`**. Engineering reality: **winner + SOL payout** lands in **`settle`**, shortly after close when VRF is ready.
 
 ### Edge case
 
@@ -117,10 +134,10 @@ Changing these later: **program upgrade** or dedicated **`update_config`** instr
 
 - [ ] Anchor program layout: global config PDA, draw PDA, prize vault (SOL), ticket ownership accounts/Mapping.  
 - [ ] **Switchboard** devnet + mainnet queue / feed addresses.  
-- [ ] **`close_sales`**: permissionless vs authority-only.  
 - [ ] **Recipient** pubkeys at `initialize`.  
 - [ ] **Rent** and account size bounds for max SPL mints per draw.  
-- [ ] Tests: splits, bulk buy math, SPL cap exhaustion, settlement + payout, `N=0` guard.
+- [ ] Tests: splits, bulk buy math, SPL cap exhaustion, settlement + payout, `N=0` guard.  
+- [ ] Optional **keeper** (script / cron) that calls `close_sales` → `request_vrf` → `settle` in order so draws don’t stall if public cranks are slow.
 
 ---
 
@@ -129,3 +146,4 @@ Changing these later: **program upgrade** or dedicated **`update_config`** instr
 | Date | Note |
 |------|------|
 | 2026-05-15 | Initial spec from product Q&A. SPL allocation confirmed **per-draw** at `create_draw` (sum of per-mint caps; not a fixed 600 globally). |
+| 2026-05-15 | **Sales open / close** timestamps for UI countdown; **permissionless** `close_sales` / VRF / `settle` pipeline; note on Solana “automatic” vs wall clock + optional keeper. |
