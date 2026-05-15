@@ -65,7 +65,7 @@ export function SiteHeaderNav() {
   }, [open]);
 
   return (
-    <div className="relative shrink-0">
+    <div className="relative flex shrink-0 items-center md:block">
       <div className="flex items-center justify-end gap-2 md:hidden">
         <div className="min-w-0 max-w-[min(100%,14rem)] sm:max-w-[18rem] [&>div]:min-w-0 [&>div]:justify-end">
           <WalletConnectButton variant="toolbar" />
