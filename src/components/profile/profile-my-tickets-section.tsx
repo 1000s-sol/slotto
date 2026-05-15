@@ -1,6 +1,5 @@
 "use client";
 
-import { useWallet } from "@solana/wallet-adapter-react";
 import { useEffect, useState } from "react";
 
 type TickerItem = {
@@ -73,11 +72,6 @@ const PLACEHOLDER_MY_TICKETS: MyTicketRow[] = [
   },
 ];
 
-function shortenWallet(address: string) {
-  if (address.length <= 10) return address;
-  return `${address.slice(0, 4)}…${address.slice(-4)}`;
-}
-
 function TokenThumb({ item, size = 18 }: { item: TickerItem | undefined; size?: number }) {
   const dim = `${size}px`;
   const cls = "shrink-0 rounded-full object-cover ring-1 ring-border";
@@ -112,9 +106,6 @@ function TokenThumb({ item, size = 18 }: { item: TickerItem | undefined; size?: 
 }
 
 export function ProfileMyTicketsSection() {
-  const { publicKey } = useWallet();
-  const wallet = publicKey?.toBase58() ?? null;
-
   const [tokens, setTokens] = useState<Record<string, TickerItem>>({});
 
   useEffect(() => {
@@ -138,22 +129,7 @@ export function ProfileMyTicketsSection() {
 
   return (
     <section className="space-y-3">
-      <div>
-        <h2 className="text-lg font-semibold tracking-tight text-foreground">My tickets</h2>
-        <p className="mt-1 max-w-2xl text-sm text-muted">
-          Your purchases across the live draw and completed draws
-          {wallet ? (
-            <>
-              {" "}
-              for wallet{" "}
-              <span className="font-mono text-xs text-foreground/90" title={wallet}>
-                {shortenWallet(wallet)}
-              </span>
-            </>
-          ) : null}
-          . <span className="text-muted/80">Placeholder data for now.</span>
-        </p>
-      </div>
+      <h2 className="text-lg font-semibold tracking-tight text-foreground">My tickets</h2>
 
       <div className="overflow-hidden rounded-2xl border border-border bg-bg-elevated/70">
         <div className="overflow-x-auto">
