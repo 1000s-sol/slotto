@@ -65,9 +65,9 @@ export function SiteHeaderNav() {
   }, [open]);
 
   return (
-    <div className="relative w-full md:w-auto">
-      <div className="flex w-full items-center justify-end gap-2 md:hidden">
-        <div className="min-w-0 flex-1 [&>div]:flex [&>div]:justify-end">
+    <div className="relative shrink-0">
+      <div className="flex items-center justify-end gap-2 md:hidden">
+        <div className="min-w-0 max-w-[min(100%,14rem)] sm:max-w-[18rem] [&>div]:min-w-0 [&>div]:justify-end">
           <WalletConnectButton variant="toolbar" />
         </div>
         <button
@@ -109,7 +109,7 @@ export function SiteHeaderNav() {
           />
           <div
             id="site-mobile-nav"
-            className="absolute left-0 right-0 top-full z-50 mt-2 w-full rounded-2xl border border-border bg-bg-elevated/98 p-2 shadow-xl shadow-black/40 md:hidden"
+            className="fixed left-3 right-3 top-[4.5rem] z-50 rounded-2xl border border-border bg-bg-elevated/98 p-2 shadow-xl shadow-black/40 md:hidden"
           >
             <div className="flex flex-col gap-0.5 py-1" role="navigation" aria-label="Mobile">
               {links.map((l) => (
