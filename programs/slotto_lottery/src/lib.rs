@@ -444,7 +444,7 @@ pub mod slotto_lottery {
             .accounts
             .rent
             .minimum_balance(vault_info.data_len());
-        let vault_lamports = **vault_info.try_borrow_lamports()?;
+        let vault_lamports = vault_info.lamports();
         let available = vault_lamports
             .checked_sub(min_balance)
             .ok_or(error!(ErrorCode::ArithmeticOverflow))?;
