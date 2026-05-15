@@ -1,9 +1,7 @@
 "use client";
 
 import { useWallet } from "@solana/wallet-adapter-react";
-import { useEffect, useMemo, useState } from "react";
-
-import type { MyTicketRow } from "@/lib/lottery-my-tickets-types";
+import { useEffect, useState } from "react";
 
 type TickerItem = {
   mint: string;
@@ -11,6 +9,69 @@ type TickerItem = {
   priceUsd: number | null;
   logoUrl: string | null;
 };
+
+type MyTicketRow = {
+  drawNumber: number;
+  dateLabel: string;
+  isLive: boolean;
+  yourTickets: number;
+  poolTickets: number;
+  paidWithMints: string[];
+  outcomeLabel: string;
+  outcomeVariant: "live" | "won" | "lost";
+};
+
+const SOL_MINT = "So11111111111111111111111111111111111111112";
+const PLACEHOLDER_MINTS = {
+  SOL: SOL_MINT,
+  CJT: "7ztGsbEkbSzeeUgm3SwCp6hkmaJe3Gwi4zgvANKSfYML",
+  BLUNANA: "C9vfeaCLhJy7sykgKnfzi6RikawQNoGtRKwsaupKavmV",
+  EMPIRE: "EmpirdtfUMfBQXEjnNmTngeimjfizfuSBD3TN9zqzydj",
+} as const;
+
+/** Placeholder rows until ticket purchases are wired to the database */
+const PLACEHOLDER_MY_TICKETS: MyTicketRow[] = [
+  {
+    drawNumber: 8,
+    dateLabel: "Live",
+    isLive: true,
+    yourTickets: 42,
+    poolTickets: 612,
+    paidWithMints: [PLACEHOLDER_MINTS.SOL, PLACEHOLDER_MINTS.CJT],
+    outcomeLabel: "6.86%",
+    outcomeVariant: "live",
+  },
+  {
+    drawNumber: 7,
+    dateLabel: "Apr 2026",
+    isLive: false,
+    yourTickets: 24,
+    poolTickets: 1000,
+    paidWithMints: [PLACEHOLDER_MINTS.SOL, PLACEHOLDER_MINTS.EMPIRE],
+    outcomeLabel: "—",
+    outcomeVariant: "lost",
+  },
+  {
+    drawNumber: 5,
+    dateLabel: "Feb 2026",
+    isLive: false,
+    yourTickets: 60,
+    poolTickets: 845,
+    paidWithMints: [PLACEHOLDER_MINTS.BLUNANA],
+    outcomeLabel: "4.20 SOL",
+    outcomeVariant: "won",
+  },
+  {
+    drawNumber: 3,
+    dateLabel: "Dec 2025",
+    isLive: false,
+    yourTickets: 8,
+    poolTickets: 620,
+    paidWithMints: [PLACEHOLDER_MINTS.SOL],
+    outcomeLabel: "—",
+    outcomeVariant: "lost",
+  },
+];
 
 function shortenWallet(address: string) {
   if (address.length <= 10) return address;
@@ -51,13 +112,10 @@ function TokenThumb({ item, size = 18 }: { item: TickerItem | undefined; size?: 
 }
 
 export function ProfileMyTicketsSection() {
-  const { publicKey, connected } = useWallet();
+  const { publicKey } = useWallet();
   const wallet = publicKey?.toBase58() ?? null;
 
   const [tokens, setTokens] = useState<Record<string, TickerItem>>({});
-  const [rows, setRows] = useState<MyTicketRow[] | null>(null);
-  const [anyDraws, setAnyDraws] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -78,71 +136,25 @@ export function ProfileMyTicketsSection() {
     };
   }, []);
 
-  useEffect(() => {
-    if (!wallet) {
-      setRows(null);
-      setAnyDraws(false);
-      setLoadError(null);
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      setRows(null);
-      setLoadError(null);
-      try {
-        const res = await fetch(`/api/profile/my-tickets?wallet=${encodeURIComponent(wallet)}`, {
-          cache: "no-store",
-        });
-        const json = (await res.json()) as {
-          rows?: MyTicketRow[];
-          anyDraws?: boolean;
-          error?: string;
-        };
-        if (cancelled) return;
-        if (!res.ok) {
-          setLoadError(json.error ?? "Could not load tickets");
-          setRows([]);
-          return;
-        }
-        setRows(json.rows ?? []);
-        setAnyDraws(!!json.anyDraws);
-      } catch {
-        if (!cancelled) {
-          setLoadError("Could not load tickets");
-          setRows([]);
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [wallet]);
+  return (
+    <section className="space-y-3">
+      <div>
+        <h2 className="text-lg font-semibold tracking-tight text-foreground">My tickets</h2>
+        <p className="mt-1 max-w-2xl text-sm text-muted">
+          Your purchases across the live draw and completed draws
+          {wallet ? (
+            <>
+              {" "}
+              for wallet{" "}
+              <span className="font-mono text-xs text-foreground/90" title={wallet}>
+                {shortenWallet(wallet)}
+              </span>
+            </>
+          ) : null}
+          . <span className="text-muted/80">Placeholder data for now.</span>
+        </p>
+      </div>
 
-  const body = useMemo(() => {
-    if (!connected) {
-      return (
-        <p className="text-sm text-muted">
-          Connect your wallet to see ticket purchases for the current draw and completed draws.
-        </p>
-      );
-    }
-    if (loadError) {
-      return <p className="text-sm text-red-300">{loadError}</p>;
-    }
-    if (rows === null) {
-      return <div className="h-24 animate-pulse rounded-xl bg-surface/40" aria-hidden />;
-    }
-    if (!anyDraws) {
-      return <p className="text-sm text-muted">No lottery draws on record yet. Purchases will show here.</p>;
-    }
-    if (rows.length === 0) {
-      return (
-        <p className="text-sm text-muted">
-          You have no ticket purchases on record. The live draw appears here once you buy tickets.
-        </p>
-      );
-    }
-    return (
       <div className="overflow-hidden rounded-2xl border border-border bg-bg-elevated/70">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[680px] text-left text-sm">
@@ -156,69 +168,49 @@ export function ProfileMyTicketsSection() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
-                  <tr
-                    key={`${r.drawNumber}-${r.isLive ? "live" : "done"}`}
-                    className="border-b border-border/60 last:border-b-0 hover:bg-surface/30"
-                  >
-                    <td className="px-5 py-3 text-xs font-semibold text-muted">#{r.drawNumber}</td>
-                    <td className="px-3 py-3 text-xs text-foreground">
-                      {r.isLive ? (
-                        <span className="rounded-md bg-emerald-950/50 px-2 py-0.5 font-medium text-emerald-200">
-                          Live
-                        </span>
+              {PLACEHOLDER_MY_TICKETS.map((r) => (
+                <tr
+                  key={`${r.drawNumber}-${r.isLive ? "live" : "done"}`}
+                  className="border-b border-border/60 last:border-b-0 hover:bg-surface/30"
+                >
+                  <td className="px-5 py-3 text-xs font-semibold text-muted">#{r.drawNumber}</td>
+                  <td className="px-3 py-3 text-xs text-foreground">
+                    {r.isLive ? (
+                      <span className="rounded-md bg-emerald-950/50 px-2 py-0.5 font-medium text-emerald-200">
+                        Live
+                      </span>
+                    ) : (
+                      r.dateLabel
+                    )}
+                  </td>
+                  <td className="px-3 py-3 text-right font-mono tabular-nums text-muted">
+                    <span className="text-foreground">{r.yourTickets}</span>
+                    <span className="text-muted/60">/{r.poolTickets}</span>
+                  </td>
+                  <td className="px-3 py-3">
+                    <div className="flex items-center gap-1.5">
+                      {r.paidWithMints.length > 0 ? (
+                        r.paidWithMints.map((m) => <TokenThumb key={m} item={tokens[m]} />)
                       ) : (
-                        r.dateLabel
+                        <span className="text-muted/40">—</span>
                       )}
-                    </td>
-                    <td className="px-3 py-3 text-right font-mono tabular-nums text-muted">
-                      <span className="text-foreground">{r.yourTickets}</span>
-                      <span className="text-muted/60">/{r.poolTickets}</span>
-                    </td>
-                    <td className="px-3 py-3">
-                      <div className="flex items-center gap-1.5">
-                        {r.paidWithMints.length > 0 ? (
-                          r.paidWithMints.map((m) => <TokenThumb key={m} item={tokens[m]} />)
-                        ) : (
-                          <span className="text-muted/40">—</span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-5 py-3 text-right font-mono tabular-nums">
-                      {r.outcomeVariant === "live" ? (
-                        <span className="text-accent-gold">{r.outcomeLabel}</span>
-                      ) : r.outcomeVariant === "won" ? (
-                        <span className="text-accent-gold">{r.outcomeLabel}</span>
-                      ) : (
-                        <span className="text-muted">{r.outcomeLabel}</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                    </div>
+                  </td>
+                  <td className="px-5 py-3 text-right font-mono tabular-nums">
+                    {r.outcomeVariant === "live" ? (
+                      <span className="text-accent-gold">{r.outcomeLabel}</span>
+                    ) : r.outcomeVariant === "won" ? (
+                      <span className="text-accent-gold">{r.outcomeLabel}</span>
+                    ) : (
+                      <span className="text-muted">{r.outcomeLabel}</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
       </div>
-    );
-  }, [anyDraws, connected, loadError, rows, tokens]);
-
-  return (
-    <section className="space-y-3">
-      <div>
-        <h2 className="text-lg font-semibold tracking-tight text-foreground">My tickets</h2>
-        <p className="mt-1 max-w-2xl text-sm text-muted">
-          Your purchases across the live draw and completed draws for wallet{" "}
-          {wallet ? (
-            <span className="font-mono text-xs text-foreground/90" title={wallet}>
-              {shortenWallet(wallet)}
-            </span>
-          ) : (
-            "—"
-          )}
-          .
-        </p>
-      </div>
-      {body}
     </section>
   );
 }
