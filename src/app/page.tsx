@@ -21,7 +21,7 @@ export default function HomePage() {
           <h1 className="flex min-w-0 flex-row items-center gap-3 text-3xl font-semibold tracking-tight text-accent-gold sm:gap-4 sm:text-4xl lg:block lg:text-5xl lg:leading-tight">
             <span className="min-w-0 flex-1 text-balance leading-[1.1] lg:block lg:w-full lg:flex-none">Welcome to Slotto</span>
             <span
-              className="inline-flex h-24 w-24 shrink-0 items-center justify-center sm:h-32 sm:w-32 lg:hidden"
+              className="inline-flex h-28 w-28 shrink-0 items-center justify-center sm:h-36 sm:w-36 lg:hidden"
               aria-hidden
             >
               <BrandPng
