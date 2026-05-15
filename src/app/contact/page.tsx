@@ -11,56 +11,50 @@ export const metadata: Metadata = {
 
 export default function ContactPage() {
   return (
-    <div className="space-y-10">
-      <div className="grid gap-8 lg:grid-cols-2 lg:items-start lg:gap-10">
-        <div className="relative overflow-hidden rounded-2xl border border-border bg-bg-elevated/40 shadow-lg shadow-accent-purple/10">
+    <div className="grid gap-8 lg:grid-cols-2 lg:items-stretch lg:gap-10">
+      <aside className="flex min-h-0 flex-col gap-5 lg:h-full">
+        <div className="relative aspect-[3/4] w-full overflow-hidden rounded-2xl border border-border bg-bg-elevated/40 shadow-lg shadow-accent-purple/10 max-lg:flex-none lg:min-h-[220px] lg:flex-1 lg:aspect-auto">
           <Image
             src="/contact/jackpot-sunday.png"
             alt="Jackpot Sunday — weekly X Space"
-            width={1024}
-            height={1024}
-            className="h-auto w-full object-cover object-center"
+            fill
+            className="object-cover object-center"
             sizes="(max-width: 1024px) 100vw, 45vw"
             priority
           />
         </div>
 
-        <div className="space-y-6">
-          <div>
-            <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-              Contact
-            </h1>
-            <p className="mt-4 text-base leading-relaxed text-muted sm:text-lg">
-              Tune in to our weekly X Space every Sunday <span className="text-foreground">@ 2pm EST</span>.
-            </p>
-            <p className="mt-3 text-base leading-relaxed text-muted sm:text-lg">
-              Hosted by{" "}
-              <Link
-                href="https://x.com/Josh_Hodlin"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-medium text-accent-cyan hover:underline"
-              >
-                Josh Hodlin
-              </Link>{" "}
-              and{" "}
-              <Link
-                href="https://x.com/BUXDAO"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-medium text-accent-cyan hover:underline"
-              >
-                BUXDAO
-              </Link>
-              .
-            </p>
-            <p className="mt-3 text-base leading-relaxed text-muted sm:text-lg">
-              Guest founders, project updates, and crypto chat.
-            </p>
-          </div>
-
-          <ContactApplicationForm />
+        <div className="shrink-0 space-y-3 text-base leading-relaxed text-muted sm:text-lg">
+          <p>
+            Tune in to our weekly X Space every Sunday <span className="text-foreground">@ 2pm EST</span>.
+          </p>
+          <p>
+            Hosted by{" "}
+            <Link
+              href="https://x.com/Josh_Hodlin"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-accent-cyan hover:underline"
+            >
+              Josh Hodlin
+            </Link>{" "}
+            and{" "}
+            <Link
+              href="https://x.com/BUXDAO"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-accent-cyan hover:underline"
+            >
+              BUXDAO
+            </Link>
+            .
+          </p>
+          <p>Guest founders, project updates, and crypto chat.</p>
         </div>
+      </aside>
+
+      <div className="flex min-h-0 flex-col lg:h-full">
+        <ContactApplicationForm className="min-h-0 flex-1" />
       </div>
     </div>
   );
