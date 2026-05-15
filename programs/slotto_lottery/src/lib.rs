@@ -5,6 +5,8 @@ use anchor_lang::prelude::*;
 use anchor_lang::solana_program::program::invoke_signed;
 use anchor_lang::solana_program::system_instruction;
 use anchor_lang::system_program;
+use anchor_spl::associated_token::AssociatedToken;
+use anchor_spl::token::{self, Mint, Token, TokenAccount};
 
 declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFTE24");
 
@@ -25,6 +27,12 @@ pub const LAMPORTS_SOL_TICKET_TOTAL: u64 = 10_500_000;
 
 /// Hard cap per tx so chunk `remaining_accounts` + compute stay bounded.
 pub const MAX_SOL_TICKETS_PER_BUY: u32 = 256;
+
+/// Same cap for SPL buys (per tx).
+pub const MAX_SPL_TICKETS_PER_BUY: u32 = 256;
+
+/// Per SPL ticket: **0.0005** SOL total fee (lamports), paid like the non-pot slice of a SOL ticket.
+pub const LAMPORTS_SPL_TICKET_FEE_TOTAL: u64 = 500_000;
 
 #[program]
 pub mod slotto_lottery {
@@ -258,6 +266,149 @@ pub mod slotto_lottery {
         ctx.accounts.draw.total_tickets = new_total;
         Ok(())
     }
+
+    /// Buy `count` SPL tickets for `mint` (allowlisted on the draw). SPL → treasury ATA; **0.0005 SOL × count**
+    /// fee split team:setup in the same **2:1** ratio as the non-pot part of a SOL ticket (`1_000_000` : `500_000`).
+    ///
+    /// **Remaining accounts:** same as [`buy_sol_tickets`] — ticket chunk PDAs, sorted by chunk index.
+    pub fn buy_spl_tickets(ctx: Context<BuySplTickets>, count: u32) -> Result<()> {
+        require!(count > 0 && count <= MAX_SPL_TICKETS_PER_BUY, ErrorCode::InvalidTicketCount);
+
+        let mint_key = ctx.accounts.mint.key();
+        let row_ix = find_spl_row_index(&ctx.accounts.draw, &mint_key).ok_or(ErrorCode::MintNotInDraw)?;
+        let row = ctx.accounts.draw.spl_mint_rows[row_ix];
+        require_keys_neq!(row.mint, Pubkey::default());
+        require!(ctx.accounts.mint.decimals == row.mint_decimals, ErrorCode::SplMintDecimalsMismatch);
+
+        let new_sold = row
+            .sold
+            .checked_add(count)
+            .ok_or(error!(ErrorCode::ArithmeticOverflow))?;
+        require!(new_sold <= row.cap, ErrorCode::SplCapExceeded);
+
+        let base = ctx.accounts.draw.total_tickets;
+        let draw_state = ctx.accounts.draw.state;
+        let draw_key = ctx.accounts.draw.key();
+        let sales_open = ctx.accounts.draw.sales_open_ts;
+        let sales_close = ctx.accounts.draw.sales_close_ts;
+
+        require!(draw_state == DrawState::Selling as u8, ErrorCode::WrongDrawState);
+
+        let now = ctx.accounts.clock.unix_timestamp;
+        require!(
+            now >= sales_open && now < sales_close,
+            ErrorCode::OutsideSalesWindow
+        );
+
+        let new_total = base
+            .checked_add(count)
+            .ok_or(error!(ErrorCode::ArithmeticOverflow))?;
+
+        let spl_amount = row
+            .price_per_ticket
+            .checked_mul(count as u64)
+            .ok_or(error!(ErrorCode::ArithmeticOverflow))?;
+
+        let (fee_team, fee_setup) = spl_fee_lamports_split(count)?;
+
+        let chunk_indices = ticket_chunk_indices_for_range(base, count)?;
+        require_eq!(
+            ctx.remaining_accounts.len(),
+            chunk_indices.len(),
+            ErrorCode::InvalidChunkAccounts
+        );
+
+        let buyer_key = ctx.accounts.buyer.key();
+        let program_id = ctx.program_id;
+
+        system_program::transfer(
+            CpiContext::new(
+                ctx.accounts.system_program.to_account_info(),
+                system_program::Transfer {
+                    from: ctx.accounts.buyer.to_account_info(),
+                    to: ctx.accounts.team_vault.to_account_info(),
+                },
+            ),
+            fee_team,
+        )?;
+        system_program::transfer(
+            CpiContext::new(
+                ctx.accounts.system_program.to_account_info(),
+                system_program::Transfer {
+                    from: ctx.accounts.buyer.to_account_info(),
+                    to: ctx.accounts.setup_vault.to_account_info(),
+                },
+            ),
+            fee_setup,
+        )?;
+
+        token::transfer(
+            CpiContext::new(
+                ctx.accounts.token_program.to_account_info(),
+                token::Transfer {
+                    from: ctx.accounts.buyer_token.to_account_info(),
+                    to: ctx.accounts.treasury_token.to_account_info(),
+                    authority: ctx.accounts.buyer.to_account_info(),
+                },
+            ),
+            spl_amount,
+        )?;
+
+        for (i, &chunk_idx) in chunk_indices.iter().enumerate() {
+            let chunk_ai = &ctx.remaining_accounts[i];
+            let (expected_pda, bump) = Pubkey::find_program_address(
+                &[
+                    b"tickets",
+                    draw_key.as_ref(),
+                    &chunk_idx.to_le_bytes(),
+                ],
+                program_id,
+            );
+            require_keys_eq!(chunk_ai.key(), expected_pda);
+
+            ensure_ticket_chunk_initialized(
+                program_id,
+                &ctx.accounts.buyer,
+                chunk_ai,
+                &draw_key,
+                chunk_idx,
+                bump,
+                &ctx.accounts.system_program,
+                &ctx.accounts.rent,
+            )?;
+
+            let chunk_start = chunk_idx
+                .checked_mul(TICKETS_PER_CHUNK as u32)
+                .ok_or(error!(ErrorCode::ArithmeticOverflow))?;
+            let chunk_end = chunk_start
+                .checked_add(TICKETS_PER_CHUNK as u32)
+                .ok_or(error!(ErrorCode::ArithmeticOverflow))?;
+            let from = base.max(chunk_start);
+            let to = new_total.min(chunk_end);
+
+            {
+                let data_ro = chunk_ai.try_borrow_data()?;
+                let mut slice: &[u8] = &data_ro[..];
+                let mut tc = TicketChunk::try_deserialize(&mut slice)?;
+                drop(data_ro);
+
+                for ticket_id in from..to {
+                    let slot = (ticket_id - chunk_start) as usize;
+                    require!(tc.owners[slot] == Pubkey::default(), ErrorCode::TicketSlotOccupied);
+                    tc.owners[slot] = buyer_key;
+                }
+
+                let mut data = chunk_ai.try_borrow_mut_data()?;
+                let mut writer: &mut [u8] = &mut data[..];
+                tc.try_serialize(&mut writer)?;
+            }
+        }
+
+        let draw = &mut ctx.accounts.draw;
+        draw.total_tickets = new_total;
+        draw.spl_mint_rows[row_ix].sold = new_sold;
+        Ok(())
+    }
 }
 
 /// Sorted unique chunk indices for ticket ids `[base, base + count)`.
@@ -275,6 +426,32 @@ pub fn ticket_chunk_indices_for_range(base: u32, count: u32) -> Result<Vec<u32>>
             .ok_or(error!(ErrorCode::ArithmeticOverflow))?;
     }
     Ok(out)
+}
+
+fn find_spl_row_index(draw: &Draw, mint: &Pubkey) -> Option<usize> {
+    let n = draw.spl_count as usize;
+    for i in 0..n {
+        if draw.spl_mint_rows[i].mint == *mint {
+            return Some(i);
+        }
+    }
+    None
+}
+
+/// Split **total** SPL fee lamports (`LAMPORTS_SPL_TICKET_FEE_TOTAL * count`) in **2:1** team:setup ratio (matches `1_000_000` : `500_000` from SOL ticket margins).
+fn spl_fee_lamports_split(count: u32) -> Result<(u64, u64)> {
+    let total: u128 = (LAMPORTS_SPL_TICKET_FEE_TOTAL as u128)
+        .checked_mul(count as u128)
+        .ok_or(error!(ErrorCode::ArithmeticOverflow))?;
+    let team: u128 = total
+        .checked_mul(1_000_000)
+        .ok_or(error!(ErrorCode::ArithmeticOverflow))?
+        .checked_div(1_500_000)
+        .ok_or(error!(ErrorCode::ArithmeticOverflow))?;
+    let setup: u128 = total
+        .checked_sub(team)
+        .ok_or(error!(ErrorCode::ArithmeticOverflow))?;
+    Ok((team as u64, setup as u64))
 }
 
 fn ensure_ticket_chunk_initialized<'info>(
@@ -476,6 +653,48 @@ pub struct BuySolTickets<'info> {
     pub clock: Sysvar<'info, Clock>,
 }
 
+#[derive(Accounts)]
+#[instruction(count: u32)]
+pub struct BuySplTickets<'info> {
+    #[account(mut)]
+    pub buyer: Signer<'info>,
+    #[account(mut)]
+    pub draw: Account<'info, Draw>,
+    #[account(seeds = [b"global_config"], bump = global_config.bump)]
+    pub global_config: Account<'info, GlobalConfig>,
+    pub mint: Account<'info, Mint>,
+    /// CHECK: PDA authority for SPL treasury ATAs (matches `draw.spl_auth_bump`).
+    #[account(
+        seeds = [b"spl_vault_auth", draw.key().as_ref()],
+        bump = draw.spl_auth_bump
+    )]
+    pub spl_vault_authority: UncheckedAccount<'info>,
+    #[account(
+        mut,
+        token::mint = mint,
+        token::authority = buyer,
+    )]
+    pub buyer_token: Account<'info, TokenAccount>,
+    #[account(
+        init_if_needed,
+        payer = buyer,
+        associated_token::mint = mint,
+        associated_token::authority = spl_vault_authority,
+    )]
+    pub treasury_token: Account<'info, TokenAccount>,
+    /// CHECK: team SOL recipient from global config.
+    #[account(mut, constraint = team_vault.key() == global_config.team_vault @ ErrorCode::InvalidTeamVault)]
+    pub team_vault: UncheckedAccount<'info>,
+    /// CHECK: setup SOL recipient from global config.
+    #[account(mut, constraint = setup_vault.key() == global_config.setup_vault @ ErrorCode::InvalidSetupVault)]
+    pub setup_vault: UncheckedAccount<'info>,
+    pub token_program: Program<'info, Token>,
+    pub associated_token_program: Program<'info, AssociatedToken>,
+    pub system_program: Program<'info, System>,
+    pub rent: Sysvar<'info, Rent>,
+    pub clock: Sysvar<'info, Clock>,
+}
+
 #[error_code]
 pub enum ErrorCode {
     #[msg("signer is not the configured authority")]
@@ -510,4 +729,10 @@ pub enum ErrorCode {
     InvalidChunkAccount,
     #[msg("ticket slot already occupied")]
     TicketSlotOccupied,
+    #[msg("mint is not allowlisted for this draw")]
+    MintNotInDraw,
+    #[msg("SPL per-mint cap exceeded")]
+    SplCapExceeded,
+    #[msg("mint decimals do not match draw config")]
+    SplMintDecimalsMismatch,
 }

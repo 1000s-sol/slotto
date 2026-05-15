@@ -57,7 +57,7 @@ SOL ticket sales are **uncapped** until **`sales_close_ts`** (and `buy_sol` reje
   - **Per-mint max ticket count** (caps only — **no** separate global SPL cap; total SPL tickets for the draw = **sum of per-mint caps**)
 - **Total SPL allocation is per-draw** (e.g. 600 one draw, higher next draw if you configure it that way).
 - **SPL does not** add to the SOL **prize pot**; SPL accumulates in **program-controlled token accounts** for later **`withdraw_spl`** (authority-only, after **settled**).
-- **Fee per SPL ticket:** **fixed 0.0005 SOL** (same as SOL path), **always paid in SOL**, per ticket.
+- **Fee per SPL ticket:** **fixed 0.0005 SOL** (lamports), **always paid in SOL**, per ticket. On-chain split: **2:1** to **team** vs **setup** (same ratio as the **0.001** : **0.0005** non-pot slice of a SOL ticket), applied to **`count * 0.0005` SOL** in one instruction.
 - **Bulk buys:** `buy_spl_tickets(mint, count)` — **`count`** SPL amounts + **`count * 0.0005` SOL** in fees; **`count`** sequential ticket IDs.
 
 ---
@@ -143,7 +143,7 @@ Concrete layout for Anchor implementation. Revise only if a constraint (rent, ac
 | `initialize` | Deployer / one-shot | Global config PDA |
 | `create_draw` | Authority | Global config, new draw PDA, prize vault PDA, **payer** funds seed → vault; SPL rows persisted on draw (treasury ATAs created lazily in `buy_spl_tickets` with `init_if_needed` for smaller `create_draw` txs). |
 | `buy_sol_tickets` | Anyone | Draw, prize vault, ticket chunk PDAs, team/setup system accounts, buyer |
-| `buy_spl_tickets` | Anyone | Draw, SPL ATA, buyer token, ticket chunks, fee SOL split accounts |
+| `buy_spl_tickets` | Anyone | Draw, `mint`, buyer ATA, treasury ATA (`init_if_needed`, auth `spl_vault_auth`), team/setup SOL vaults, token + ATA programs, clock; **remaining:** ticket chunk PDAs (sorted) |
 | `close_sales` | Permissionless | Draw, clock sysvar |
 | `request_vrf` | Permissionless | Draw + Switchboard accounts per SDK |
 | `settle` | Permissionless | Draw, prize vault, ticket chunks, winner wallet, VRF account |
@@ -203,6 +203,7 @@ Concrete layout for Anchor implementation. Revise only if a constraint (rent, ac
 - [x] Anchor program layout (see §Program design): global config PDA, draw PDA, prize vault (SOL), chunked ticket PDAs, SPL inline table max 16.  
 - [x] **`create_draw`** (program): draw + prize vault PDAs, timestamps, seed transfer, SPL table.  
 - [x] **`buy_sol_tickets`** (program): sales window, 0.0105 SOL splits, chunked ticket PDAs (`remaining_accounts` = chunk PDAs sorted by chunk index).  
+- [x] **`buy_spl_tickets`** (program): allowlisted mint, cap, treasury ATA `init_if_needed`, SPL transfer, **0.0005 SOL × count** fee (2:1 team:setup), shared ticket chunks.  
 - [ ] **Switchboard** devnet + mainnet queue / feed addresses.  
 - [ ] **Recipient** pubkeys at `initialize`.  
 - [x] **Rent** / account size: **16 SPL mints** max per draw (inline rows) + chunked tickets — see §Program design.  
@@ -219,4 +220,4 @@ Concrete layout for Anchor implementation. Revise only if a constraint (rent, ac
 | 2026-05-15 | **Sales open / close** timestamps for UI countdown; **permissionless** `close_sales` / VRF / `settle` pipeline; note on Solana “automatic” vs wall clock + optional keeper. |
 | 2026-05-15 | **§Program design (v1) locked:** PDAs, chunked tickets, prize vault, SPL ≤16, **`refund_empty_draw`**, immutable global config. |
 | 2026-05-15 | Anchor workspace + **`initialize`** + **`create_draw`** (schedule, seed SOL, SPL rows); SPL treasury ATAs **lazy** in `buy_spl_tickets` (`init_if_needed`). |
-| 2026-05-15 | **`buy_sol_tickets`:** 0.0105 SOL/ticket splits, sales window, ticket chunk PDAs + `ticket_chunk_indices_for_range` (sorted `remaining_accounts`). |
+| 2026-05-15 | **`buy_spl_tickets`:** SPL → treasury ATA, caps, **0.0005 SOL** fee (2:1 team:setup), same ticket chunks as SOL. |
