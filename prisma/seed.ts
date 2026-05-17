@@ -2,22 +2,36 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
+function parseAdminWalletList(): string[] {
+  const raw = [
+    process.env.INITIAL_ADMIN_WALLET,
+    process.env.ADDITIONAL_ADMIN_WALLETS,
+  ]
+    .filter(Boolean)
+    .join(",");
+  return [...new Set(raw.split(/[,\s]+/).map((s) => s.trim()).filter(Boolean))];
+}
+
 async function main() {
-  const addr = process.env.INITIAL_ADMIN_WALLET?.trim();
-  if (!addr) {
+  const addresses = parseAdminWalletList();
+  if (addresses.length === 0) {
     console.info(
-      "Skipping admin seed: set INITIAL_ADMIN_WALLET to your Solana pubkey, then run `npx prisma db seed`.",
+      "Skipping admin seed: set INITIAL_ADMIN_WALLET (and optional ADDITIONAL_ADMIN_WALLETS), then run `npx prisma db seed`.",
     );
     return;
   }
 
-  await prisma.adminWallet.upsert({
-    where: { address: addr },
-    create: { address: addr, label: "Bootstrap" },
-    update: { isActive: true },
-  });
-
-  console.info("Admin wallet allowlisted:", addr);
+  for (const address of addresses) {
+    await prisma.adminWallet.upsert({
+      where: { address },
+      create: {
+        address,
+        label: address === process.env.INITIAL_ADMIN_WALLET?.trim() ? "Bootstrap" : null,
+      },
+      update: { isActive: true },
+    });
+    console.info("Admin wallet allowlisted:", address);
+  }
 }
 
 main()

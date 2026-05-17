@@ -3,8 +3,15 @@
 import { useConnection } from "@solana/wallet-adapter-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { fetchLotteryDraw } from "@/lib/lottery/chain";
+import { DrawState } from "@/lib/lottery/constants";
 import { lotteryProgramId, solscanAccountUrl } from "@/lib/lottery/config";
+import {
+  fetchActiveSellingDraw,
+  fetchPastSettledDraws,
+  fetchWinnerPrizeLamports,
+  formatDrawDateLabel,
+  formatSolFromLamports,
+} from "@/lib/lottery/draws";
 import { fetchDrawEntrants } from "@/lib/lottery/ticket-holders";
 
 type TickerItem = {
@@ -34,59 +41,6 @@ type PastDraw = {
   ticketsBought: number;
   totalTickets: number;
 };
-
-const PLACEHOLDER_PAST_DRAWS: PastDraw[] = [
-  {
-    drawNumber: 7,
-    date: "Apr 2026",
-    winnerWallet: "DegenApe88kCWaCKBpW39mZcKVj9fM5h3kQrL2N1XYz3a",
-    discord: "degenape",
-    x: "degenape_sol",
-    prizeSol: 5.04,
-    ticketsBought: 50,
-    totalTickets: 1000,
-  },
-  {
-    drawNumber: 6,
-    date: "Mar 2026",
-    winnerWallet: "Hk3UvD7sB6E1F8XdQ4Mw2RpNz5cKjLT9aY1B6PqMnVeS",
-    discord: "thousands",
-    x: "1000s_sol",
-    prizeSol: 4.18,
-    ticketsBought: 120,
-    totalTickets: 920,
-  },
-  {
-    drawNumber: 5,
-    date: "Feb 2026",
-    winnerWallet: "4Rp6jbqkWqA9mYxJrLfNd5sTeP3hVkA2nDXgM8KcBzUq",
-    discord: null,
-    x: null,
-    prizeSol: 3.87,
-    ticketsBought: 22,
-    totalTickets: 845,
-  },
-  {
-    drawNumber: 4,
-    date: "Jan 2026",
-    winnerWallet: "2cM1q9DhcVJyR3LzpfvP9aAqfPj4mPwQXmYbQ7nT8GxR",
-    discord: "miloh",
-    x: null,
-    prizeSol: 6.21,
-    ticketsBought: 78,
-    totalTickets: 1170,
-  },
-  {
-    drawNumber: 3,
-    date: "Dec 2025",
-    winnerWallet: "ZpQwL5sR3vB8YkJ2xH9nMcDfE7tA6gT4bN1uVeXqKp1F",
-    discord: null,
-    x: "monk3y",
-    prizeSol: 2.95,
-    ticketsBought: 11,
-    totalTickets: 620,
-  },
-];
 
 function shortenWallet(address: string) {
   if (address.length <= 10) return address;
@@ -169,20 +123,25 @@ export function HomeDrawsSection() {
   const [drawId, setDrawId] = useState<number | null>(null);
   const [drawAddress, setDrawAddress] = useState<string | null>(null);
   const [totalTickets, setTotalTickets] = useState(0);
+  const [drawState, setDrawState] = useState<number | null>(null);
   const [drawLoading, setDrawLoading] = useState(true);
+  const [pastDraws, setPastDraws] = useState<PastDraw[]>([]);
+  const [pastLoading, setPastLoading] = useState(true);
 
   const refreshDraw = useCallback(async () => {
-    const draw = await fetchLotteryDraw(connection, programId);
+    const draw = await fetchActiveSellingDraw(connection, programId);
     if (!draw) {
       setDrawId(null);
       setDrawAddress(null);
       setTotalTickets(0);
+      setDrawState(null);
       setEntrants([]);
       return;
     }
     setDrawId(draw.drawId);
     setDrawAddress(draw.draw.toBase58());
     setTotalTickets(draw.totalTickets);
+    setDrawState(draw.state);
     const holders = await fetchDrawEntrants(connection, programId, draw);
     setEntrants(
       holders.map((h) => ({
@@ -193,6 +152,32 @@ export function HomeDrawsSection() {
         paidWithMints: [SOL_MINT],
       })),
     );
+  }, [connection, programId]);
+
+  const refreshPast = useCallback(async () => {
+    const settled = await fetchPastSettledDraws(connection, programId);
+    const rows: PastDraw[] = [];
+    for (const draw of settled) {
+      if (!draw.winner) continue;
+      const holders = await fetchDrawEntrants(connection, programId, draw);
+      const winnerRow = holders.find((h) => h.wallet === draw.winner);
+      const prizeLamports = await fetchWinnerPrizeLamports(
+        connection,
+        draw.winner,
+        draw,
+      );
+      rows.push({
+        drawNumber: draw.drawId,
+        date: formatDrawDateLabel(draw.salesCloseTs),
+        winnerWallet: draw.winner,
+        discord: null,
+        x: null,
+        prizeSol: parseFloat(formatSolFromLamports(prizeLamports)),
+        ticketsBought: winnerRow?.tickets ?? 0,
+        totalTickets: draw.totalTickets,
+      });
+    }
+    setPastDraws(rows.sort((a, b) => b.drawNumber - a.drawNumber));
   }, [connection, programId]);
 
   useEffect(() => {
@@ -212,6 +197,24 @@ export function HomeDrawsSection() {
       clearInterval(poll);
     };
   }, [refreshDraw]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        await refreshPast();
+      } finally {
+        if (!cancelled) setPastLoading(false);
+      }
+    })();
+    const poll = setInterval(() => {
+      refreshPast().catch(() => undefined);
+    }, 60_000);
+    return () => {
+      cancelled = true;
+      clearInterval(poll);
+    };
+  }, [refreshPast]);
 
   useEffect(() => {
     let cancelled = false;
@@ -283,19 +286,26 @@ export function HomeDrawsSection() {
           <p className="text-sm text-muted">Loading entrants…</p>
         ) : drawId === null ? (
           <p className="rounded-2xl border border-border bg-bg-elevated/70 p-6 text-sm text-muted">
-            No active draw on this network yet.
+            No active draw. The next round will be announced on X.
           </p>
         ) : (
           <CurrentDrawTable
             drawId={drawId}
             drawAddress={drawAddress}
+            drawState={drawState}
             entrants={sortedEntrants}
             tokens={tokens}
             totalTickets={totalTickets}
           />
         )
+      ) : pastLoading ? (
+        <p className="text-sm text-muted">Loading past winners…</p>
+      ) : pastDraws.length === 0 ? (
+        <p className="rounded-2xl border border-border bg-bg-elevated/70 p-6 text-sm text-muted">
+          No settled draws yet.
+        </p>
       ) : (
-        <PastWinnersTable draws={PLACEHOLDER_PAST_DRAWS} />
+        <PastWinnersTable draws={pastDraws} />
       )}
     </section>
   );
@@ -304,19 +314,26 @@ export function HomeDrawsSection() {
 function CurrentDrawTable({
   drawId,
   drawAddress,
+  drawState,
   entrants,
   tokens,
   totalTickets,
 }: {
   drawId: number;
   drawAddress: string | null;
+  drawState: number | null;
   entrants: Entrant[];
   tokens: Record<string, TickerItem>;
   totalTickets: number;
 }) {
-
   return (
     <div className="overflow-hidden rounded-2xl border border-border bg-bg-elevated/70">
+      {drawState === DrawState.SalesClosed ||
+      drawState === DrawState.VrfRequested ? (
+        <div className="border-b border-amber-500/30 bg-amber-950/20 px-5 py-3 text-sm text-amber-100">
+          Sales ended — settlement pending.
+        </div>
+      ) : null}
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-5 py-3 text-xs text-muted">
         <span>
           Draw #{drawId}
@@ -367,40 +384,41 @@ function CurrentDrawTable({
               </tr>
             ) : (
               entrants.map((e, i) => {
-              const chance = totalTickets > 0 ? (e.tickets / totalTickets) * 100 : 0;
-              return (
-                <tr
-                  key={e.wallet}
-                  className="border-b border-border/60 last:border-b-0 hover:bg-surface/30"
-                >
-                  <td className="px-5 py-3 text-xs font-semibold text-muted">
-                    {i + 1}
-                  </td>
-                  <td className="px-3 py-3">
-                    <WalletCell address={e.wallet} />
-                  </td>
-                  <td className="px-3 py-3 text-xs">
-                    <DiscordTag name={e.discord} />
-                  </td>
-                  <td className="px-3 py-3 text-xs">
-                    <XTag name={e.x} />
-                  </td>
-                  <td className="px-3 py-3 text-right font-mono tabular-nums text-foreground">
-                    {e.tickets}
-                  </td>
-                  <td className="px-3 py-3">
-                    <div className="flex items-center gap-1.5">
-                      {e.paidWithMints.map((m) => (
-                        <TokenThumb key={m} item={tokens[m]} />
-                      ))}
-                    </div>
-                  </td>
-                  <td className="px-5 py-3 text-right font-mono tabular-nums text-accent-gold">
-                    {formatPct(chance)}
-                  </td>
-                </tr>
-              );
-            })
+                const chance =
+                  totalTickets > 0 ? (e.tickets / totalTickets) * 100 : 0;
+                return (
+                  <tr
+                    key={e.wallet}
+                    className="border-b border-border/60 last:border-b-0 hover:bg-surface/30"
+                  >
+                    <td className="px-5 py-3 text-xs font-semibold text-muted">
+                      {i + 1}
+                    </td>
+                    <td className="px-3 py-3">
+                      <WalletCell address={e.wallet} />
+                    </td>
+                    <td className="px-3 py-3 text-xs">
+                      <DiscordTag name={e.discord} />
+                    </td>
+                    <td className="px-3 py-3 text-xs">
+                      <XTag name={e.x} />
+                    </td>
+                    <td className="px-3 py-3 text-right font-mono tabular-nums text-foreground">
+                      {e.tickets}
+                    </td>
+                    <td className="px-3 py-3">
+                      <div className="flex items-center gap-1.5">
+                        {e.paidWithMints.map((m) => (
+                          <TokenThumb key={m} item={tokens[m]} />
+                        ))}
+                      </div>
+                    </td>
+                    <td className="px-5 py-3 text-right font-mono tabular-nums text-accent-gold">
+                      {formatPct(chance)}
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>

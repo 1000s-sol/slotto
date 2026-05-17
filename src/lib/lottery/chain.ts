@@ -5,6 +5,7 @@ import {
 } from "@solana/web3.js";
 
 import { DrawState } from "./constants";
+import { readDrawSettlementFields } from "./draw-account";
 import {
   drawPda,
   globalConfigPda,
@@ -29,6 +30,8 @@ export type LotteryDrawView = {
   state: number;
   totalTickets: number;
   splMints: SplMintRowView[];
+  winningTicketId: number;
+  winner: string | null;
 };
 
 export async function chainUnixTs(connection: Connection): Promise<number> {
@@ -87,6 +90,35 @@ export async function fetchLotteryDraw(
   return fallback;
 }
 
+export async function fetchDrawById(
+  connection: Connection,
+  programId: PublicKey,
+  drawId: number,
+): Promise<LotteryDrawView | null> {
+  const program = createLotteryReadOnlyProgram(connection);
+  const drawKey = drawPda(programId, drawId);
+  try {
+    const acct = await program.account.draw.fetch(drawKey);
+    const view = toDrawView(programId, drawId, drawKey, acct);
+    if (view.state !== DrawState.Settled) return view;
+    const info = await connection.getAccountInfo(drawKey, "confirmed");
+    if (!info?.data) return view;
+    const expectedWinner = view.winner ? new PublicKey(view.winner) : null;
+    const raw = readDrawSettlementFields(
+      Buffer.from(info.data),
+      expectedWinner,
+    );
+    return {
+      ...view,
+      winningTicketId:
+        raw.winningTicketId > 0 ? raw.winningTicketId : view.winningTicketId,
+      winner: raw.winner?.toBase58() ?? view.winner,
+    };
+  } catch {
+    return null;
+  }
+}
+
 function toDrawView(
   programId: PublicKey,
   drawId: number,
@@ -113,6 +145,10 @@ function toDrawView(
     });
   }
 
+  const winnerPk = acct.winner;
+  const winner =
+    winnerPk.equals(PublicKey.default) ? null : winnerPk.toBase58();
+
   return {
     drawId,
     draw: drawKey,
@@ -122,6 +158,8 @@ function toDrawView(
     state: acct.state,
     totalTickets: acct.totalTickets,
     splMints,
+    winningTicketId: acct.winningTicketId,
+    winner,
   };
 }
 

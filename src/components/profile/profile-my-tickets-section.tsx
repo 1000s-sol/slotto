@@ -1,6 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useConnection, useWallet } from "@solana/wallet-adapter-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+
+import { lotteryProgramId } from "@/lib/lottery/config";
+import { fetchWalletDrawTickets } from "@/lib/lottery/wallet-tickets";
 
 type TickerItem = {
   mint: string;
@@ -9,68 +13,7 @@ type TickerItem = {
   logoUrl: string | null;
 };
 
-type MyTicketRow = {
-  drawNumber: number;
-  dateLabel: string;
-  isLive: boolean;
-  yourTickets: number;
-  poolTickets: number;
-  paidWithMints: string[];
-  outcomeLabel: string;
-  outcomeVariant: "live" | "won" | "lost";
-};
-
 const SOL_MINT = "So11111111111111111111111111111111111111112";
-const PLACEHOLDER_MINTS = {
-  SOL: SOL_MINT,
-  CJT: "7ztGsbEkbSzeeUgm3SwCp6hkmaJe3Gwi4zgvANKSfYML",
-  BLUNANA: "C9vfeaCLhJy7sykgKnfzi6RikawQNoGtRKwsaupKavmV",
-  EMPIRE: "EmpirdtfUMfBQXEjnNmTngeimjfizfuSBD3TN9zqzydj",
-} as const;
-
-/** Placeholder rows until ticket purchases are wired to the database */
-const PLACEHOLDER_MY_TICKETS: MyTicketRow[] = [
-  {
-    drawNumber: 8,
-    dateLabel: "Live",
-    isLive: true,
-    yourTickets: 42,
-    poolTickets: 612,
-    paidWithMints: [PLACEHOLDER_MINTS.SOL, PLACEHOLDER_MINTS.CJT],
-    outcomeLabel: "6.86%",
-    outcomeVariant: "live",
-  },
-  {
-    drawNumber: 7,
-    dateLabel: "Apr 2026",
-    isLive: false,
-    yourTickets: 24,
-    poolTickets: 1000,
-    paidWithMints: [PLACEHOLDER_MINTS.SOL, PLACEHOLDER_MINTS.EMPIRE],
-    outcomeLabel: "—",
-    outcomeVariant: "lost",
-  },
-  {
-    drawNumber: 5,
-    dateLabel: "Feb 2026",
-    isLive: false,
-    yourTickets: 60,
-    poolTickets: 845,
-    paidWithMints: [PLACEHOLDER_MINTS.BLUNANA],
-    outcomeLabel: "4.20 SOL",
-    outcomeVariant: "won",
-  },
-  {
-    drawNumber: 3,
-    dateLabel: "Dec 2025",
-    isLive: false,
-    yourTickets: 8,
-    poolTickets: 620,
-    paidWithMints: [PLACEHOLDER_MINTS.SOL],
-    outcomeLabel: "—",
-    outcomeVariant: "lost",
-  },
-];
 
 function TokenThumb({ item, size = 18 }: { item: TickerItem | undefined; size?: number }) {
   const dim = `${size}px`;
@@ -106,7 +49,38 @@ function TokenThumb({ item, size = 18 }: { item: TickerItem | undefined; size?: 
 }
 
 export function ProfileMyTicketsSection() {
+  const { connection } = useConnection();
+  const { publicKey, connected } = useWallet();
+  const programId = useMemo(() => lotteryProgramId(), []);
   const [tokens, setTokens] = useState<Record<string, TickerItem>>({});
+  const [rows, setRows] = useState<
+    Awaited<ReturnType<typeof fetchWalletDrawTickets>>
+  >([]);
+  const [loading, setLoading] = useState(false);
+
+  const refresh = useCallback(async () => {
+    if (!publicKey) {
+      setRows([]);
+      return;
+    }
+    setLoading(true);
+    try {
+      const data = await fetchWalletDrawTickets(
+        connection,
+        programId,
+        publicKey.toBase58(),
+      );
+      setRows(data);
+    } catch {
+      setRows([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [connection, programId, publicKey]);
+
+  useEffect(() => {
+    refresh().catch(() => undefined);
+  }, [refresh]);
 
   useEffect(() => {
     let cancelled = false;
@@ -129,64 +103,78 @@ export function ProfileMyTicketsSection() {
 
   return (
     <section className="space-y-3">
-      <h2 className="text-lg font-semibold tracking-tight text-foreground">My tickets</h2>
+      <h2 className="text-lg font-semibold tracking-tight text-foreground">
+        My tickets
+      </h2>
 
-      <div className="overflow-hidden rounded-2xl border border-border bg-bg-elevated/70">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[680px] text-left text-sm">
-            <thead className="text-[11px] uppercase tracking-wider text-muted/80">
-              <tr className="border-b border-border">
-                <th className="px-5 py-3 font-medium">Draw</th>
-                <th className="px-3 py-3 font-medium">Date</th>
-                <th className="px-3 py-3 text-right font-medium">Tickets</th>
-                <th className="px-3 py-3 font-medium">Paid with</th>
-                <th className="px-5 py-3 text-right font-medium">Win % / won</th>
-              </tr>
-            </thead>
-            <tbody>
-              {PLACEHOLDER_MY_TICKETS.map((r) => (
-                <tr
-                  key={`${r.drawNumber}-${r.isLive ? "live" : "done"}`}
-                  className="border-b border-border/60 last:border-b-0 hover:bg-surface/30"
-                >
-                  <td className="px-5 py-3 text-xs font-semibold text-muted">#{r.drawNumber}</td>
-                  <td className="px-3 py-3 text-xs text-foreground">
-                    {r.isLive ? (
-                      <span className="rounded-md bg-emerald-950/50 px-2 py-0.5 font-medium text-emerald-200">
-                        Live
-                      </span>
-                    ) : (
-                      r.dateLabel
-                    )}
-                  </td>
-                  <td className="px-3 py-3 text-right font-mono tabular-nums text-muted">
-                    <span className="text-foreground">{r.yourTickets}</span>
-                    <span className="text-muted/60">/{r.poolTickets}</span>
-                  </td>
-                  <td className="px-3 py-3">
-                    <div className="flex items-center gap-1.5">
-                      {r.paidWithMints.length > 0 ? (
-                        r.paidWithMints.map((m) => <TokenThumb key={m} item={tokens[m]} />)
-                      ) : (
-                        <span className="text-muted/40">—</span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-5 py-3 text-right font-mono tabular-nums">
-                    {r.outcomeVariant === "live" ? (
-                      <span className="text-accent-gold">{r.outcomeLabel}</span>
-                    ) : r.outcomeVariant === "won" ? (
-                      <span className="text-accent-gold">{r.outcomeLabel}</span>
-                    ) : (
-                      <span className="text-muted">{r.outcomeLabel}</span>
-                    )}
-                  </td>
+      {!connected || !publicKey ? (
+        <p className="rounded-2xl border border-border bg-bg-elevated/70 p-6 text-sm text-muted">
+          Connect your wallet to see ticket purchases for this network.
+        </p>
+      ) : loading ? (
+        <p className="text-sm text-muted">Loading your tickets…</p>
+      ) : rows.length === 0 ? (
+        <p className="rounded-2xl border border-border bg-bg-elevated/70 p-6 text-sm text-muted">
+          No tickets found for this wallet on the current lottery program.
+        </p>
+      ) : (
+        <div className="overflow-hidden rounded-2xl border border-border bg-bg-elevated/70">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[680px] text-left text-sm">
+              <thead className="text-[11px] uppercase tracking-wider text-muted/80">
+                <tr className="border-b border-border">
+                  <th className="px-5 py-3 font-medium">Draw</th>
+                  <th className="px-3 py-3 font-medium">Date</th>
+                  <th className="px-3 py-3 text-right font-medium">Tickets</th>
+                  <th className="px-3 py-3 font-medium">Paid with</th>
+                  <th className="px-5 py-3 text-right font-medium">
+                    Win % / won
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr
+                    key={r.drawId}
+                    className="border-b border-border/60 last:border-b-0 hover:bg-surface/30"
+                  >
+                    <td className="px-5 py-3 text-xs font-semibold text-muted">
+                      #{r.drawId}
+                    </td>
+                    <td className="px-3 py-3 text-xs text-foreground">
+                      {r.isLive ? (
+                        <span className="rounded-md bg-emerald-950/50 px-2 py-0.5 font-medium text-emerald-200">
+                          Live
+                        </span>
+                      ) : (
+                        r.dateLabel
+                      )}
+                    </td>
+                    <td className="px-3 py-3 text-right font-mono tabular-nums text-muted">
+                      <span className="text-foreground">{r.yourTickets}</span>
+                      <span className="text-muted/60">/{r.poolTickets}</span>
+                    </td>
+                    <td className="px-3 py-3">
+                      <div className="flex items-center gap-1.5">
+                        <TokenThumb item={tokens[SOL_MINT]} />
+                      </div>
+                    </td>
+                    <td className="px-5 py-3 text-right font-mono tabular-nums">
+                      {r.outcomeVariant === "live" || r.outcomeVariant === "won" ? (
+                        <span className="text-accent-gold">{r.outcomeLabel}</span>
+                      ) : r.outcomeVariant === "pending" ? (
+                        <span className="text-amber-200/90">{r.outcomeLabel}</span>
+                      ) : (
+                        <span className="text-muted">{r.outcomeLabel}</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      )}
     </section>
   );
 }

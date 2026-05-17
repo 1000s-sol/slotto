@@ -90,3 +90,61 @@ img[src^="/brand/"] {
     Arial,
     sans-serif;
 }
+
+@keyframes lottery-confetti-fall {
+  0% {
+    transform: translate3d(0, -12%, 0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translate3d(var(--confetti-drift, 0px), 110vh, 0) rotate(720deg);
+    opacity: 0.15;
+  }
+}
+
+.lottery-confetti-particle {
+  animation-name: lottery-confetti-fall;
+  animation-timing-function: ease-in;
+  animation-iteration-count: infinite;
+}
+
+@keyframes lottery-firework-burst {
+  0% {
+    transform: scale(0.2);
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  100% {
+    transform: scale(2.8);
+    opacity: 0;
+  }
+}
+
+.lottery-firework {
+  position: absolute;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(
+    circle,
+    rgba(245, 197, 66, 0.55) 0%,
+    rgba(124, 58, 237, 0.25) 45%,
+    transparent 70%
+  );
+  animation: lottery-firework-burst 2.8s ease-out infinite;
+}
+
+.lottery-firework-a {
+  top: 12%;
+  left: 18%;
+  animation-delay: 0.2s;
+}
+
+.lottery-firework-b {
+  top: 20%;
+  right: 14%;
+  animation-delay: 1.4s;
+}

@@ -2,20 +2,25 @@
 
 import { useAnchorWallet, useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
-import { LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { LotteryWinnerPanel } from "@/components/lottery/lottery-winner-panel";
 import { buySolTickets } from "@/lib/lottery/buy-sol-tickets";
 import {
   chainUnixTs,
   fetchJackpotLamports,
-  fetchLotteryDraw,
   isDrawBuyable,
   type LotteryDrawView,
   type SplMintRowView,
 } from "@/lib/lottery/chain";
 import { DrawState, MAX_SOL_TICKETS_PER_BUY } from "@/lib/lottery/constants";
 import { lotteryProgramId, solscanTxUrl } from "@/lib/lottery/config";
+import {
+  fetchActiveSellingDraw,
+  fetchLatestSettledDraw,
+  fetchWinnerPrizeLamports,
+  formatSolFromLamports,
+} from "@/lib/lottery/draws";
 
 type Phase =
   | { kind: "idle" }
@@ -23,12 +28,7 @@ type Phase =
   | { kind: "ok"; message: string; signature: string }
   | { kind: "error"; message: string };
 
-function formatSolFromLamports(lamports: number): string {
-  return (lamports / LAMPORTS_PER_SOL).toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 4,
-  });
-}
+const X_URL = "https://x.com/slottogg_";
 
 function splitCountdown(totalSec: number): [number, number, number, number] {
   const s = Math.max(0, Math.floor(totalSec));
@@ -44,33 +44,12 @@ function pad2(n: number): string {
   return String(n).padStart(2, "0");
 }
 
-function drawStateLabel(state: number): string {
-  switch (state) {
-    case DrawState.Selling:
-      return "Tickets on sale";
-    case DrawState.SalesClosed:
-      return "Sales closed";
-    case DrawState.VrfRequested:
-      return "Drawing winner";
-    case DrawState.Settled:
-      return "Settled";
-    case DrawState.Refunded:
-      return "Refunded";
-    default:
-      return "Unknown";
-  }
-}
-
 function buyDisabledReason(
-  draw: LotteryDrawView,
-  nowSec: number | null,
+  buyable: boolean,
   connected: boolean,
 ): string | null {
   if (!connected) return "Connect your wallet to buy tickets.";
-  if (nowSec === null) return "Loading chain time…";
-  if (draw.state !== DrawState.Selling) return drawStateLabel(draw.state);
-  if (nowSec < draw.salesOpenTs) return "Sales have not opened yet.";
-  if (nowSec >= draw.salesCloseTs) return "Sales are closed for this draw.";
+  if (!buyable) return null;
   return null;
 }
 
@@ -81,21 +60,41 @@ export function HomeLotterySection() {
   const { setVisible } = useWalletModal();
   const programId = useMemo(() => lotteryProgramId(), []);
 
-  const [draw, setDraw] = useState<LotteryDrawView | null>(null);
+  const [activeDraw, setActiveDraw] = useState<LotteryDrawView | null>(null);
+  const [settledDraw, setSettledDraw] = useState<LotteryDrawView | null>(null);
   const [jackpotLamports, setJackpotLamports] = useState<number | null>(null);
+  const [winnerPrizeLamports, setWinnerPrizeLamports] = useState<number | null>(
+    null,
+  );
   const [nowSec, setNowSec] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [ticketCount, setTicketCount] = useState(1);
   const [payWith, setPayWith] = useState<"SOL" | string>("SOL");
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
 
+  const showWinner = Boolean(!activeDraw && settledDraw?.winner);
+  const draw = activeDraw ?? settledDraw;
+
   const refresh = useCallback(async () => {
-    const d = await fetchLotteryDraw(connection, programId);
-    setDraw(d);
-    if (d) {
-      setJackpotLamports(await fetchJackpotLamports(connection, d.prizeVault));
+    const active = await fetchActiveSellingDraw(connection, programId);
+    setActiveDraw(active);
+    if (active) {
+      setSettledDraw(null);
+      setWinnerPrizeLamports(null);
+      setJackpotLamports(
+        await fetchJackpotLamports(connection, active.prizeVault),
+      );
     } else {
+      const settled = await fetchLatestSettledDraw(connection, programId);
+      setSettledDraw(settled);
       setJackpotLamports(null);
+      if (settled?.winner) {
+        setWinnerPrizeLamports(
+          await fetchWinnerPrizeLamports(connection, settled.winner, settled),
+        );
+      } else {
+        setWinnerPrizeLamports(null);
+      }
     }
     setNowSec(await chainUnixTs(connection));
   }, [connection, programId]);
@@ -128,27 +127,34 @@ export function HomeLotterySection() {
   }, [connection]);
 
   const countdown = useMemo(() => {
-    if (!draw || nowSec === null) return null;
-    if (draw.state !== DrawState.Selling) {
-      return { label: drawStateLabel(draw.state), parts: null as null };
+    if (showWinner) {
+      return { kind: "next-draw" as const, parts: null };
     }
-    if (nowSec < draw.salesOpenTs) {
+    if (!activeDraw || nowSec === null) return null;
+    if (activeDraw.state !== DrawState.Selling) {
+      return { kind: "label" as const, label: "Sales closed", parts: null };
+    }
+    if (nowSec < activeDraw.salesOpenTs) {
       return {
+        kind: "countdown" as const,
         label: "Sales open in",
-        parts: splitCountdown(draw.salesOpenTs - nowSec),
+        parts: splitCountdown(activeDraw.salesOpenTs - nowSec),
       };
     }
-    if (nowSec < draw.salesCloseTs) {
+    if (nowSec < activeDraw.salesCloseTs) {
       return {
+        kind: "countdown" as const,
         label: "Draw closes in",
-        parts: splitCountdown(draw.salesCloseTs - nowSec),
+        parts: splitCountdown(activeDraw.salesCloseTs - nowSec),
       };
     }
-    return { label: "Sales closed", parts: null };
-  }, [draw, nowSec]);
+    return { kind: "label" as const, label: "Sales closed", parts: null };
+  }, [activeDraw, nowSec, showWinner]);
 
-  const buyable = Boolean(draw && nowSec !== null && isDrawBuyable(draw, nowSec));
-  const splOptions: SplMintRowView[] = draw?.splMints ?? [];
+  const buyable = Boolean(
+    activeDraw && nowSec !== null && isDrawBuyable(activeDraw, nowSec),
+  );
+  const splOptions: SplMintRowView[] = activeDraw?.splMints ?? [];
 
   useEffect(() => {
     if (payWith !== "SOL" && !splOptions.some((o) => o.mint === payWith)) {
@@ -164,12 +170,12 @@ export function HomeLotterySection() {
     return `SPL tickets remaining: ${left}/${opt.cap}`;
   }, [payWith, splOptions]);
 
-  const disabledReason = draw ? buyDisabledReason(draw, nowSec, connected) : null;
+  const disabledReason = buyDisabledReason(buyable, connected);
   const canSubmit =
     buyable && Boolean(wallet) && payWith === "SOL" && phase.kind !== "busy";
 
   const onBuy = useCallback(async () => {
-    if (!wallet || !draw || !buyable) return;
+    if (!wallet || !activeDraw || !buyable) return;
     if (payWith !== "SOL") {
       setPhase({
         kind: "error",
@@ -184,11 +190,11 @@ export function HomeLotterySection() {
         connection,
         wallet,
         programId,
-        draw,
+        activeDraw,
         ticketCount,
       );
-      const firstId = draw.totalTickets;
-      const lastId = draw.totalTickets + ticketCount - 1;
+      const firstId = activeDraw.totalTickets;
+      const lastId = activeDraw.totalTickets + ticketCount - 1;
       const ids =
         ticketCount === 1 ? `#${firstId}` : `#${firstId}–#${lastId}`;
       await refresh();
@@ -206,7 +212,7 @@ export function HomeLotterySection() {
   }, [
     buyable,
     connection,
-    draw,
+    activeDraw,
     payWith,
     programId,
     refresh,
@@ -228,6 +234,8 @@ export function HomeLotterySection() {
         ["—", "sec"],
       ];
 
+  const buySectionDisabled = !buyable;
+
   return (
     <section className="space-y-8">
       <h2 className="text-balance text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
@@ -243,17 +251,79 @@ export function HomeLotterySection() {
         </p>
       ) : (
         <>
-          <DrawStatsGrid
-            countdownLabel={countdown?.label ?? "—"}
-            cells={countdownCells}
-            jackpotSol={
-              jackpotLamports !== null
-                ? formatSolFromLamports(jackpotLamports)
-                : "—"
-            }
-          />
+          <div className="grid gap-4 lg:grid-cols-2">
+            <div className="rounded-2xl border border-border bg-bg-elevated/70 p-6">
+              {countdown?.kind === "next-draw" ? (
+                <p className="text-sm leading-relaxed text-foreground sm:text-base">
+                  Next draw starting soon… follow us on{" "}
+                  <a
+                    href={X_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-semibold text-accent-cyan hover:underline"
+                  >
+                    X
+                  </a>{" "}
+                  for updates.
+                </p>
+              ) : (
+                <>
+                  <CountdownHeading
+                    label={
+                      countdown?.kind === "countdown"
+                        ? countdown.label
+                        : countdown?.label ?? "—"
+                    }
+                  />
+                  <div className="mt-4 grid grid-cols-4 gap-3">
+                    {countdownCells.map(([v, l]) => (
+                      <div
+                        key={l}
+                        className="rounded-xl border border-border bg-surface/50 p-3 text-center sm:p-4"
+                      >
+                        <div className="text-2xl font-semibold text-accent-gold sm:text-3xl lg:text-4xl">
+                          {v}
+                        </div>
+                        <CountdownUnitLabel l={l} />
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
 
-          <div className="rounded-2xl border border-border bg-bg-elevated/70 p-6">
+            {showWinner && settledDraw?.winner ? (
+              <LotteryWinnerPanel
+                wallet={settledDraw.winner}
+                prizeSol={formatSolFromLamports(winnerPrizeLamports ?? 0)}
+                drawId={settledDraw.drawId}
+                winningTicketId={settledDraw.winningTicketId}
+              />
+            ) : (
+              <div className="flex flex-col items-center rounded-2xl border border-border bg-bg-elevated/70 p-6 text-center">
+                <div className="text-xs font-semibold uppercase tracking-[0.25em] text-accent-gold">
+                  Live jackpot
+                </div>
+                <div className="mt-3 text-4xl font-black leading-none tracking-tight text-accent-gold [font-family:var(--font-zen-dots),var(--font-michroma),sans-serif] sm:text-5xl lg:text-6xl">
+                  {jackpotLamports !== null
+                    ? formatSolFromLamports(jackpotLamports)
+                    : "—"}
+                </div>
+                <div className="mt-1 text-sm text-muted">SOL</div>
+                <p className="mt-4 text-center text-xs text-muted">
+                  90% of SOL ticket purchases are added to the prize pot.
+                </p>
+              </div>
+            )}
+          </div>
+
+          <div
+            className={`rounded-2xl border border-border bg-bg-elevated/70 p-6 transition ${
+              buySectionDisabled
+                ? "pointer-events-none opacity-55 saturate-50"
+                : ""
+            }`}
+          >
             <h3 className="text-lg font-semibold">Buy tickets</h3>
             <p className="mt-2 text-sm text-muted">
               {payWith === "SOL" ? (
@@ -274,7 +344,8 @@ export function HomeLotterySection() {
                 <select
                   value={payWith}
                   onChange={(e) => setPayWith(e.target.value)}
-                  className="rounded-xl border border-neutral-400/80 bg-neutral-200 px-3 py-2 text-sm text-neutral-900 outline-none focus:border-accent-purple focus:ring-2 focus:ring-accent-purple/30"
+                  disabled={buySectionDisabled}
+                  className="rounded-xl border border-neutral-400/80 bg-neutral-200 px-3 py-2 text-sm text-neutral-900 outline-none focus:border-accent-purple focus:ring-2 focus:ring-accent-purple/30 disabled:cursor-not-allowed"
                 >
                   <option value="SOL">SOL</option>
                   {splOptions.map((o) => {
@@ -296,6 +367,7 @@ export function HomeLotterySection() {
                   min={1}
                   max={MAX_SOL_TICKETS_PER_BUY}
                   value={ticketCount}
+                  disabled={buySectionDisabled}
                   onChange={(e) => {
                     const n = parseInt(e.target.value, 10);
                     if (Number.isFinite(n)) {
@@ -304,7 +376,7 @@ export function HomeLotterySection() {
                       );
                     }
                   }}
-                  className="rounded-xl border border-neutral-400/80 bg-neutral-200 px-3 py-2 text-sm text-neutral-900 outline-none focus:border-accent-purple focus:ring-2 focus:ring-accent-purple/30"
+                  className="rounded-xl border border-neutral-400/80 bg-neutral-200 px-3 py-2 text-sm text-neutral-900 outline-none focus:border-accent-purple focus:ring-2 focus:ring-accent-purple/30 disabled:cursor-not-allowed"
                 />
               </label>
 
@@ -318,7 +390,7 @@ export function HomeLotterySection() {
               />
             </div>
 
-            {disabledReason && connected ? (
+            {disabledReason ? (
               <p className="mt-3 text-sm text-amber-100/90">{disabledReason}</p>
             ) : null}
 
@@ -346,50 +418,6 @@ export function HomeLotterySection() {
         </>
       )}
     </section>
-  );
-}
-
-function DrawStatsGrid({
-  countdownLabel,
-  cells,
-  jackpotSol,
-}: {
-  countdownLabel: string;
-  cells: string[][];
-  jackpotSol: string;
-}) {
-  return (
-    <div className="grid gap-4 lg:grid-cols-2">
-      <div className="rounded-2xl border border-border bg-bg-elevated/70 p-6">
-        <CountdownHeading label={countdownLabel} />
-        <div className="mt-4 grid grid-cols-4 gap-3">
-          {cells.map(([v, l]) => (
-            <div
-              key={l}
-              className="rounded-xl border border-border bg-surface/50 p-3 text-center sm:p-4"
-            >
-              <div className="text-2xl font-semibold text-accent-gold sm:text-3xl lg:text-4xl">
-                {v}
-              </div>
-              <CountdownUnitLabel l={l} />
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="flex flex-col items-center rounded-2xl border border-border bg-bg-elevated/70 p-6 text-center">
-        <div className="text-xs font-semibold uppercase tracking-[0.25em] text-accent-gold">
-          Live jackpot
-        </div>
-        <div className="mt-3 text-4xl font-black leading-none tracking-tight text-accent-gold [font-family:var(--font-zen-dots),var(--font-michroma),sans-serif] [letter-spacing:0.02em] sm:text-5xl lg:text-6xl">
-          {jackpotSol}
-        </div>
-        <div className="mt-1 text-sm text-muted">SOL</div>
-        <p className="mt-4 text-center text-xs text-muted">
-          90% of SOL ticket purchases are added to the prize pot.
-        </p>
-      </div>
-    </div>
   );
 }
 
