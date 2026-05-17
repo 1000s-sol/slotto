@@ -14,13 +14,7 @@ import {
   type LotteryDrawView,
   type SplMintRowView,
 } from "@/lib/lottery/chain";
-import {
-  DrawState,
-  LAMPORTS_PER_SOL_TICKET,
-  LAMPORTS_SOL_TICKET_FEE,
-  LAMPORTS_SOL_TICKET_PRICE,
-  MAX_SOL_TICKETS_PER_BUY,
-} from "@/lib/lottery/constants";
+import { DrawState, MAX_SOL_TICKETS_PER_BUY } from "@/lib/lottery/constants";
 import { lotteryProgramId, solscanTxUrl } from "@/lib/lottery/config";
 
 type Phase =
@@ -162,19 +156,14 @@ export function HomeLotterySection() {
     }
   }, [payWith, splOptions]);
 
-  const subtitle = useMemo(() => {
-    if (payWith === "SOL") {
-      return "0.01 SOL per ticket (+ 0.0005 SOL transaction fee)";
-    }
+  const splSubtitle = useMemo(() => {
+    if (payWith === "SOL") return null;
     const opt = splOptions.find((o) => o.mint === payWith);
     if (!opt) return "";
     const left = opt.cap - opt.sold;
     return `SPL tickets remaining: ${left}/${opt.cap}`;
   }, [payWith, splOptions]);
 
-  const ticketCostLamports = ticketCount * LAMPORTS_SOL_TICKET_PRICE;
-  const feeCostLamports = ticketCount * LAMPORTS_SOL_TICKET_FEE;
-  const totalCostLamports = ticketCostLamports + feeCostLamports;
   const disabledReason = draw ? buyDisabledReason(draw, nowSec, connected) : null;
   const canSubmit =
     buyable && Boolean(wallet) && payWith === "SOL" && phase.kind !== "busy";
@@ -266,15 +255,18 @@ export function HomeLotterySection() {
 
           <div className="rounded-2xl border border-border bg-bg-elevated/70 p-6">
             <h3 className="text-lg font-semibold">Buy tickets</h3>
-            <p className="mt-2 text-sm text-muted">{subtitle}</p>
-            {payWith === "SOL" ? (
-              <p className="mt-1 text-xs text-muted">
-                Total: {formatSolFromLamports(ticketCostLamports)} tickets +{" "}
-                {formatSolFromLamports(feeCostLamports)} fee ={" "}
-                {formatSolFromLamports(totalCostLamports)} for {ticketCount}{" "}
-                ticket{ticketCount === 1 ? "" : "s"}
-              </p>
-            ) : null}
+            <p className="mt-2 text-sm text-muted">
+              {payWith === "SOL" ? (
+                <>
+                  0.01 SOL per ticket{" "}
+                  <span className="text-[11px] text-muted/75">
+                    (+ 0.0005 SOL transaction fee)
+                  </span>
+                </>
+              ) : (
+                splSubtitle
+              )}
+            </p>
 
             <div className="mt-6 grid gap-4 sm:grid-cols-3">
               <label className="flex flex-col gap-2 text-xs text-muted">
