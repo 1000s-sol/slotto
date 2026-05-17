@@ -20,6 +20,7 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: true,
   },
   transpilePackages: [
+    "@coral-xyz/anchor",
     "@noble/curves",
     "@solana/wallet-adapter-base",
     "@solana/wallet-adapter-react",
