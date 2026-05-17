@@ -127,8 +127,6 @@ async function main() {
       .accounts({
         draw: draw.draw,
         prizeVault: draw.prizeVault,
-        clock: SYSVAR_CLOCK_PUBKEY,
-        rent: SYSVAR_RENT_PUBKEY,
       })
       .remainingAccounts([
         { pubkey: chunkPk, isWritable: true, isSigner: false },
