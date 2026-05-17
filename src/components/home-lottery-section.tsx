@@ -17,6 +17,8 @@ import {
 import {
   DrawState,
   LAMPORTS_PER_SOL_TICKET,
+  LAMPORTS_SOL_TICKET_FEE,
+  LAMPORTS_SOL_TICKET_PRICE,
   MAX_SOL_TICKETS_PER_BUY,
 } from "@/lib/lottery/constants";
 import {
@@ -166,7 +168,7 @@ export function HomeLotterySection() {
 
   const subtitle = useMemo(() => {
     if (payWith === "SOL") {
-      return `${(LAMPORTS_PER_SOL_TICKET / LAMPORTS_PER_SOL).toFixed(4)} SOL per ticket`;
+      return "0.01 SOL per ticket (+ 0.0005 SOL transaction fee)";
     }
     const opt = splOptions.find((o) => o.mint === payWith);
     if (!opt) return "";
@@ -174,7 +176,9 @@ export function HomeLotterySection() {
     return `SPL tickets remaining: ${left}/${opt.cap}`;
   }, [payWith, splOptions]);
 
-  const totalCostLamports = ticketCount * LAMPORTS_PER_SOL_TICKET;
+  const ticketCostLamports = ticketCount * LAMPORTS_SOL_TICKET_PRICE;
+  const feeCostLamports = ticketCount * LAMPORTS_SOL_TICKET_FEE;
+  const totalCostLamports = ticketCostLamports + feeCostLamports;
   const disabledReason = draw ? buyDisabledReason(draw, nowSec, connected) : null;
   const canSubmit =
     buyable && Boolean(wallet) && payWith === "SOL" && phase.kind !== "busy";
@@ -283,8 +287,10 @@ export function HomeLotterySection() {
             <p className="mt-2 text-sm text-muted">{subtitle}</p>
             {payWith === "SOL" ? (
               <p className="mt-1 text-xs text-muted">
-                Total: {formatSolFromLamports(totalCostLamports)} for{" "}
-                {ticketCount} ticket{ticketCount === 1 ? "" : "s"}
+                Total: {formatSolFromLamports(ticketCostLamports)} tickets +{" "}
+                {formatSolFromLamports(feeCostLamports)} fee ={" "}
+                {formatSolFromLamports(totalCostLamports)} for {ticketCount}{" "}
+                ticket{ticketCount === 1 ? "" : "s"}
               </p>
             ) : null}
 
@@ -406,11 +412,7 @@ function DrawStatsGrid({
         </div>
         <div className="mt-1 text-sm text-muted">SOL</div>
         <p className="mt-4 text-center text-xs text-muted">
-          ~86% of each ticket adds to the pot (0.009 SOL of 0.0105).
-          <br />
-          <span className="inline-block whitespace-nowrap">
-            Team and setup fees are fixed per ticket on-chain.
-          </span>
+          90% of SOL ticket purchases are added to the prize pot.
         </p>
       </div>
     </div>

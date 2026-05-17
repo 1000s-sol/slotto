@@ -39,11 +39,17 @@ export async function chainUnixTs(connection: Connection): Promise<number> {
   return Number(info.data.readBigInt64LE(32));
 }
 
+/** Prize vault balance minus rent-exempt minimum (matches on-chain withdrawable pot). */
 export async function fetchJackpotLamports(
   connection: Connection,
   prizeVault: PublicKey,
 ): Promise<number> {
-  return connection.getBalance(prizeVault, "confirmed");
+  const info = await connection.getAccountInfo(prizeVault, "confirmed");
+  if (!info) return 0;
+  const rentMin = await connection.getMinimumBalanceForRentExemption(
+    info.data.length,
+  );
+  return Math.max(0, info.lamports - rentMin);
 }
 
 /** Latest draw in `Selling` state, else the most recently created draw for status display. */
