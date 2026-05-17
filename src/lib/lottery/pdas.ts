@@ -25,3 +25,17 @@ export function prizeVaultPda(programId: PublicKey, draw: PublicKey): PublicKey 
   );
   return pda;
 }
+
+export function ticketChunkPda(
+  programId: PublicKey,
+  draw: PublicKey,
+  chunkIdx: number,
+): PublicKey {
+  const buf = Buffer.alloc(4);
+  buf.writeUInt32LE(chunkIdx);
+  const [pda] = PublicKey.findProgramAddressSync(
+    [Buffer.from("tickets"), draw.toBuffer(), buf],
+    programId,
+  );
+  return pda;
+}

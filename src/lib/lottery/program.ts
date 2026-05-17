@@ -1,6 +1,11 @@
 import { AnchorProvider, Program } from "@coral-xyz/anchor";
 import type { AnchorWallet } from "@solana/wallet-adapter-react";
-import { Connection, PublicKey, type Commitment } from "@solana/web3.js";
+import {
+  Connection,
+  Keypair,
+  PublicKey,
+  type Commitment,
+} from "@solana/web3.js";
 
 import idl from "../../../idl/slotto_lottery.json";
 
@@ -23,4 +28,22 @@ export function createLotteryProgram(
 
 export function lotteryProgramIdKey(): PublicKey {
   return lotteryProgramId();
+}
+
+/** Fetch accounts without a connected wallet (no signing). */
+export function createLotteryReadOnlyProgram(
+  connection: Connection,
+  commitment: Commitment = "confirmed",
+): SlottoLotteryProgram {
+  const keypair = Keypair.generate();
+  const wallet = {
+    publicKey: keypair.publicKey,
+    signTransaction: async () => {
+      throw new Error("read-only program client");
+    },
+    signAllTransactions: async () => {
+      throw new Error("read-only program client");
+    },
+  };
+  return createLotteryProgram(connection, wallet, commitment);
 }

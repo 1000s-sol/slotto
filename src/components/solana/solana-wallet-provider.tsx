@@ -18,6 +18,9 @@ if (typeof globalThis !== "undefined" && !(globalThis as unknown as { Buffer?: u
 function rpcEndpoint() {
   const fromEnv = process.env.NEXT_PUBLIC_SOLANA_RPC_URL?.trim();
   if (fromEnv) return fromEnv;
+  if (process.env.NEXT_PUBLIC_SLOTTO_LOTTERY_PROGRAM_ID?.trim()) {
+    return clusterApiUrl("devnet");
+  }
   return clusterApiUrl("mainnet-beta");
 }
 
