@@ -3,11 +3,7 @@
 import { BN } from "@coral-xyz/anchor";
 import { useAnchorWallet, useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
-import {
-  LAMPORTS_PER_SOL,
-  PublicKey,
-  SystemProgram,
-} from "@solana/web3.js";
+import { LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
@@ -132,7 +128,6 @@ export function LotteryOpsPanel() {
         .accounts({
           authority: publicKey,
           globalConfig,
-          systemProgram: SystemProgram.programId,
         })
         .rpc();
       await refreshConfig();
@@ -198,7 +193,6 @@ export function LotteryOpsPanel() {
           globalConfig,
           draw,
           prizeVault,
-          systemProgram: SystemProgram.programId,
         })
         .rpc();
 
