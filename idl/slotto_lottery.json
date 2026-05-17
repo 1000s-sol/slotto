@@ -1,0 +1,863 @@
+{
+  "address": "CiSuRzLSXbbbStNaDjjZbmSU8dn3zhx9qs3Nd9gvNYke",
+  "metadata": {
+    "name": "slotto_lottery",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Slotto on-chain lottery (checked-in IDL; regenerate via scripts/generate-idl.mjs)"
+  },
+  "instructions": [
+    {
+      "name": "initialize",
+      "discriminator": [
+        175,
+        175,
+        109,
+        31,
+        13,
+        152,
+        155,
+        237
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "global_config",
+          "writable": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "team_vault",
+          "type": "pubkey"
+        },
+        {
+          "name": "setup_vault",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "create_draw",
+      "discriminator": [
+        107,
+        29,
+        230,
+        63,
+        112,
+        148,
+        0,
+        105
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "global_config",
+          "writable": true
+        },
+        {
+          "name": "draw",
+          "writable": true
+        },
+        {
+          "name": "prize_vault",
+          "writable": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "sales_open_ts",
+          "type": "i64"
+        },
+        {
+          "name": "sales_close_ts",
+          "type": "i64"
+        },
+        {
+          "name": "seed_refund",
+          "type": "pubkey"
+        },
+        {
+          "name": "seed_lamports",
+          "type": "u64"
+        },
+        {
+          "name": "spl_rows",
+          "type": {
+            "vec": {
+              "defined": {
+                "name": "splMintArg"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "buy_sol_tickets",
+      "discriminator": [
+        240,
+        15,
+        247,
+        138,
+        37,
+        98,
+        192,
+        250
+      ],
+      "accounts": [
+        {
+          "name": "buyer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "draw",
+          "writable": true
+        },
+        {
+          "name": "prize_vault",
+          "writable": true
+        },
+        {
+          "name": "global_config"
+        },
+        {
+          "name": "team_vault",
+          "writable": true
+        },
+        {
+          "name": "setup_vault",
+          "writable": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        },
+        {
+          "name": "clock",
+          "address": "SysvarC1ock11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "count",
+          "type": "u32"
+        }
+      ]
+    },
+    {
+      "name": "buy_spl_tickets",
+      "discriminator": [
+        54,
+        1,
+        208,
+        36,
+        204,
+        54,
+        25,
+        1
+      ],
+      "accounts": [
+        {
+          "name": "buyer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "draw",
+          "writable": true
+        },
+        {
+          "name": "global_config"
+        },
+        {
+          "name": "mint"
+        },
+        {
+          "name": "spl_vault_authority"
+        },
+        {
+          "name": "buyer_token",
+          "writable": true
+        },
+        {
+          "name": "treasury_token",
+          "writable": true
+        },
+        {
+          "name": "team_vault",
+          "writable": true
+        },
+        {
+          "name": "setup_vault",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        },
+        {
+          "name": "clock",
+          "address": "SysvarC1ock11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "count",
+          "type": "u32"
+        }
+      ]
+    },
+    {
+      "name": "close_sales",
+      "discriminator": [
+        63,
+        216,
+        175,
+        193,
+        204,
+        39,
+        113,
+        225
+      ],
+      "accounts": [
+        {
+          "name": "draw",
+          "writable": true
+        },
+        {
+          "name": "clock",
+          "address": "SysvarC1ock11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "refund_empty_draw",
+      "discriminator": [
+        49,
+        168,
+        175,
+        82,
+        83,
+        67,
+        216,
+        81
+      ],
+      "accounts": [
+        {
+          "name": "draw",
+          "writable": true
+        },
+        {
+          "name": "prize_vault",
+          "writable": true
+        },
+        {
+          "name": "seed_refund",
+          "writable": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "request_vrf",
+      "discriminator": [
+        5,
+        87,
+        79,
+        152,
+        164,
+        176,
+        190,
+        226
+      ],
+      "accounts": [
+        {
+          "name": "draw",
+          "writable": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "settle",
+      "discriminator": [
+        175,
+        42,
+        185,
+        87,
+        144,
+        131,
+        102,
+        212
+      ],
+      "accounts": [
+        {
+          "name": "draw",
+          "writable": true
+        },
+        {
+          "name": "prize_vault",
+          "writable": true
+        },
+        {
+          "name": "clock",
+          "address": "SysvarC1ock11111111111111111111111111111111"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "withdraw_spl",
+      "discriminator": [
+        181,
+        154,
+        94,
+        86,
+        62,
+        115,
+        6,
+        186
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "global_config"
+        },
+        {
+          "name": "draw"
+        },
+        {
+          "name": "mint"
+        },
+        {
+          "name": "spl_vault_authority"
+        },
+        {
+          "name": "treasury_token",
+          "writable": true
+        },
+        {
+          "name": "destination_token",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    }
+  ],
+  "accounts": [
+    {
+      "name": "GlobalConfig",
+      "discriminator": [
+        149,
+        8,
+        156,
+        202,
+        160,
+        252,
+        176,
+        217
+      ]
+    },
+    {
+      "name": "Draw",
+      "discriminator": [
+        225,
+        131,
+        41,
+        222,
+        122,
+        20,
+        146,
+        202
+      ]
+    },
+    {
+      "name": "TicketChunk",
+      "discriminator": [
+        40,
+        18,
+        133,
+        144,
+        73,
+        179,
+        60,
+        4
+      ]
+    },
+    {
+      "name": "PrizeVault",
+      "discriminator": [
+        34,
+        226,
+        195,
+        160,
+        248,
+        75,
+        50,
+        7
+      ]
+    }
+  ],
+  "types": [
+    {
+      "name": "splMintArg",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "price_per_ticket",
+            "type": "u64"
+          },
+          {
+            "name": "mint_decimals",
+            "type": "u8"
+          },
+          {
+            "name": "cap",
+            "type": "u32"
+          }
+        ]
+      }
+    },
+    {
+      "name": "splMintRow",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "price_per_ticket",
+            "type": "u64"
+          },
+          {
+            "name": "mint_decimals",
+            "type": "u8"
+          },
+          {
+            "name": "_padding0",
+            "type": {
+              "array": [
+                "u8",
+                3
+              ]
+            }
+          },
+          {
+            "name": "cap",
+            "type": "u32"
+          },
+          {
+            "name": "sold",
+            "type": "u32"
+          },
+          {
+            "name": "_padding1",
+            "type": {
+              "array": [
+                "u8",
+                4
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "Draw",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "draw_id",
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "prize_vault_bump",
+            "type": "u8"
+          },
+          {
+            "name": "_padding0",
+            "type": {
+              "array": [
+                "u8",
+                6
+              ]
+            }
+          },
+          {
+            "name": "sales_open_ts",
+            "type": "i64"
+          },
+          {
+            "name": "sales_close_ts",
+            "type": "i64"
+          },
+          {
+            "name": "state",
+            "type": "u8"
+          },
+          {
+            "name": "_padding1",
+            "type": {
+              "array": [
+                "u8",
+                3
+              ]
+            }
+          },
+          {
+            "name": "total_tickets",
+            "type": "u32"
+          },
+          {
+            "name": "seed_refund",
+            "type": "pubkey"
+          },
+          {
+            "name": "spl_count",
+            "type": "u8"
+          },
+          {
+            "name": "_padding2",
+            "type": {
+              "array": [
+                "u8",
+                7
+              ]
+            }
+          },
+          {
+            "name": "spl_mint_rows",
+            "type": {
+              "array": [
+                {
+                  "defined": {
+                    "name": "splMintRow"
+                  }
+                },
+                16
+              ]
+            }
+          },
+          {
+            "name": "vrf_request",
+            "type": "pubkey"
+          },
+          {
+            "name": "winning_ticket_id",
+            "type": "u32"
+          },
+          {
+            "name": "winner",
+            "type": "pubkey"
+          },
+          {
+            "name": "spl_auth_bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "GlobalConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "team_vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "setup_vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "next_draw_id",
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TicketChunk",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owners",
+            "type": {
+              "array": [
+                "pubkey",
+                256
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "PrizeVault",
+      "type": {
+        "kind": "struct",
+        "fields": []
+      }
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "Unauthorized",
+      "msg": "Unauthorized"
+    },
+    {
+      "code": 6001,
+      "name": "InvalidSchedule",
+      "msg": "InvalidSchedule"
+    },
+    {
+      "code": 6002,
+      "name": "TooManySplMints",
+      "msg": "TooManySplMints"
+    },
+    {
+      "code": 6003,
+      "name": "UnexpectedRemainingAccounts",
+      "msg": "UnexpectedRemainingAccounts"
+    },
+    {
+      "code": 6004,
+      "name": "InvalidSplCap",
+      "msg": "InvalidSplCap"
+    },
+    {
+      "code": 6005,
+      "name": "InvalidSplPrice",
+      "msg": "InvalidSplPrice"
+    },
+    {
+      "code": 6006,
+      "name": "DrawIdOverflow",
+      "msg": "DrawIdOverflow"
+    },
+    {
+      "code": 6007,
+      "name": "WrongDrawState",
+      "msg": "WrongDrawState"
+    },
+    {
+      "code": 6008,
+      "name": "OutsideSalesWindow",
+      "msg": "OutsideSalesWindow"
+    },
+    {
+      "code": 6009,
+      "name": "InvalidTicketCount",
+      "msg": "InvalidTicketCount"
+    },
+    {
+      "code": 6010,
+      "name": "ArithmeticOverflow",
+      "msg": "ArithmeticOverflow"
+    },
+    {
+      "code": 6011,
+      "name": "InvalidTeamVault",
+      "msg": "InvalidTeamVault"
+    },
+    {
+      "code": 6012,
+      "name": "InvalidSetupVault",
+      "msg": "InvalidSetupVault"
+    },
+    {
+      "code": 6013,
+      "name": "InvalidChunkAccounts",
+      "msg": "InvalidChunkAccounts"
+    },
+    {
+      "code": 6014,
+      "name": "InvalidChunkAccount",
+      "msg": "InvalidChunkAccount"
+    },
+    {
+      "code": 6015,
+      "name": "TicketSlotOccupied",
+      "msg": "TicketSlotOccupied"
+    },
+    {
+      "code": 6016,
+      "name": "MintNotInDraw",
+      "msg": "MintNotInDraw"
+    },
+    {
+      "code": 6017,
+      "name": "SplCapExceeded",
+      "msg": "SplCapExceeded"
+    },
+    {
+      "code": 6018,
+      "name": "SplMintDecimalsMismatch",
+      "msg": "SplMintDecimalsMismatch"
+    },
+    {
+      "code": 6019,
+      "name": "InvalidDrawStateForCloseSales",
+      "msg": "InvalidDrawStateForCloseSales"
+    },
+    {
+      "code": 6020,
+      "name": "SalesPeriodNotEnded",
+      "msg": "SalesPeriodNotEnded"
+    },
+    {
+      "code": 6021,
+      "name": "InvalidDrawStateForRefund",
+      "msg": "InvalidDrawStateForRefund"
+    },
+    {
+      "code": 6022,
+      "name": "RefundDrawHasTickets",
+      "msg": "RefundDrawHasTickets"
+    },
+    {
+      "code": 6023,
+      "name": "InvalidSeedRefund",
+      "msg": "InvalidSeedRefund"
+    },
+    {
+      "code": 6024,
+      "name": "InvalidDrawStateForVrf",
+      "msg": "InvalidDrawStateForVrf"
+    },
+    {
+      "code": 6025,
+      "name": "VrfNeedsTickets",
+      "msg": "VrfNeedsTickets"
+    },
+    {
+      "code": 6026,
+      "name": "VrfAlreadyRequested",
+      "msg": "VrfAlreadyRequested"
+    },
+    {
+      "code": 6027,
+      "name": "InvalidDrawStateForSettle",
+      "msg": "InvalidDrawStateForSettle"
+    },
+    {
+      "code": 6028,
+      "name": "VrfNotStubMode",
+      "msg": "VrfNotStubMode"
+    },
+    {
+      "code": 6029,
+      "name": "SettleAccountsWrongLen",
+      "msg": "SettleAccountsWrongLen"
+    },
+    {
+      "code": 6030,
+      "name": "EmptyTicketOwner",
+      "msg": "EmptyTicketOwner"
+    },
+    {
+      "code": 6031,
+      "name": "WinnerMismatch",
+      "msg": "WinnerMismatch"
+    },
+    {
+      "code": 6032,
+      "name": "InvalidDrawStateForWithdrawSpl",
+      "msg": "InvalidDrawStateForWithdrawSpl"
+    }
+  ]
+}

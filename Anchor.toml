@@ -1,13 +1,15 @@
+[toolchain]
+anchor_version = "0.30.1"
+
 [features]
 resolution = true
 skip-lint = false
 
-# Replace with your deployed program id after `anchor keys list` / `solana-keygen`.
-[programs.localnet]
-slotto_lottery = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFTE24"
-
 [programs.devnet]
-slotto_lottery = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFTE24"
+slotto_lottery = "CiSuRzLSXbbbStNaDjjZbmSU8dn3zhx9qs3Nd9gvNYke"
+
+[programs.localnet]
+slotto_lottery = "CiSuRzLSXbbbStNaDjjZbmSU8dn3zhx9qs3Nd9gvNYke"
 
 [registry]
 url = "https://api.apr.dev"
@@ -17,4 +19,9 @@ cluster = "Devnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
-test = "anchor build"
+test = "npx ts-mocha -p ./tsconfig.anchor.json -t 1000000 tests/**/*.ts"
+
+[test]
+startup_wait = 20000
+shutdown_wait = 2000
+upgradeable = false

@@ -163,8 +163,13 @@ Concrete layout for Anchor implementation. Revise only if a constraint (rent, ac
 
 ## Randomness
 
-- **Target (mainnet):** **Switchboard VRF** (or equivalent verifiable randomness) with devnet queue / feed IDs for testing.
-- **Current program (v1 devnet / integration):** **`request_vrf`** sets `draw.vrf_request` to a fixed **`VRF_STUB_MARKER`** (no oracle CPI yet). **`settle`** derives a pseudo-random ticket index from **`hashv(["slotto::settle_stub_v1", draw, slot, unix_timestamp])`** — sufficient to exercise the full draw lifecycle on devnet, **not** fair against block producers and **must** be replaced before mainnet.
+- **Target (mainnet):** **Switchboard On-Demand** verifiable randomness (commit → oracle generate → reveal). Use the **`switchboard-on-demand`** Rust crate (see [SDK version matrix](https://docs.switchboard.xyz/tooling/sdk-version-matrix.md)) aligned with this repo’s **Anchor / Solana** versions. Tutorial: [Randomness tutorial](https://docs.switchboard.xyz/docs-by-chain/solana-svm/randomness/randomness-tutorial) (`RandomnessAccountData`, slot window / freshness checks).
+- **Program wiring (next implementation steps):**
+  1. Create / commit a **randomness account** for the cluster’s Switchboard **queue** (devnet queue pubkey from Switchboard at deploy time).
+  2. Store that account’s pubkey in **`draw.vrf_request`** (replacing the stub **`VRF_STUB_MARKER`** flow).
+  3. **`settle`:** deserialize `RandomnessAccountData`, verify slot / freshness per Switchboard rules, read the **32-byte** value, then derive **`winning_ticket_id`** (handle modulo bias for large `N` if your auditor requires it).
+  4. Until audited, ship **stub** path on devnet only (`stub_settle_winning_ticket_id` in `programs/slotto_lottery/src/lib.rs`).
+- **Current program (v1 devnet / integration):** **`request_vrf`** sets `draw.vrf_request` to **`VRF_STUB_MARKER`**. **`settle`** uses **`stub_settle_winning_ticket_id`** (`hashv` over draw + clock) — exercises lifecycle on devnet; **not** mainnet-safe.
 
 ---
 
@@ -210,7 +215,7 @@ Concrete layout for Anchor implementation. Revise only if a constraint (rent, ac
 - [ ] **Switchboard** devnet + mainnet queue / feed addresses.  
 - [x] **Recipient** pubkeys at `initialize`.  
 - [x] **Rent** / account size: **16 SPL mints** max per draw (inline rows) + chunked tickets — see §Program design.  
-- [ ] Tests: splits, bulk buy math, SPL cap exhaustion, settlement + payout, `N=0` guard.  
+- [ ] Tests: **done (lib):** `npm run lottery:test` (23 tests). **done (integration):** `npm run lottery:test:integration` — initialize, create_draw, empty refund, SOL buy→settle stub (`tests/slotto_lottery.ts`). **TODO:** SPL buy + cap exhaustion on-chain.  
 - [ ] Optional **keeper** (script / cron) that calls `close_sales` → `request_vrf` → `settle` in order so draws don’t stall if public cranks are slow.
 
 ---
@@ -224,3 +229,10 @@ Concrete layout for Anchor implementation. Revise only if a constraint (rent, ac
 | 2026-05-15 | **§Program design (v1) locked:** PDAs, chunked tickets, prize vault, SPL ≤16, **`refund_empty_draw`**, immutable global config. |
 | 2026-05-15 | Anchor workspace + **`initialize`** + **`create_draw`** (schedule, seed SOL, SPL rows); SPL treasury ATAs **lazy** in `buy_spl_tickets` (`init_if_needed`). |
 | 2026-05-15 | **`request_vrf`** + **`settle`** (stub: `VRF_STUB_MARKER` + `hashv`; prize payout; remaining `[chunk, winner]`). |
+| 2026-05-16 | **§Randomness:** On-Demand Switchboard checklist + links; stub roll extracted to `stub_settle_winning_ticket_id` + unit tests. |
+| 2026-05-16 | Lib tests: `spl_apply_buy_to_row`, `spl_token_amount_for_buy`, `ticket_chunk_index` / `ticket_slot_in_chunk`, `find_spl_row_index_in_table`. |
+| 2026-05-16 | `scripts/lottery-test-lib.sh` + `npm run lottery:test`; `sol_ticket_lamports_splits`; program `check-cfg` for Anchor macro warnings. |
+| 2026-05-16 | Anchor integration tests: `tests/slotto_lottery.ts`, `npm run lottery:test:integration` (`anchor test` + local validator). |
+| 2026-05-16 | `Cargo.lock`: pin `unicode-segmentation` 1.12.0 for Solana SBF rustc 1.84 (`anchor build` / `anchor test`). |
+| 2026-05-16 | BPF stack: `Draw` + `TicketChunk` `zero_copy`; ticket owners via byte offsets (no `AccountLoader` on remaining accounts). |
+| 2026-05-16 | Build: `bash scripts/anchor-build.sh` = `anchor build --no-idl` + `anchor idl build` on host Rust **1.84** (Anchor 0.30 IDL breaks on 1.85). |

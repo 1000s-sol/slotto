@@ -16,7 +16,14 @@
     "postinstall": "prisma generate",
     "fix:npm-temp": "node scripts/rm-npm-temp-dirs.mjs",
     "reinstall": "node scripts/move-node-modules-aside.mjs && npm install --no-fund --no-audit",
-    "reinstall:rm": "rm -rf node_modules && npm install --no-fund --no-audit"
+    "reinstall:rm": "rm -rf node_modules && npm install --no-fund --no-audit",
+    "lottery:test": "bash scripts/lottery-test-lib.sh",
+    "lottery:import-wallet": "node scripts/lottery-import-phantom-key.mjs",
+    "lottery:setup-wallet": "bash scripts/lottery-setup-test-wallet.sh",
+    "lottery:test:integration": "bash scripts/lottery-test-integration.sh",
+    "lottery:build": "bash scripts/anchor-build.sh",
+    "lottery:deploy:devnet": "bash scripts/lottery-deploy-devnet.sh",
+    "lottery:test:all": "npm run lottery:test && npm run lottery:test:integration"
   },
   "dependencies": {
     "@noble/curves": "^1.8.0",
@@ -40,18 +47,25 @@
     "undici": "5.28.4"
   },
   "devDependencies": {
+    "@coral-xyz/anchor": "^0.30.1",
     "@eslint/eslintrc": "^3",
     "@next/eslint-plugin-next": "^15.5.18",
+    "@solana/spl-token": "^0.4.14",
     "@tailwindcss/postcss": "^4",
+    "@types/chai": "^4.3.20",
+    "@types/mocha": "^10.0.10",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "chai": "^4.5.0",
     "dotenv": "^16.4.7",
     "eslint": "^9",
     "eslint-config-next": "^15.3.0",
     "eslint-plugin-react-hooks": "^5.1.0",
+    "mocha": "^10.8.2",
     "prisma": "^6.19.0",
     "tailwindcss": "^4",
+    "ts-mocha": "^10.1.0",
     "tsx": "^4.19.4",
     "typescript": "^5"
   }

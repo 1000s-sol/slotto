@@ -2,14 +2,16 @@
 //! Spec: `docs/onchain-lottery-v1-spec.md`. Run `anchor keys sync` so `declare_id!` matches deploy keys.
 
 use anchor_lang::prelude::*;
+use anchor_lang::Discriminator;
 use anchor_lang::solana_program::hash::hashv;
 use anchor_lang::solana_program::program::invoke_signed;
+use anchor_lang::solana_program::sysvar::rent::Rent;
 use anchor_lang::solana_program::system_instruction;
 use anchor_lang::system_program;
 use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token::{self, Mint, Token, TokenAccount};
 
-declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFTE24");
+declare_id!("CiSuRzLSXbbbStNaDjjZbmSU8dn3zhx9qs3Nd9gvNYke");
 
 /// Max SPL mints inlined on [`Draw`] (see spec).
 pub const SPL_MINT_MAX: usize = 16;
@@ -35,6 +37,67 @@ pub const VRF_STUB_MARKER: Pubkey = Pubkey::new_from_array([
     b'S', b'L', b'O', b'T', b'T', b'O', b'_', b'V', b'R', b'F', b'_', b'S', b'T', b'U', b'B', b'_',
     b'v', b'1', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 ]);
+
+/// Devnet / integration: derive winning ticket index from draw key + clock (see §Randomness in spec).
+/// **Replace** with Switchboard On-Demand `RandomnessAccountData::get_value` (or equivalent) for production.
+pub(crate) fn stub_settle_winning_ticket_id(
+    draw_key: &Pubkey,
+    slot: u64,
+    unix_ts: i64,
+    total_tickets: u32,
+) -> Result<u32> {
+    require!(total_tickets >= 1, ErrorCode::VrfNeedsTickets);
+    let h = hashv(&[
+        b"slotto::settle_stub_v1",
+        draw_key.as_ref(),
+        &slot.to_le_bytes(),
+        &unix_ts.to_le_bytes(),
+    ]);
+    let b = h.to_bytes();
+    let roll = u64::from_le_bytes(b[0..8].try_into().unwrap());
+    Ok((roll % total_tickets as u64) as u32)
+}
+
+/// Lamports that can leave the prize vault **without** closing it (`vault_lamports - rent_exempt_min`),
+/// when underflow must surface as an error (e.g. **`refund_empty_draw`**).
+pub(crate) fn prize_vault_withdrawable_checked(
+    vault_lamports: u64,
+    rent_exempt_min: u64,
+) -> Result<u64> {
+    vault_lamports
+        .checked_sub(rent_exempt_min)
+        .ok_or(error!(ErrorCode::ArithmeticOverflow))
+}
+
+/// Same as [`prize_vault_withdrawable_checked`] but clamps at zero (used by **`settle`**).
+#[inline]
+/// Move lamports out of the prize-vault PDA (has account data; cannot use `system_transfer` as `from`).
+pub(crate) fn transfer_prize_vault_lamports(
+    vault: &AccountInfo<'_>,
+    recipient: &AccountInfo<'_>,
+    amount: u64,
+) -> Result<()> {
+    if amount == 0 {
+        return Ok(());
+    }
+    let vault_lamports = vault.lamports();
+    require!(
+        vault_lamports >= amount,
+        ErrorCode::ArithmeticOverflow
+    );
+    **vault.try_borrow_mut_lamports()? = vault_lamports
+        .checked_sub(amount)
+        .ok_or(error!(ErrorCode::ArithmeticOverflow))?;
+    **recipient.try_borrow_mut_lamports()? = recipient
+        .lamports()
+        .checked_add(amount)
+        .ok_or(error!(ErrorCode::ArithmeticOverflow))?;
+    Ok(())
+}
+
+pub(crate) fn prize_vault_withdrawable_saturating(vault_lamports: u64, rent_exempt_min: u64) -> u64 {
+    vault_lamports.saturating_sub(rent_exempt_min)
+}
 
 /// Same cap for SPL buys (per tx).
 pub const MAX_SPL_TICKETS_PER_BUY: u32 = 256;
@@ -100,7 +163,7 @@ pub mod slotto_lottery {
             Pubkey::find_program_address(&[b"spl_vault_auth", ctx.accounts.draw.key().as_ref()], ctx.program_id);
 
         {
-            let draw = &mut ctx.accounts.draw;
+            let mut draw = ctx.accounts.draw.load_init()?;
             draw.draw_id = draw_id;
             draw.bump = ctx.bumps.draw;
             draw.prize_vault_bump = ctx.bumps.prize_vault;
@@ -110,7 +173,9 @@ pub mod slotto_lottery {
             draw.total_tickets = 0;
             draw.seed_refund = refund;
             draw.spl_count = spl_rows.len() as u8;
-            draw.spl_mint_rows = [SplMintRow::default(); SPL_MINT_MAX];
+            for row in draw.spl_mint_rows.iter_mut() {
+                *row = SplMintRow::default();
+            }
             for (i, row) in spl_rows.iter().enumerate() {
                 draw.spl_mint_rows[i] = SplMintRow {
                     mint: row.mint,
@@ -151,11 +216,16 @@ pub mod slotto_lottery {
     pub fn buy_sol_tickets(ctx: Context<BuySolTickets>, count: u32) -> Result<()> {
         require!(count > 0 && count <= MAX_SOL_TICKETS_PER_BUY, ErrorCode::InvalidTicketCount);
 
-        let base = ctx.accounts.draw.total_tickets;
-        let draw_state = ctx.accounts.draw.state;
         let draw_key = ctx.accounts.draw.key();
-        let sales_open = ctx.accounts.draw.sales_open_ts;
-        let sales_close = ctx.accounts.draw.sales_close_ts;
+        let (base, draw_state, sales_open, sales_close) = {
+            let draw = ctx.accounts.draw.load()?;
+            (
+                draw.total_tickets,
+                draw.state,
+                draw.sales_open_ts,
+                draw.sales_close_ts,
+            )
+        };
 
         require!(draw_state == DrawState::Selling as u8, ErrorCode::WrongDrawState);
 
@@ -169,16 +239,7 @@ pub mod slotto_lottery {
             .checked_add(count)
             .ok_or(error!(ErrorCode::ArithmeticOverflow))?;
 
-        let c = count as u64;
-        let pot = LAMPORTS_SOL_TICKET_POT
-            .checked_mul(c)
-            .ok_or(error!(ErrorCode::ArithmeticOverflow))?;
-        let team = LAMPORTS_SOL_TICKET_TEAM
-            .checked_mul(c)
-            .ok_or(error!(ErrorCode::ArithmeticOverflow))?;
-        let setup = LAMPORTS_SOL_TICKET_SETUP
-            .checked_mul(c)
-            .ok_or(error!(ErrorCode::ArithmeticOverflow))?;
+        let (pot, team, setup) = sol_ticket_lamports_splits(count)?;
 
         let chunk_indices = ticket_chunk_indices_for_range(base, count)?;
         require_eq!(
@@ -233,15 +294,15 @@ pub mod slotto_lottery {
             );
             require_keys_eq!(chunk_ai.key(), expected_pda);
 
-            ensure_ticket_chunk_initialized(
+            super::ensure_ticket_chunk_initialized(
                 program_id,
-                &ctx.accounts.buyer,
-                chunk_ai,
+                ctx.accounts.buyer.to_account_info(),
+                ctx.remaining_accounts[i].clone(),
                 &draw_key,
                 chunk_idx,
                 bump,
-                &ctx.accounts.system_program,
-                &ctx.accounts.rent,
+                ctx.accounts.system_program.to_account_info(),
+                ctx.accounts.rent.to_account_info(),
             )?;
 
             let chunk_start = chunk_idx
@@ -253,25 +314,11 @@ pub mod slotto_lottery {
             let from = base.max(chunk_start);
             let to = new_total.min(chunk_end);
 
-            {
-                let data_ro = chunk_ai.try_borrow_data()?;
-                let mut slice: &[u8] = &data_ro[..];
-                let mut tc = TicketChunk::try_deserialize(&mut slice)?;
-                drop(data_ro);
-
-                for ticket_id in from..to {
-                    let slot = (ticket_id - chunk_start) as usize;
-                    require!(tc.owners[slot] == Pubkey::default(), ErrorCode::TicketSlotOccupied);
-                    tc.owners[slot] = buyer_key;
-                }
-
-                let mut data = chunk_ai.try_borrow_mut_data()?;
-                let mut writer: &mut [u8] = &mut data[..];
-                tc.try_serialize(&mut writer)?;
-            }
+            assign_ticket_range(&ctx.remaining_accounts[i], chunk_start, from, to, buyer_key)?;
         }
 
-        ctx.accounts.draw.total_tickets = new_total;
+        let mut draw = ctx.accounts.draw.load_mut()?;
+        draw.total_tickets = new_total;
         Ok(())
     }
 
@@ -283,22 +330,25 @@ pub mod slotto_lottery {
         require!(count > 0 && count <= MAX_SPL_TICKETS_PER_BUY, ErrorCode::InvalidTicketCount);
 
         let mint_key = ctx.accounts.mint.key();
-        let row_ix = find_spl_row_index(&ctx.accounts.draw, &mint_key).ok_or(ErrorCode::MintNotInDraw)?;
-        let row = ctx.accounts.draw.spl_mint_rows[row_ix];
+        let draw_key = ctx.accounts.draw.key();
+        let (row_ix, row, base, draw_state, sales_open, sales_close) = {
+            let draw = ctx.accounts.draw.load()?;
+            let row_ix =
+                find_spl_row_index_in_table(&draw.spl_mint_rows, draw.spl_count, &mint_key)
+                    .ok_or(ErrorCode::MintNotInDraw)?;
+            (
+                row_ix,
+                draw.spl_mint_rows[row_ix],
+                draw.total_tickets,
+                draw.state,
+                draw.sales_open_ts,
+                draw.sales_close_ts,
+            )
+        };
         require_keys_neq!(row.mint, Pubkey::default());
         require!(ctx.accounts.mint.decimals == row.mint_decimals, ErrorCode::SplMintDecimalsMismatch);
 
-        let new_sold = row
-            .sold
-            .checked_add(count)
-            .ok_or(error!(ErrorCode::ArithmeticOverflow))?;
-        require!(new_sold <= row.cap, ErrorCode::SplCapExceeded);
-
-        let base = ctx.accounts.draw.total_tickets;
-        let draw_state = ctx.accounts.draw.state;
-        let draw_key = ctx.accounts.draw.key();
-        let sales_open = ctx.accounts.draw.sales_open_ts;
-        let sales_close = ctx.accounts.draw.sales_close_ts;
+        let new_sold = spl_apply_buy_to_row(row.sold, count, row.cap)?;
 
         require!(draw_state == DrawState::Selling as u8, ErrorCode::WrongDrawState);
 
@@ -312,10 +362,7 @@ pub mod slotto_lottery {
             .checked_add(count)
             .ok_or(error!(ErrorCode::ArithmeticOverflow))?;
 
-        let spl_amount = row
-            .price_per_ticket
-            .checked_mul(count as u64)
-            .ok_or(error!(ErrorCode::ArithmeticOverflow))?;
+        let spl_amount = spl_token_amount_for_buy(row.price_per_ticket, count)?;
 
         let (fee_team, fee_setup) = spl_fee_lamports_split(count)?;
 
@@ -374,15 +421,15 @@ pub mod slotto_lottery {
             );
             require_keys_eq!(chunk_ai.key(), expected_pda);
 
-            ensure_ticket_chunk_initialized(
+            super::ensure_ticket_chunk_initialized(
                 program_id,
-                &ctx.accounts.buyer,
-                chunk_ai,
+                ctx.accounts.buyer.to_account_info(),
+                ctx.remaining_accounts[i].clone(),
                 &draw_key,
                 chunk_idx,
                 bump,
-                &ctx.accounts.system_program,
-                &ctx.accounts.rent,
+                ctx.accounts.system_program.to_account_info(),
+                ctx.accounts.rent.to_account_info(),
             )?;
 
             let chunk_start = chunk_idx
@@ -394,25 +441,10 @@ pub mod slotto_lottery {
             let from = base.max(chunk_start);
             let to = new_total.min(chunk_end);
 
-            {
-                let data_ro = chunk_ai.try_borrow_data()?;
-                let mut slice: &[u8] = &data_ro[..];
-                let mut tc = TicketChunk::try_deserialize(&mut slice)?;
-                drop(data_ro);
-
-                for ticket_id in from..to {
-                    let slot = (ticket_id - chunk_start) as usize;
-                    require!(tc.owners[slot] == Pubkey::default(), ErrorCode::TicketSlotOccupied);
-                    tc.owners[slot] = buyer_key;
-                }
-
-                let mut data = chunk_ai.try_borrow_mut_data()?;
-                let mut writer: &mut [u8] = &mut data[..];
-                tc.try_serialize(&mut writer)?;
-            }
+            assign_ticket_range(&ctx.remaining_accounts[i], chunk_start, from, to, buyer_key)?;
         }
 
-        let draw = &mut ctx.accounts.draw;
+        let mut draw = ctx.accounts.draw.load_mut()?;
         draw.total_tickets = new_total;
         draw.spl_mint_rows[row_ix].sold = new_sold;
         Ok(())
@@ -420,79 +452,71 @@ pub mod slotto_lottery {
 
     /// Permissionless: once `now >= sales_close_ts`, move draw from **Selling** → **SalesClosed** (no more tickets).
     pub fn close_sales(ctx: Context<CloseSales>) -> Result<()> {
+        let mut draw = ctx.accounts.draw.load_mut()?;
         require!(
-            ctx.accounts.draw.state == DrawState::Selling as u8,
+            draw.state == DrawState::Selling as u8,
             ErrorCode::InvalidDrawStateForCloseSales
         );
         let now = ctx.accounts.clock.unix_timestamp;
-        require!(
-            now >= ctx.accounts.draw.sales_close_ts,
-            ErrorCode::SalesPeriodNotEnded
-        );
-        ctx.accounts.draw.state = DrawState::SalesClosed as u8;
+        require!(now >= draw.sales_close_ts, ErrorCode::SalesPeriodNotEnded);
+        draw.state = DrawState::SalesClosed as u8;
         Ok(())
     }
 
     /// Permissionless: after **SalesClosed**, if **`total_tickets == 0`**, send prize vault SOL (above rent-exempt
     /// minimum for the vault account) to **`seed_refund`**, then **Refunded**.
     pub fn refund_empty_draw(ctx: Context<RefundEmptyDraw>) -> Result<()> {
+        let (draw_state, total_tickets, seed_refund_key) = {
+            let draw = ctx.accounts.draw.load()?;
+            (
+                draw.state,
+                draw.total_tickets,
+                draw.seed_refund,
+            )
+        };
         require!(
-            ctx.accounts.draw.state == DrawState::SalesClosed as u8,
+            draw_state == DrawState::SalesClosed as u8,
             ErrorCode::InvalidDrawStateForRefund
         );
-        require!(
-            ctx.accounts.draw.total_tickets == 0,
-            ErrorCode::RefundDrawHasTickets
+        require!(total_tickets == 0, ErrorCode::RefundDrawHasTickets);
+        require_keys_eq!(
+            ctx.accounts.seed_refund.key(),
+            seed_refund_key,
+            ErrorCode::InvalidSeedRefund
         );
-
-        let draw_key = ctx.accounts.draw.key();
-        let bump = ctx.accounts.draw.prize_vault_bump;
         let vault_info = ctx.accounts.prize_vault.to_account_info();
         let min_balance = ctx
             .accounts
             .rent
             .minimum_balance(vault_info.data_len());
         let vault_lamports = vault_info.lamports();
-        let available = vault_lamports
-            .checked_sub(min_balance)
-            .ok_or(error!(ErrorCode::ArithmeticOverflow))?;
+        let available =
+            prize_vault_withdrawable_checked(vault_lamports, min_balance)?;
 
-        if available > 0 {
-            let seeds: &[&[u8]] = &[b"prize_vault", draw_key.as_ref(), &[bump]];
-            invoke_signed(
-                &system_instruction::transfer(
-                    vault_info.key,
-                    ctx.accounts.seed_refund.key,
-                    available,
-                ),
-                &[
-                    vault_info.clone(),
-                    ctx.accounts.seed_refund.to_account_info(),
-                    ctx.accounts.system_program.to_account_info(),
-                ],
-                &[seeds],
-            )?;
-        }
+        transfer_prize_vault_lamports(
+            &vault_info,
+            &ctx.accounts.seed_refund.to_account_info(),
+            available,
+        )?;
 
-        ctx.accounts.draw.state = DrawState::Refunded as u8;
+        let mut draw = ctx.accounts.draw.load_mut()?;
+        draw.state = DrawState::Refunded as u8;
         Ok(())
     }
 
     /// Records that randomness was requested. **v1 devnet:** sets `vrf_request` to [`VRF_STUB_MARKER`].
     /// **Production:** replace with Switchboard CPI and store the real VRF / randomness account pubkey.
     pub fn request_vrf(ctx: Context<RequestVrf>) -> Result<()> {
-        let state = ctx.accounts.draw.state;
-        let total = ctx.accounts.draw.total_tickets;
-        let vrf = ctx.accounts.draw.vrf_request;
+        let mut draw = ctx.accounts.draw.load_mut()?;
         require!(
-            state == DrawState::SalesClosed as u8,
+            draw.state == DrawState::SalesClosed as u8,
             ErrorCode::InvalidDrawStateForVrf
         );
-        require!(total >= 1, ErrorCode::VrfNeedsTickets);
-        require_keys_eq!(vrf, Pubkey::default(), ErrorCode::VrfAlreadyRequested);
+        require!(draw.total_tickets >= 1, ErrorCode::VrfNeedsTickets);
+        require_keys_eq!(draw.vrf_request, Pubkey::default(), ErrorCode::VrfAlreadyRequested);
 
-        ctx.accounts.draw.vrf_request = VRF_STUB_MARKER;
-        ctx.accounts.draw.state = DrawState::VrfRequested as u8;
+        draw.vrf_request = VRF_STUB_MARKER;
+        draw.state = DrawState::VrfRequested as u8;
         Ok(())
     }
 
@@ -501,10 +525,14 @@ pub mod slotto_lottery {
     /// **Remaining accounts:** `[ticket_chunk_pda, winner_system_account]` — chunk must contain the winning ticket id.
     pub fn settle(ctx: Context<SettleDraw>) -> Result<()> {
         let draw_key = ctx.accounts.draw.key();
-        let state = ctx.accounts.draw.state;
-        let vrf_request = ctx.accounts.draw.vrf_request;
-        let n = ctx.accounts.draw.total_tickets;
-        let prize_bump = ctx.accounts.draw.prize_vault_bump;
+        let (state, vrf_request, n) = {
+            let draw = ctx.accounts.draw.load()?;
+            (
+                draw.state,
+                draw.vrf_request,
+                draw.total_tickets,
+            )
+        };
 
         require!(
             state == DrawState::VrfRequested as u8,
@@ -519,70 +547,89 @@ pub mod slotto_lottery {
             ErrorCode::SettleAccountsWrongLen
         );
 
+        let (chunk_account, winner_account): (AccountInfo<'static>, AccountInfo<'static>) = unsafe {
+            // SAFETY: same as `ensure_ticket_chunk_initialized` — all accounts live for the instruction.
+            (
+                core::mem::transmute(ctx.remaining_accounts[0].clone()),
+                core::mem::transmute(ctx.remaining_accounts[1].clone()),
+            )
+        };
+        let vault_info: AccountInfo<'static> =
+            unsafe { core::mem::transmute(ctx.accounts.prize_vault.to_account_info()) };
+        let rent_ai: AccountInfo<'static> =
+            unsafe { core::mem::transmute(ctx.accounts.rent.to_account_info()) };
+
         let slot = ctx.accounts.clock.slot;
         let ts = ctx.accounts.clock.unix_timestamp;
-        let h = hashv(&[
-            b"slotto::settle_stub_v1",
-            draw_key.as_ref(),
-            &slot.to_le_bytes(),
-            &ts.to_le_bytes(),
-        ]);
-        let roll = {
-            let b = h.to_bytes();
-            u64::from_le_bytes(b[0..8].try_into().unwrap())
-        };
-        let winning_ticket_id = (roll % n as u64) as u32;
-        let chunk_idx = winning_ticket_id / (TICKETS_PER_CHUNK as u32);
-        let chunk_start = chunk_idx * (TICKETS_PER_CHUNK as u32);
-        let slot_in_chunk = (winning_ticket_id - chunk_start) as usize;
-
-        let chunk_ai = &ctx.remaining_accounts[0];
-        let winner_ai = &ctx.remaining_accounts[1];
+        let winning_ticket_id = stub_settle_winning_ticket_id(&draw_key, slot, ts, n)?;
+        let chunk_idx = ticket_chunk_index(winning_ticket_id);
+        let slot_in_chunk = ticket_slot_in_chunk(winning_ticket_id);
 
         let (expected_chunk, _) = Pubkey::find_program_address(
             &[b"tickets", draw_key.as_ref(), &chunk_idx.to_le_bytes()],
             ctx.program_id,
         );
-        require_keys_eq!(chunk_ai.key(), expected_chunk);
+        require_keys_eq!(chunk_account.key(), expected_chunk);
 
         let owner = {
-            let data = chunk_ai.try_borrow_data()?;
-            let mut slice: &[u8] = &data[..];
-            let tc = TicketChunk::try_deserialize(&mut slice)?;
-            let pk = tc.owners[slot_in_chunk];
+            let data = chunk_account.try_borrow_data()?;
+            let pk = read_ticket_chunk_owner(&data, slot_in_chunk)?;
             require_keys_neq!(pk, Pubkey::default(), ErrorCode::EmptyTicketOwner);
             pk
         };
-        require_keys_eq!(winner_ai.key(), owner, ErrorCode::WinnerMismatch);
+        require_keys_eq!(winner_account.key(), owner, ErrorCode::WinnerMismatch);
 
-        let vault_info = ctx.accounts.prize_vault.to_account_info();
-        let min_balance = ctx
-            .accounts
-            .rent
-            .minimum_balance(vault_info.data_len());
-        let available = vault_info.lamports().saturating_sub(min_balance);
+        let rent_struct = Rent::from_account_info(&rent_ai)?;
+        let min_balance = rent_struct.minimum_balance(vault_info.data_len());
+        let available = prize_vault_withdrawable_saturating(vault_info.lamports(), min_balance);
 
-        if available > 0 {
-            let seeds: &[&[u8]] = &[b"prize_vault", draw_key.as_ref(), &[prize_bump]];
-            invoke_signed(
-                &system_instruction::transfer(
-                    vault_info.key,
-                    winner_ai.key,
-                    available,
-                ),
-                &[
-                    vault_info.clone(),
-                    winner_ai.clone(),
-                    ctx.accounts.system_program.to_account_info(),
-                ],
-                &[seeds],
-            )?;
-        }
+        transfer_prize_vault_lamports(&vault_info, &winner_account, available)?;
 
-        let draw = &mut ctx.accounts.draw;
+        let mut draw = ctx.accounts.draw.load_mut()?;
         draw.winning_ticket_id = winning_ticket_id;
         draw.winner = owner;
         draw.state = DrawState::Settled as u8;
+        Ok(())
+    }
+
+    /// **Authority-only:** after **`Settled`**, withdraw **all** SPL for one allowlisted `mint` from this draw’s
+    /// treasury ATA to the authority’s ATA (`destination_token`; created with **`init_if_needed`**).
+    pub fn withdraw_spl(ctx: Context<WithdrawSpl>) -> Result<()> {
+        let draw_key = ctx.accounts.draw.key();
+        let (draw_state, spl_auth_bump) = {
+            let draw = ctx.accounts.draw.load()?;
+            (draw.state, draw.spl_auth_bump)
+        };
+        require!(
+            draw_state == DrawState::Settled as u8,
+            ErrorCode::InvalidDrawStateForWithdrawSpl
+        );
+        let mint_key = ctx.accounts.mint.key();
+        require!(
+            find_spl_row_index(&ctx.accounts.draw, &mint_key).is_some(),
+            ErrorCode::MintNotInDraw
+        );
+
+        let amount = ctx.accounts.treasury_token.amount;
+        if amount == 0 {
+            return Ok(());
+        }
+
+        let bump = spl_auth_bump;
+        let signer_seeds: &[&[&[u8]]] = &[&[b"spl_vault_auth", draw_key.as_ref(), &[bump]]];
+
+        token::transfer(
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                token::Transfer {
+                    from: ctx.accounts.treasury_token.to_account_info(),
+                    to: ctx.accounts.destination_token.to_account_info(),
+                    authority: ctx.accounts.spl_vault_authority.to_account_info(),
+                },
+                signer_seeds,
+            ),
+            amount,
+        )?;
         Ok(())
     }
 }
@@ -604,18 +651,69 @@ pub fn ticket_chunk_indices_for_range(base: u32, count: u32) -> Result<Vec<u32>>
     Ok(out)
 }
 
-fn find_spl_row_index(draw: &Draw, mint: &Pubkey) -> Option<usize> {
-    let n = draw.spl_count as usize;
+fn find_spl_row_index(draw: &AccountLoader<Draw>, mint: &Pubkey) -> Option<usize> {
+    let data = draw.load().ok()?;
+    find_spl_row_index_in_table(&data.spl_mint_rows, data.spl_count, mint)
+}
+
+/// Global ticket id → chunk PDA index (see [`ticket_slot_in_chunk`]).
+pub(crate) fn ticket_chunk_index(ticket_id: u32) -> u32 {
+    ticket_id / (TICKETS_PER_CHUNK as u32)
+}
+
+/// Index within [`TicketChunk::owners`] for a global ticket id.
+pub(crate) fn ticket_slot_in_chunk(ticket_id: u32) -> usize {
+    let chunk_start = ticket_chunk_index(ticket_id) * (TICKETS_PER_CHUNK as u32);
+    (ticket_id - chunk_start) as usize
+}
+
+/// After an SPL buy, new `sold` count or [`ErrorCode::SplCapExceeded`] / overflow.
+pub(crate) fn spl_apply_buy_to_row(sold: u32, count: u32, cap: u32) -> Result<u32> {
+    let new_sold = sold
+        .checked_add(count)
+        .ok_or(error!(ErrorCode::ArithmeticOverflow))?;
+    require!(new_sold <= cap, ErrorCode::SplCapExceeded);
+    Ok(new_sold)
+}
+
+/// SPL tokens debited for `count` tickets at `price_per_ticket` (base units).
+pub(crate) fn spl_token_amount_for_buy(price_per_ticket: u64, count: u32) -> Result<u64> {
+    price_per_ticket
+        .checked_mul(count as u64)
+        .ok_or(error!(ErrorCode::ArithmeticOverflow))
+}
+
+pub(crate) fn find_spl_row_index_in_table(
+    rows: &[SplMintRow; SPL_MINT_MAX],
+    spl_count: u8,
+    mint: &Pubkey,
+) -> Option<usize> {
+    let n = spl_count as usize;
     for i in 0..n {
-        if draw.spl_mint_rows[i].mint == *mint {
+        if rows[i].mint == *mint {
             return Some(i);
         }
     }
     None
 }
 
+/// Per-ticket SOL splits for `count` tickets: (prize vault, team, setup).
+pub(crate) fn sol_ticket_lamports_splits(count: u32) -> Result<(u64, u64, u64)> {
+    let c = count as u64;
+    let pot = LAMPORTS_SOL_TICKET_POT
+        .checked_mul(c)
+        .ok_or(error!(ErrorCode::ArithmeticOverflow))?;
+    let team = LAMPORTS_SOL_TICKET_TEAM
+        .checked_mul(c)
+        .ok_or(error!(ErrorCode::ArithmeticOverflow))?;
+    let setup = LAMPORTS_SOL_TICKET_SETUP
+        .checked_mul(c)
+        .ok_or(error!(ErrorCode::ArithmeticOverflow))?;
+    Ok((pot, team, setup))
+}
+
 /// Split **total** SPL fee lamports (`LAMPORTS_SPL_TICKET_FEE_TOTAL * count`) in **2:1** team:setup ratio (matches `1_000_000` : `500_000` from SOL ticket margins).
-fn spl_fee_lamports_split(count: u32) -> Result<(u64, u64)> {
+pub(crate) fn spl_fee_lamports_split(count: u32) -> Result<(u64, u64)> {
     let total: u128 = (LAMPORTS_SPL_TICKET_FEE_TOTAL as u128)
         .checked_mul(count as u128)
         .ok_or(error!(ErrorCode::ArithmeticOverflow))?;
@@ -630,60 +728,6 @@ fn spl_fee_lamports_split(count: u32) -> Result<(u64, u64)> {
     Ok((team as u64, setup as u64))
 }
 
-fn ensure_ticket_chunk_initialized<'info>(
-    program_id: &Pubkey,
-    buyer: &Signer<'info>,
-    chunk_ai: &AccountInfo<'info>,
-    draw_key: &Pubkey,
-    chunk_idx: u32,
-    bump: u8,
-    system_program: &Program<'info, System>,
-    rent: &Sysvar<'info, Rent>,
-) -> Result<()> {
-    let space = 8 + TicketChunk::INIT_SPACE;
-    let rent_lamports = rent.minimum_balance(space);
-
-    if chunk_ai.owner == program_id && chunk_ai.data_len() >= space {
-        return Ok(());
-    }
-
-    require!(
-        chunk_ai.owner == &anchor_lang::solana_program::system_program::ID && chunk_ai.data_len() == 0,
-        ErrorCode::InvalidChunkAccount
-    );
-
-    let seeds: &[&[u8]] = &[
-        b"tickets",
-        draw_key.as_ref(),
-        &chunk_idx.to_le_bytes(),
-        &[bump],
-    ];
-
-    invoke_signed(
-        &system_instruction::create_account(
-            buyer.key(),
-            chunk_ai.key(),
-            rent_lamports,
-            space as u64,
-            program_id,
-        ),
-        &[
-            buyer.to_account_info(),
-            chunk_ai.clone(),
-            system_program.to_account_info(),
-        ],
-        &[seeds],
-    )?;
-
-    let tc = TicketChunk {
-        owners: [Pubkey::default(); TICKETS_PER_CHUNK],
-    };
-    let mut data = chunk_ai.try_borrow_mut_data()?;
-    let mut w: &mut [u8] = &mut data[..];
-    tc.try_serialize(&mut w)?;
-    Ok(())
-}
-
 #[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize)]
 pub struct SplMintArg {
     pub mint: Pubkey,
@@ -693,6 +737,7 @@ pub struct SplMintArg {
 }
 
 #[derive(Clone, Copy, Default, AnchorSerialize, AnchorDeserialize, InitSpace)]
+#[repr(C)]
 pub struct SplMintRow {
     pub mint: Pubkey,
     pub price_per_ticket: u64,
@@ -712,8 +757,8 @@ pub enum DrawState {
 }
 
 /// One draw: schedule, ticket counts, SPL rows, VRF + settlement slots (filled later).
-#[account]
-#[derive(InitSpace)]
+#[account(zero_copy(unsafe))]
+#[repr(C)]
 pub struct Draw {
     pub draw_id: u64,
     pub bump: u8,
@@ -732,11 +777,126 @@ pub struct Draw {
     pub spl_auth_bump: u8,
 }
 
+impl Draw {
+    pub const ACCOUNT_LEN: usize = 8 + core::mem::size_of::<Self>();
+}
+
 /// One chunk of ticket owners (`TICKETS_PER_CHUNK` sequential global ids per PDA).
-#[account]
-#[derive(InitSpace)]
+/// `zero_copy` keeps ticket data off the BPF stack (see Solana 4 KiB frame limit).
+#[account(zero_copy(unsafe))]
+#[repr(C)]
 pub struct TicketChunk {
     pub owners: [Pubkey; TICKETS_PER_CHUNK],
+}
+
+impl TicketChunk {
+    pub const ACCOUNT_LEN: usize = 8 + core::mem::size_of::<Self>();
+}
+
+#[inline]
+fn ticket_chunk_owner_offset(slot: usize) -> usize {
+    8 + slot * 32
+}
+
+/// Read one owner pubkey from a [`TicketChunk`] account buffer (no heap / loader borrow).
+pub(crate) fn read_ticket_chunk_owner(data: &[u8], slot: usize) -> Result<Pubkey> {
+    let off = ticket_chunk_owner_offset(slot);
+    require!(
+        data.len() >= off + 32,
+        ErrorCode::InvalidChunkAccount
+    );
+    Ok(Pubkey::new_from_array(
+        data[off..off + 32]
+            .try_into()
+            .map_err(|_| error!(ErrorCode::InvalidChunkAccount))?,
+    ))
+}
+
+fn write_ticket_chunk_owner(data: &mut [u8], slot: usize, owner: Pubkey) -> Result<()> {
+    let off = ticket_chunk_owner_offset(slot);
+    require!(
+        data.len() >= off + 32,
+        ErrorCode::InvalidChunkAccount
+    );
+    data[off..off + 32].copy_from_slice(owner.as_ref());
+    Ok(())
+}
+
+/// Write ticket owner pubkeys for global ids `[from, to)` within one chunk.
+pub(crate) fn assign_ticket_range(
+    chunk_ai: &AccountInfo<'_>,
+    chunk_start: u32,
+    from: u32,
+    to: u32,
+    buyer: Pubkey,
+) -> Result<()> {
+    for ticket_id in from..to {
+        let slot = (ticket_id - chunk_start) as usize;
+        {
+            let data = chunk_ai.try_borrow_data()?;
+            let current = read_ticket_chunk_owner(&data, slot)?;
+            require!(current == Pubkey::default(), ErrorCode::TicketSlotOccupied);
+        }
+        let mut data = chunk_ai.try_borrow_mut_data()?;
+        write_ticket_chunk_owner(&mut data, slot, buyer)?;
+    }
+    Ok(())
+}
+
+pub(crate) fn ensure_ticket_chunk_initialized(
+    program_id: &Pubkey,
+    buyer: AccountInfo<'_>,
+    chunk_ai: AccountInfo<'_>,
+    draw_key: &Pubkey,
+    chunk_idx: u32,
+    bump: u8,
+    system_program: AccountInfo<'_>,
+    rent: AccountInfo<'_>,
+) -> Result<()> {
+    // SAFETY: `AccountInfo` lifetimes from Anchor's `Context` are split across `accounts` vs
+    // `remaining_accounts` even though every handle points at the same instruction buffer for the
+    // duration of this CPI. Transmuting to `'static` matches common on-chain program practice.
+    let buyer: AccountInfo<'static> = unsafe { core::mem::transmute(buyer) };
+    let chunk_ai: AccountInfo<'static> = unsafe { core::mem::transmute(chunk_ai) };
+    let system_program: AccountInfo<'static> = unsafe { core::mem::transmute(system_program) };
+    let rent: AccountInfo<'static> = unsafe { core::mem::transmute(rent) };
+    require!(buyer.is_signer, ErrorCode::Unauthorized);
+    let space = TicketChunk::ACCOUNT_LEN;
+    let rent_struct = Rent::from_account_info(&rent)?;
+    let rent_lamports = rent_struct.minimum_balance(space);
+
+    if chunk_ai.owner == program_id && chunk_ai.data_len() >= space {
+        return Ok(());
+    }
+
+    require!(
+        chunk_ai.owner == &anchor_lang::solana_program::system_program::ID && chunk_ai.data_len() == 0,
+        ErrorCode::InvalidChunkAccount
+    );
+
+    let seeds: &[&[u8]] = &[
+        b"tickets",
+        draw_key.as_ref(),
+        &chunk_idx.to_le_bytes(),
+        &[bump],
+    ];
+
+    invoke_signed(
+        &system_instruction::create_account(
+            &buyer.key(),
+            &chunk_ai.key(),
+            rent_lamports,
+            space as u64,
+            program_id,
+        ),
+        &[buyer.clone(), chunk_ai.clone(), system_program.clone()],
+        &[seeds],
+    )?;
+
+    let mut data = chunk_ai.try_borrow_mut_data()?;
+    require!(data.len() >= TicketChunk::ACCOUNT_LEN, ErrorCode::InvalidChunkAccount);
+    data[..8].copy_from_slice(&TicketChunk::DISCRIMINATOR);
+    Ok(())
 }
 
 /// Marker account: holds native SOL for the jackpot (lamports only; discriminator + padding).
@@ -787,11 +947,11 @@ pub struct CreateDraw<'info> {
     #[account(
         init,
         payer = authority,
-        space = 8 + Draw::INIT_SPACE,
-        seeds = [b"draw", &global_config.next_draw_id.to_le_bytes()],
+        space = Draw::ACCOUNT_LEN,
+        seeds = [b"draw".as_ref(), global_config.next_draw_id.to_le_bytes().as_ref()],
         bump
     )]
-    pub draw: Account<'info, Draw>,
+    pub draw: AccountLoader<'info, Draw>,
     #[account(
         init,
         payer = authority,
@@ -809,11 +969,11 @@ pub struct BuySolTickets<'info> {
     #[account(mut)]
     pub buyer: Signer<'info>,
     #[account(mut)]
-    pub draw: Account<'info, Draw>,
+    pub draw: AccountLoader<'info, Draw>,
     #[account(
         mut,
         seeds = [b"prize_vault", draw.key().as_ref()],
-        bump = draw.prize_vault_bump
+        bump
     )]
     pub prize_vault: Account<'info, PrizeVault>,
     #[account(seeds = [b"global_config"], bump = global_config.bump)]
@@ -835,15 +995,12 @@ pub struct BuySplTickets<'info> {
     #[account(mut)]
     pub buyer: Signer<'info>,
     #[account(mut)]
-    pub draw: Account<'info, Draw>,
+    pub draw: AccountLoader<'info, Draw>,
     #[account(seeds = [b"global_config"], bump = global_config.bump)]
     pub global_config: Account<'info, GlobalConfig>,
     pub mint: Account<'info, Mint>,
     /// CHECK: PDA authority for SPL treasury ATAs (matches `draw.spl_auth_bump`).
-    #[account(
-        seeds = [b"spl_vault_auth", draw.key().as_ref()],
-        bump = draw.spl_auth_bump
-    )]
+    #[account(seeds = [b"spl_vault_auth", draw.key().as_ref()], bump)]
     pub spl_vault_authority: UncheckedAccount<'info>,
     #[account(
         mut,
@@ -874,22 +1031,22 @@ pub struct BuySplTickets<'info> {
 #[derive(Accounts)]
 pub struct CloseSales<'info> {
     #[account(mut)]
-    pub draw: Account<'info, Draw>,
+    pub draw: AccountLoader<'info, Draw>,
     pub clock: Sysvar<'info, Clock>,
 }
 
 #[derive(Accounts)]
 pub struct RefundEmptyDraw<'info> {
     #[account(mut)]
-    pub draw: Account<'info, Draw>,
+    pub draw: AccountLoader<'info, Draw>,
     #[account(
         mut,
         seeds = [b"prize_vault", draw.key().as_ref()],
-        bump = draw.prize_vault_bump
+        bump
     )]
     pub prize_vault: Account<'info, PrizeVault>,
-    /// CHECK: must match `draw.seed_refund` (receives returned seed SOL).
-    #[account(mut, constraint = seed_refund.key() == draw.seed_refund @ ErrorCode::InvalidSeedRefund)]
+    /// CHECK: must match `draw.seed_refund` (validated in instruction).
+    #[account(mut)]
     pub seed_refund: UncheckedAccount<'info>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
@@ -898,22 +1055,52 @@ pub struct RefundEmptyDraw<'info> {
 #[derive(Accounts)]
 pub struct RequestVrf<'info> {
     #[account(mut)]
-    pub draw: Account<'info, Draw>,
+    pub draw: AccountLoader<'info, Draw>,
 }
 
 #[derive(Accounts)]
 pub struct SettleDraw<'info> {
     #[account(mut)]
-    pub draw: Account<'info, Draw>,
+    pub draw: AccountLoader<'info, Draw>,
     #[account(
         mut,
         seeds = [b"prize_vault", draw.key().as_ref()],
-        bump = draw.prize_vault_bump
+        bump
     )]
     pub prize_vault: Account<'info, PrizeVault>,
     pub clock: Sysvar<'info, Clock>,
     pub rent: Sysvar<'info, Rent>,
     pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct WithdrawSpl<'info> {
+    #[account(mut, constraint = authority.key() == global_config.authority @ ErrorCode::Unauthorized)]
+    pub authority: Signer<'info>,
+    #[account(seeds = [b"global_config"], bump = global_config.bump)]
+    pub global_config: Account<'info, GlobalConfig>,
+    pub draw: AccountLoader<'info, Draw>,
+    pub mint: Account<'info, Mint>,
+    /// CHECK: SPL treasury signer PDA (matches `draw.spl_auth_bump`).
+    #[account(seeds = [b"spl_vault_auth", draw.key().as_ref()], bump)]
+    pub spl_vault_authority: UncheckedAccount<'info>,
+    #[account(
+        mut,
+        associated_token::mint = mint,
+        associated_token::authority = spl_vault_authority,
+    )]
+    pub treasury_token: Account<'info, TokenAccount>,
+    #[account(
+        init_if_needed,
+        payer = authority,
+        associated_token::mint = mint,
+        associated_token::authority = authority,
+    )]
+    pub destination_token: Account<'info, TokenAccount>,
+    pub token_program: Program<'info, Token>,
+    pub associated_token_program: Program<'info, AssociatedToken>,
+    pub system_program: Program<'info, System>,
+    pub rent: Sysvar<'info, Rent>,
 }
 
 #[error_code]
@@ -982,4 +1169,188 @@ pub enum ErrorCode {
     EmptyTicketOwner,
     #[msg("winner account does not match ticket owner")]
     WinnerMismatch,
+    #[msg("draw must be Settled to withdraw SPL")]
+    InvalidDrawStateForWithdrawSpl,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ticket_chunk_single_chunk() {
+        assert_eq!(ticket_chunk_indices_for_range(0, 1).unwrap(), vec![0]);
+        assert_eq!(ticket_chunk_indices_for_range(0, 3).unwrap(), vec![0]);
+        assert_eq!(ticket_chunk_indices_for_range(250, 5).unwrap(), vec![0]);
+    }
+
+    #[test]
+    fn ticket_chunk_cross_one_boundary() {
+        let p = TICKETS_PER_CHUNK as u32;
+        assert_eq!(ticket_chunk_indices_for_range(p - 1, 2).unwrap(), vec![0, 1]);
+        assert_eq!(ticket_chunk_indices_for_range(p, 1).unwrap(), vec![1]);
+    }
+
+    #[test]
+    fn ticket_chunk_three_chunks() {
+        let p = TICKETS_PER_CHUNK as u32;
+        assert_eq!(
+            ticket_chunk_indices_for_range(0, 2 * p + 1).unwrap(),
+            vec![0, 1, 2]
+        );
+    }
+
+    #[test]
+    fn ticket_chunk_zero_count_empty() {
+        assert!(ticket_chunk_indices_for_range(10, 0).unwrap().is_empty());
+    }
+
+    #[test]
+    fn sol_ticket_per_ticket_constants_sum_to_total() {
+        assert_eq!(
+            LAMPORTS_SOL_TICKET_POT + LAMPORTS_SOL_TICKET_TEAM + LAMPORTS_SOL_TICKET_SETUP,
+            LAMPORTS_SOL_TICKET_TOTAL
+        );
+    }
+
+    #[test]
+    fn sol_ticket_lamports_splits_bulk() {
+        let (pot, team, setup) = sol_ticket_lamports_splits(3).unwrap();
+        assert_eq!(pot, LAMPORTS_SOL_TICKET_POT * 3);
+        assert_eq!(team, LAMPORTS_SOL_TICKET_TEAM * 3);
+        assert_eq!(setup, LAMPORTS_SOL_TICKET_SETUP * 3);
+        assert_eq!(pot + team + setup, LAMPORTS_SOL_TICKET_TOTAL * 3);
+    }
+
+    #[test]
+    fn spl_fee_split_one_ticket() {
+        let (team, setup) = spl_fee_lamports_split(1).unwrap();
+        assert_eq!(team + setup, LAMPORTS_SPL_TICKET_FEE_TOTAL);
+        assert_eq!(team, 333_333);
+        assert_eq!(setup, 166_667);
+    }
+
+    #[test]
+    fn spl_fee_split_bulk_matches_2_to_1() {
+        let (team, setup) = spl_fee_lamports_split(2).unwrap();
+        assert_eq!(team + setup, LAMPORTS_SPL_TICKET_FEE_TOTAL * 2);
+        assert_eq!(team, 666_666);
+        assert_eq!(setup, 333_334);
+        let (t3, s3) = spl_fee_lamports_split(3).unwrap();
+        assert_eq!(t3, 1_000_000);
+        assert_eq!(s3, 500_000);
+    }
+
+    #[test]
+    fn prize_vault_withdrawable_checked_ok() {
+        assert_eq!(
+            prize_vault_withdrawable_checked(2_000_000, 890_880).unwrap(),
+            1_109_120
+        );
+    }
+
+    #[test]
+    fn prize_vault_withdrawable_checked_underflow_err() {
+        assert!(prize_vault_withdrawable_checked(100, 200).is_err());
+    }
+
+    #[test]
+    fn prize_vault_withdrawable_saturating_clamps() {
+        assert_eq!(
+            prize_vault_withdrawable_saturating(2_000_000, 890_880),
+            1_109_120
+        );
+        assert_eq!(prize_vault_withdrawable_saturating(100, 200), 0);
+    }
+
+    #[test]
+    fn pda_prize_vault_stable() {
+        let pid = id();
+        let draw = Pubkey::new_unique();
+        let (a, _) = Pubkey::find_program_address(&[b"prize_vault", draw.as_ref()], &pid);
+        let (b, _) = Pubkey::find_program_address(&[b"prize_vault", draw.as_ref()], &pid);
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn stub_settle_roll_single_ticket_is_zero() {
+        let k = Pubkey::new_unique();
+        assert_eq!(
+            stub_settle_winning_ticket_id(&k, 100, 1_700_000_000, 1).unwrap(),
+            0
+        );
+    }
+
+    #[test]
+    fn stub_settle_roll_deterministic() {
+        let k = Pubkey::new_unique();
+        let a = stub_settle_winning_ticket_id(&k, 42, 99, 17).unwrap();
+        let b = stub_settle_winning_ticket_id(&k, 42, 99, 17).unwrap();
+        assert_eq!(a, b);
+        assert!(a < 17);
+    }
+
+    #[test]
+    fn stub_settle_roll_rejects_zero_tickets() {
+        let k = Pubkey::new_unique();
+        assert!(stub_settle_winning_ticket_id(&k, 1, 0, 0).is_err());
+    }
+
+    #[test]
+    fn stub_settle_roll_bounded() {
+        let k = Pubkey::new_unique();
+        for n in [1u32, 2, 17, 256, 10_000] {
+            let w = stub_settle_winning_ticket_id(&k, 9_999, 1_700_000_000, n).unwrap();
+            assert!(w < n);
+        }
+    }
+
+    #[test]
+    fn spl_apply_buy_fills_to_cap_exactly() {
+        assert_eq!(spl_apply_buy_to_row(9, 1, 10).unwrap(), 10);
+        assert_eq!(spl_apply_buy_to_row(0, 10, 10).unwrap(), 10);
+    }
+
+    #[test]
+    fn spl_apply_buy_rejects_over_cap() {
+        assert!(spl_apply_buy_to_row(10, 1, 10).is_err());
+        assert!(spl_apply_buy_to_row(8, 3, 10).is_err());
+    }
+
+    #[test]
+    fn spl_apply_buy_rejects_u32_overflow() {
+        assert!(spl_apply_buy_to_row(u32::MAX, 1, u32::MAX).is_err());
+    }
+
+    #[test]
+    fn spl_token_amount_for_buy_ok_and_overflow() {
+        assert_eq!(spl_token_amount_for_buy(1_000_000, 3).unwrap(), 3_000_000);
+        assert!(spl_token_amount_for_buy(u64::MAX, 2).is_err());
+    }
+
+    #[test]
+    fn ticket_chunk_index_and_slot_roundtrip() {
+        assert_eq!(ticket_chunk_index(0), 0);
+        assert_eq!(ticket_slot_in_chunk(0), 0);
+        let p = TICKETS_PER_CHUNK as u32;
+        assert_eq!(ticket_chunk_index(p - 1), 0);
+        assert_eq!(ticket_slot_in_chunk(p - 1), (p - 1) as usize);
+        assert_eq!(ticket_chunk_index(p), 1);
+        assert_eq!(ticket_slot_in_chunk(p), 0);
+        assert_eq!(ticket_chunk_index(2 * p + 17), 2);
+        assert_eq!(ticket_slot_in_chunk(2 * p + 17), 17);
+    }
+
+    #[test]
+    fn find_spl_row_index_in_table_first_match() {
+        let mut rows = [SplMintRow::default(); SPL_MINT_MAX];
+        let m0 = Pubkey::new_unique();
+        let m1 = Pubkey::new_unique();
+        rows[0].mint = m0;
+        rows[1].mint = m1;
+        assert_eq!(find_spl_row_index_in_table(&rows, 2, &m0), Some(0));
+        assert_eq!(find_spl_row_index_in_table(&rows, 2, &m1), Some(1));
+        assert_eq!(find_spl_row_index_in_table(&rows, 2, &Pubkey::new_unique()), None);
+        assert_eq!(find_spl_row_index_in_table(&rows, 1, &m1), None);
+    }
 }

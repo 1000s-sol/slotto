@@ -1,0 +1,8 @@
+# Used by `cargo` / `anchor build` in this workspace. `profile = "minimal"` skips `rust-docs`
+# (large download) while keeping rustc + cargo + std — speeds first-time `avm` / rustup sync.
+# 1.85+ for host `cargo test` / `cargo metadata`. SBF uses Solana’s bundled rustc (~1.84).
+# Lockfile pins `unicode-segmentation` to 1.12.0 for SBF. Build via `bash scripts/anchor-build.sh`.
+[toolchain]
+channel = "1.85.0"
+profile = "minimal"
+components = ["rustfmt", "clippy"]

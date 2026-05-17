@@ -41,6 +41,7 @@ next-env.d.ts
 # Anchor / Rust
 /target/
 .anchor/
+.keys/
 **/*.rs.bk
 
 # Admin-uploaded project images (local / self-hosted; use blob/S3 on serverless)
