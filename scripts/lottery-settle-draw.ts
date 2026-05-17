@@ -11,7 +11,6 @@ import {
   Keypair,
   PublicKey,
   SYSVAR_CLOCK_PUBKEY,
-  SYSVAR_RENT_PUBKEY,
 } from "@solana/web3.js";
 
 import { fetchDrawById } from "../src/lib/lottery/chain";
@@ -80,7 +79,7 @@ async function main() {
     console.info("close_sales…");
     const sig = await program.methods
       .closeSales()
-      .accounts({ draw: draw.draw, clock: SYSVAR_CLOCK_PUBKEY })
+      .accounts({ draw: draw.draw })
       .rpc();
     console.info("  ", sig);
     draw = (await fetchDrawById(connection, programId, drawId))!;
