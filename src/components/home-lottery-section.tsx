@@ -254,18 +254,33 @@ export function HomeLotterySection() {
           <div className="grid gap-4 lg:grid-cols-2">
             <div className="rounded-2xl border border-border bg-bg-elevated/70 p-6">
               {countdown?.kind === "next-draw" ? (
-                <p className="text-sm leading-relaxed text-foreground sm:text-base">
-                  Next draw starting soon… follow us on{" "}
-                  <a
-                    href={X_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="font-semibold text-accent-cyan hover:underline"
-                  >
-                    X
-                  </a>{" "}
-                  for updates.
-                </p>
+                <>
+                  <p className="text-sm leading-relaxed text-foreground sm:text-base">
+                    Next draw starting soon… follow us on{" "}
+                    <a
+                      href={X_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-semibold text-accent-cyan hover:underline"
+                    >
+                      X
+                    </a>{" "}
+                    for updates.
+                  </p>
+                  <div className="mt-4 grid grid-cols-4 gap-3">
+                    {countdownCells.map(([v, l]) => (
+                      <div
+                        key={l}
+                        className="rounded-xl border border-border bg-surface/50 p-3 text-center sm:p-4"
+                      >
+                        <div className="text-2xl font-semibold text-accent-gold sm:text-3xl lg:text-4xl">
+                          {v}
+                        </div>
+                        <CountdownUnitLabel l={l} />
+                      </div>
+                    ))}
+                  </div>
+                </>
               ) : (
                 <>
                   <CountdownHeading
