@@ -24,6 +24,7 @@ cp idl/slotto_lottery.json target/idl/slotto_lottery.json
 
 echo "anchor-build: TypeScript types (anchor idl type)…"
 anchor idl type idl/slotto_lottery.json -o target/types/slotto_lottery.ts
+cp target/types/slotto_lottery.ts src/lib/lottery/slotto_lottery.ts
 
 if ! grep -q '"address"' target/idl/slotto_lottery.json; then
   echo "anchor-build: invalid IDL" >&2
