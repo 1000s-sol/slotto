@@ -1,6 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useConnection } from "@solana/wallet-adapter-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+
+import { fetchLotteryDraw } from "@/lib/lottery/chain";
+import { lotteryProgramId, solscanAccountUrl } from "@/lib/lottery/config";
+import { fetchDrawEntrants } from "@/lib/lottery/ticket-holders";
 
 type TickerItem = {
   mint: string;
@@ -11,15 +16,6 @@ type TickerItem = {
 
 const SOL_MINT = "So11111111111111111111111111111111111111112";
 
-const TRACKED_MINTS = {
-  SOL: SOL_MINT,
-  CJT: "7ztGsbEkbSzeeUgm3SwCp6hkmaJe3Gwi4zgvANKSfYML",
-  BLUNANA: "C9vfeaCLhJy7sykgKnfzi6RikawQNoGtRKwsaupKavmV",
-  EMPIRE: "EmpirdtfUMfBQXEjnNmTngeimjfizfuSBD3TN9zqzydj",
-  TOKEN5: "64vQ6Km98vEZnz7a1MmgMjsaDYUL7RaLJCDmRiggBAGS",
-  TOKEN6: "E5ZVeBMazQAYq4UEiSNRLxfMeRds9SKL31yPan7j5GJK",
-} as const;
-
 type Entrant = {
   wallet: string;
   discord: string | null;
@@ -27,81 +23,6 @@ type Entrant = {
   tickets: number;
   paidWithMints: string[];
 };
-
-const PLACEHOLDER_TOTAL_TICKETS = 1_000;
-
-const PLACEHOLDER_ENTRANTS: Entrant[] = [
-  {
-    wallet: "9M7Jqyqasd2SYxXPsLCW32wUsZ8NE9iY5LL2mw2PbHpL",
-    discord: "tombuxdao",
-    x: "buxdao",
-    tickets: 175,
-    paidWithMints: [TRACKED_MINTS.SOL, TRACKED_MINTS.CJT, TRACKED_MINTS.EMPIRE],
-  },
-  {
-    wallet: "DegenApe88kCWaCKBpW39mZcKVj9fM5h3kQrL2N1XYz3a",
-    discord: "degenape",
-    x: "degenape_sol",
-    tickets: 140,
-    paidWithMints: [TRACKED_MINTS.SOL, TRACKED_MINTS.BLUNANA],
-  },
-  {
-    wallet: "7xCxYpHHGZJL5h3rDe2VkqMqz1Tn8pLnD9j7hVpQ2WkU",
-    discord: null,
-    x: "solanachad",
-    tickets: 110,
-    paidWithMints: [TRACKED_MINTS.EMPIRE],
-  },
-  {
-    wallet: "2cM1q9DhcVJyR3LzpfvP9aAqfPj4mPwQXmYbQ7nT8GxR",
-    discord: "miloh",
-    x: null,
-    tickets: 95,
-    paidWithMints: [TRACKED_MINTS.SOL, TRACKED_MINTS.CJT],
-  },
-  {
-    wallet: "Hk3UvD7sB6E1F8XdQ4Mw2RpNz5cKjLT9aY1B6PqMnVeS",
-    discord: "thousands",
-    x: "1000s_sol",
-    tickets: 80,
-    paidWithMints: [TRACKED_MINTS.TOKEN5],
-  },
-  {
-    wallet: "4Rp6jbqkWqA9mYxJrLfNd5sTeP3hVkA2nDXgM8KcBzUq",
-    discord: null,
-    x: null,
-    tickets: 70,
-    paidWithMints: [TRACKED_MINTS.SOL],
-  },
-  {
-    wallet: "9aXrTpQnLm6kWfYjB3VnGdMs8PcKhEz2RqUvLb4xH7Yp",
-    discord: "primape",
-    x: "primape_sol",
-    tickets: 55,
-    paidWithMints: [TRACKED_MINTS.CJT, TRACKED_MINTS.TOKEN6],
-  },
-  {
-    wallet: "FmK2DjN8pV4qLs1uYhB3eX7cWnRtT9aZbA6PgQkLmEsR",
-    discord: "spliffybob",
-    x: null,
-    tickets: 45,
-    paidWithMints: [TRACKED_MINTS.BLUNANA, TRACKED_MINTS.SOL],
-  },
-  {
-    wallet: "ZpQwL5sR3vB8YkJ2xH9nMcDfE7tA6gT4bN1uVeXqKp1F",
-    discord: null,
-    x: "monk3y",
-    tickets: 30,
-    paidWithMints: [TRACKED_MINTS.SOL],
-  },
-  {
-    wallet: "Sx8K2pT6m1RbW9aDjF4cQhV7uLeNzY3rXg5BvUkPiHoM",
-    discord: "anon",
-    x: null,
-    tickets: 20,
-    paidWithMints: [TRACKED_MINTS.EMPIRE],
-  },
-];
 
 type PastDraw = {
   drawNumber: number;
@@ -240,8 +161,57 @@ function WalletCell({ address }: { address: string }) {
 type Tab = "current" | "past";
 
 export function HomeDrawsSection() {
+  const { connection } = useConnection();
+  const programId = useMemo(() => lotteryProgramId(), []);
   const [tab, setTab] = useState<Tab>("current");
   const [tokens, setTokens] = useState<Record<string, TickerItem>>({});
+  const [entrants, setEntrants] = useState<Entrant[]>([]);
+  const [drawId, setDrawId] = useState<number | null>(null);
+  const [drawAddress, setDrawAddress] = useState<string | null>(null);
+  const [totalTickets, setTotalTickets] = useState(0);
+  const [drawLoading, setDrawLoading] = useState(true);
+
+  const refreshDraw = useCallback(async () => {
+    const draw = await fetchLotteryDraw(connection, programId);
+    if (!draw) {
+      setDrawId(null);
+      setDrawAddress(null);
+      setTotalTickets(0);
+      setEntrants([]);
+      return;
+    }
+    setDrawId(draw.drawId);
+    setDrawAddress(draw.draw.toBase58());
+    setTotalTickets(draw.totalTickets);
+    const holders = await fetchDrawEntrants(connection, programId, draw);
+    setEntrants(
+      holders.map((h) => ({
+        wallet: h.wallet,
+        discord: null,
+        x: null,
+        tickets: h.tickets,
+        paidWithMints: [SOL_MINT],
+      })),
+    );
+  }, [connection, programId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        await refreshDraw();
+      } finally {
+        if (!cancelled) setDrawLoading(false);
+      }
+    })();
+    const poll = setInterval(() => {
+      refreshDraw().catch(() => undefined);
+    }, 30_000);
+    return () => {
+      cancelled = true;
+      clearInterval(poll);
+    };
+  }, [refreshDraw]);
 
   useEffect(() => {
     let cancelled = false;
@@ -263,8 +233,8 @@ export function HomeDrawsSection() {
   }, []);
 
   const sortedEntrants = useMemo(
-    () => [...PLACEHOLDER_ENTRANTS].sort((a, b) => b.tickets - a.tickets),
-    [],
+    () => [...entrants].sort((a, b) => b.tickets - a.tickets),
+    [entrants],
   );
 
   return (
@@ -309,11 +279,21 @@ export function HomeDrawsSection() {
       </div>
 
       {tab === "current" ? (
-        <CurrentDrawTable
-          entrants={sortedEntrants}
-          tokens={tokens}
-          totalTickets={PLACEHOLDER_TOTAL_TICKETS}
-        />
+        drawLoading ? (
+          <p className="text-sm text-muted">Loading entrants…</p>
+        ) : drawId === null ? (
+          <p className="rounded-2xl border border-border bg-bg-elevated/70 p-6 text-sm text-muted">
+            No active draw on this network yet.
+          </p>
+        ) : (
+          <CurrentDrawTable
+            drawId={drawId}
+            drawAddress={drawAddress}
+            entrants={sortedEntrants}
+            tokens={tokens}
+            totalTickets={totalTickets}
+          />
+        )
       ) : (
         <PastWinnersTable draws={PLACEHOLDER_PAST_DRAWS} />
       )}
@@ -322,22 +302,42 @@ export function HomeDrawsSection() {
 }
 
 function CurrentDrawTable({
+  drawId,
+  drawAddress,
   entrants,
   tokens,
   totalTickets,
 }: {
+  drawId: number;
+  drawAddress: string | null;
   entrants: Entrant[];
   tokens: Record<string, TickerItem>;
   totalTickets: number;
 }) {
-  const ticketsSold = entrants.reduce((sum, e) => sum + e.tickets, 0);
 
   return (
     <div className="overflow-hidden rounded-2xl border border-border bg-bg-elevated/70">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-5 py-3 text-xs text-muted">
         <span>
-          <span className="text-foreground">{ticketsSold.toLocaleString()}</span> /{" "}
-          {totalTickets.toLocaleString()} tickets sold
+          Draw #{drawId}
+          {drawAddress ? (
+            <>
+              {" "}
+              <a
+                href={solscanAccountUrl(drawAddress)}
+                className="font-mono text-accent-cyan hover:underline"
+                target="_blank"
+                rel="noreferrer"
+              >
+                {drawAddress.slice(0, 8)}…
+              </a>
+            </>
+          ) : null}
+          {" · "}
+          <span className="text-foreground">
+            {totalTickets.toLocaleString()}
+          </span>{" "}
+          tickets sold
         </span>
         <span className="font-mono">{entrants.length} entrants</span>
       </div>
@@ -356,7 +356,17 @@ function CurrentDrawTable({
             </tr>
           </thead>
           <tbody>
-            {entrants.map((e, i) => {
+            {entrants.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={7}
+                  className="px-5 py-8 text-center text-sm text-muted"
+                >
+                  No tickets sold yet.
+                </td>
+              </tr>
+            ) : (
+              entrants.map((e, i) => {
               const chance = totalTickets > 0 ? (e.tickets / totalTickets) * 100 : 0;
               return (
                 <tr
@@ -390,7 +400,8 @@ function CurrentDrawTable({
                   </td>
                 </tr>
               );
-            })}
+            })
+            )}
           </tbody>
         </table>
       </div>

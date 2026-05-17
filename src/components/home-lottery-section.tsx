@@ -21,11 +21,7 @@ import {
   LAMPORTS_SOL_TICKET_PRICE,
   MAX_SOL_TICKETS_PER_BUY,
 } from "@/lib/lottery/constants";
-import {
-  lotteryProgramId,
-  solscanAccountUrl,
-  solscanTxUrl,
-} from "@/lib/lottery/config";
+import { lotteryProgramId, solscanTxUrl } from "@/lib/lottery/config";
 
 type Phase =
   | { kind: "idle" }
@@ -258,20 +254,6 @@ export function HomeLotterySection() {
         </p>
       ) : (
         <>
-          <p className="text-xs text-muted">
-            Draw #{draw.drawId}{" "}
-            <a
-              href={solscanAccountUrl(draw.draw.toBase58())}
-              className="font-mono text-accent-cyan hover:underline"
-              target="_blank"
-              rel="noreferrer"
-            >
-              {draw.draw.toBase58().slice(0, 8)}…
-            </a>
-            · {draw.totalTickets} ticket{draw.totalTickets === 1 ? "" : "s"}{" "}
-            sold
-          </p>
-
           <DrawStatsGrid
             countdownLabel={countdown?.label ?? "—"}
             cells={countdownCells}
