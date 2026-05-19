@@ -13,6 +13,14 @@ import {
 } from "@/lib/lottery/config";
 import { drawPda, globalConfigPda, prizeVaultPda } from "@/lib/lottery/pdas";
 import { createLotteryProgram } from "@/lib/lottery/program";
+import type { SplMintDraft } from "@/lib/lottery/spl-types";
+import {
+  LotterySplMintEditor,
+  validateSplMintRows,
+} from "@/components/admin/lottery-spl-mint-editor";
+import {
+  adminSaveSplRowsForDrawAction,
+} from "@/app/admin/(dashboard)/lotteries/actions";
 
 type GlobalConfigView = {
   authority: string;
@@ -56,6 +64,7 @@ export function LotteryOpsPanel() {
   const [salesClose, setSalesClose] = useState("");
   const [seedSol, setSeedSol] = useState("0.05");
   const [seedRefund, setSeedRefund] = useState("");
+  const [splRows, setSplRows] = useState<SplMintDraft[]>([]);
 
   const refreshConfig = useCallback(async () => {
     if (!wallet) return;
@@ -180,13 +189,27 @@ export function LotteryOpsPanel() {
         ? new PublicKey(seedRefund.trim())
         : publicKey;
 
+      const activeSpl = splRows.filter((r) => r.mint.trim());
+      const splErr = validateSplMintRows(activeSpl);
+      if (splErr) {
+        setPhase({ kind: "error", message: splErr });
+        return;
+      }
+
+      const splArgs = activeSpl.map((r) => ({
+        mint: new PublicKey(r.mint),
+        pricePerTicket: new BN(r.pricePerTicket),
+        mintDecimals: r.mintDecimals,
+        cap: r.onChainCap,
+      }));
+
       const sig = await program.methods
         .createDraw(
           new BN(openTs),
           new BN(closeTs),
           refundKey,
           new BN(seedLamports),
-          [],
+          splArgs,
         )
         .accounts({
           authority: publicKey,
@@ -196,10 +219,14 @@ export function LotteryOpsPanel() {
         })
         .rpc();
 
+      if (activeSpl.length > 0) {
+        await adminSaveSplRowsForDrawAction(drawId, activeSpl);
+      }
+
       await refreshConfig();
       setPhase({
         kind: "ok",
-        message: `Draw #${drawId} created.`,
+        message: `Draw #${drawId} created${activeSpl.length ? ` with ${activeSpl.length} SPL mint(s)` : ""}.`,
         signature: sig,
         draw: draw.toBase58(),
       });
@@ -220,6 +247,7 @@ export function LotteryOpsPanel() {
     salesOpen,
     seedRefund,
     seedSol,
+    splRows,
     wallet,
   ]);
 
@@ -367,6 +395,12 @@ export function LotteryOpsPanel() {
                 />
               </label>
             </div>
+
+            <LotterySplMintEditor
+              rows={splRows}
+              onChange={setSplRows}
+              disabled={phase.kind === "busy" || !isOnChainAuthority}
+            />
 
             <button
               type="button"

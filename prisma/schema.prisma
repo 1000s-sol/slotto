@@ -167,3 +167,41 @@ model LotteryTicketPurchase {
   @@index([wallet])
   @@index([drawId])
 }
+
+// --- On-chain lottery SPL ops (draw_id = program `draw_id`, not LotteryDraw.id) ---
+
+/// Reusable SPL ticket line items; loaded when admin creates a new draw.
+model LotterySplCatalogEntry {
+  id                 String   @id @default(cuid())
+  mint               String   @unique
+  symbol             String?
+  label              String?
+  mintDecimals       Int      @default(9)
+  /// Fixed SPL amount per ticket (base units) until dynamic ≈0.095 SOL pricing.
+  pricePerTicket     String
+  defaultOnChainCap  Int      @default(500)
+  defaultDisplayCap  Int      @default(60)
+  defaultPublished   Boolean  @default(false)
+  sortOrder          Int      @default(0)
+  updatedAt          DateTime @updatedAt
+  createdAt          DateTime @default(now())
+}
+
+/// Per-draw SPL row: UI caps/flags; mirrors an on-chain mint row when registered.
+model LotteryDrawSplMint {
+  id              String   @id @default(cuid())
+  onChainDrawId   Int
+  mint            String
+  onChainCap      Int
+  displayCap      Int
+  published       Boolean  @default(false)
+  purchasesLocked Boolean  @default(false)
+  symbol          String?
+  pricePerTicket  String
+  mintDecimals    Int      @default(9)
+  updatedAt       DateTime @updatedAt
+  createdAt       DateTime @default(now())
+
+  @@unique([onChainDrawId, mint])
+  @@index([onChainDrawId])
+}

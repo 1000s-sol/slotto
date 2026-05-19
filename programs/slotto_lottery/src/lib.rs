@@ -14,7 +14,7 @@ use anchor_spl::token::{self, Mint, Token, TokenAccount};
 declare_id!("CiSuRzLSXbbbStNaDjjZbmSU8dn3zhx9qs3Nd9gvNYke");
 
 /// Max SPL mints inlined on [`Draw`] (see spec).
-pub const SPL_MINT_MAX: usize = 16;
+pub const SPL_MINT_MAX: usize = 50;
 
 /// Owners per [`TicketChunk`] PDA (see spec).
 pub const TICKETS_PER_CHUNK: usize = 256;
@@ -208,6 +208,45 @@ pub mod slotto_lottery {
             .checked_add(1)
             .ok_or(error!(ErrorCode::DrawIdOverflow))?;
 
+        Ok(())
+    }
+
+    /// Authority: append one SPL mint row while the draw is still **Selling** (`spl_count < SPL_MINT_MAX`).
+    pub fn add_spl_mint_to_draw(ctx: Context<AddSplMintToDraw>, spl_row: SplMintArg) -> Result<()> {
+        require_keys_neq!(spl_row.mint, Pubkey::default());
+        require!(spl_row.cap > 0, ErrorCode::InvalidSplCap);
+        require!(spl_row.price_per_ticket > 0, ErrorCode::InvalidSplPrice);
+
+        let mut draw = ctx.accounts.draw.load_mut()?;
+        require!(
+            draw.state == DrawState::Selling as u8,
+            ErrorCode::WrongDrawState
+        );
+        require!(
+            (draw.spl_count as usize) < SPL_MINT_MAX,
+            ErrorCode::TooManySplMints
+        );
+
+        for i in 0..draw.spl_count as usize {
+            require_keys_neq!(
+                draw.spl_mint_rows[i].mint,
+                spl_row.mint,
+                ErrorCode::SplMintAlreadyInDraw
+            );
+        }
+
+        let idx = draw.spl_count as usize;
+        draw.spl_mint_rows[idx] = SplMintRow {
+            mint: spl_row.mint,
+            price_per_ticket: spl_row.price_per_ticket,
+            mint_decimals: spl_row.mint_decimals,
+            cap: spl_row.cap,
+            sold: 0,
+        };
+        draw.spl_count = draw
+            .spl_count
+            .checked_add(1)
+            .ok_or(error!(ErrorCode::ArithmeticOverflow))?;
         Ok(())
     }
 
@@ -964,6 +1003,16 @@ pub struct CreateDraw<'info> {
 }
 
 #[derive(Accounts)]
+pub struct AddSplMintToDraw<'info> {
+    #[account(mut, constraint = authority.key() == global_config.authority @ ErrorCode::Unauthorized)]
+    pub authority: Signer<'info>,
+    #[account(seeds = [b"global_config"], bump = global_config.bump)]
+    pub global_config: Account<'info, GlobalConfig>,
+    #[account(mut)]
+    pub draw: AccountLoader<'info, Draw>,
+}
+
+#[derive(Accounts)]
 #[instruction(count: u32)]
 pub struct BuySolTickets<'info> {
     #[account(mut)]
@@ -1111,6 +1160,8 @@ pub enum ErrorCode {
     InvalidSchedule,
     #[msg("too many SPL mints for one draw")]
     TooManySplMints,
+    #[msg("SPL mint already registered on this draw")]
+    SplMintAlreadyInDraw,
     #[msg("unexpected remaining accounts on this instruction")]
     UnexpectedRemainingAccounts,
     #[msg("SPL per-mint cap must be > 0")]

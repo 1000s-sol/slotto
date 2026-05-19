@@ -2,16 +2,17 @@
 
 import { useAnchorWallet, useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
+import { PublicKey } from "@solana/web3.js";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { LotteryWinnerPanel } from "@/components/lottery/lottery-winner-panel";
 import { buySolTickets } from "@/lib/lottery/buy-sol-tickets";
+import { buySplTickets } from "@/lib/lottery/buy-spl-tickets";
 import {
   chainUnixTs,
   fetchJackpotLamports,
   isDrawBuyable,
   type LotteryDrawView,
-  type SplMintRowView,
 } from "@/lib/lottery/chain";
 import { DrawState, MAX_SOL_TICKETS_PER_BUY } from "@/lib/lottery/constants";
 import { lotteryProgramId, solscanTxUrl } from "@/lib/lottery/config";
@@ -22,6 +23,8 @@ import {
   fetchWinnerPrizeLamports,
   formatSolFromLamports,
 } from "@/lib/lottery/draws";
+import { mergeSplMintsForBuyUi } from "@/lib/lottery/spl-mint-ui";
+import type { SplMintUiRow } from "@/lib/lottery/spl-types";
 import { useAutoSettleDraw } from "@/lib/lottery/use-auto-settle-draw";
 
 type Phase =
@@ -73,6 +76,7 @@ export function HomeLotterySection() {
   const [ticketCount, setTicketCount] = useState(1);
   const [payWith, setPayWith] = useState<"SOL" | string>("SOL");
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
+  const [splUiRows, setSplUiRows] = useState<SplMintUiRow[]>([]);
   const [settleError, setSettleError] = useState<string | null>(null);
 
   const needsSettlement = Boolean(
@@ -177,45 +181,88 @@ export function HomeLotterySection() {
   const buyable = Boolean(
     activeDraw && nowSec !== null && isDrawBuyable(activeDraw, nowSec),
   );
-  const splOptions: SplMintRowView[] = activeDraw?.splMints ?? [];
 
   useEffect(() => {
-    if (payWith !== "SOL" && !splOptions.some((o) => o.mint === payWith)) {
+    if (!activeDraw) {
+      setSplUiRows([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(
+          `/api/lottery/draw-spl?drawId=${activeDraw.drawId}`,
+          { cache: "no-store" },
+        );
+        const json = (await res.json()) as { rows?: Parameters<
+          typeof mergeSplMintsForBuyUi
+        >[1] };
+        if (cancelled) return;
+        setSplUiRows(
+          mergeSplMintsForBuyUi(
+            activeDraw.splMints,
+            json.rows ?? [],
+            buyable,
+          ),
+        );
+      } catch {
+        if (!cancelled) {
+          setSplUiRows(
+            mergeSplMintsForBuyUi(activeDraw.splMints, [], buyable),
+          );
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeDraw, buyable]);
+
+  const splBuyable = splUiRows.filter((o) => o.buyable);
+
+  useEffect(() => {
+    if (payWith !== "SOL" && !splBuyable.some((o) => o.mint === payWith)) {
       setPayWith("SOL");
     }
-  }, [payWith, splOptions]);
+  }, [payWith, splBuyable]);
 
   const splSubtitle = useMemo(() => {
     if (payWith === "SOL") return null;
-    const opt = splOptions.find((o) => o.mint === payWith);
+    const opt = splUiRows.find((o) => o.mint === payWith);
     if (!opt) return "";
-    const left = opt.cap - opt.sold;
-    return `SPL tickets remaining: ${left}/${opt.cap}`;
-  }, [payWith, splOptions]);
+    const left = Math.max(0, opt.displayCap - opt.sold);
+    return `SPL tickets remaining: ${left}/${opt.displayCap}`;
+  }, [payWith, splUiRows]);
 
   const disabledReason = buyDisabledReason(buyable, connected);
+  const selectedSpl = splUiRows.find((o) => o.mint === payWith);
   const canSubmit =
-    buyable && Boolean(wallet) && payWith === "SOL" && phase.kind !== "busy";
+    buyable &&
+    Boolean(wallet) &&
+    phase.kind !== "busy" &&
+    (payWith === "SOL" || Boolean(selectedSpl?.buyable));
 
   const onBuy = useCallback(async () => {
     if (!wallet || !activeDraw || !buyable) return;
-    if (payWith !== "SOL") {
-      setPhase({
-        kind: "error",
-        message:
-          "SPL ticket buys from the homepage are not wired yet. Use SOL for this draw.",
-      });
-      return;
-    }
     setPhase({ kind: "busy", label: "Confirm in your wallet…" });
     try {
-      const sig = await buySolTickets(
-        connection,
-        wallet,
-        programId,
-        activeDraw,
-        ticketCount,
-      );
+      const sig =
+        payWith === "SOL"
+          ? await buySolTickets(
+              connection,
+              wallet,
+              programId,
+              activeDraw,
+              ticketCount,
+            )
+          : await buySplTickets(
+              connection,
+              wallet,
+              programId,
+              activeDraw,
+              new PublicKey(payWith),
+              ticketCount,
+            );
       const firstId = activeDraw.totalTickets;
       const lastId = activeDraw.totalTickets + ticketCount - 1;
       const ids =
@@ -386,15 +433,22 @@ export function HomeLotterySection() {
                   className="rounded-xl border border-neutral-400/80 bg-neutral-200 px-3 py-2 text-sm text-neutral-900 outline-none focus:border-accent-purple focus:ring-2 focus:ring-accent-purple/30 disabled:cursor-not-allowed"
                 >
                   <option value="SOL">SOL</option>
-                  {splOptions.map((o) => {
-                    const left = o.cap - o.sold;
-                    const label = `${o.mint.slice(0, 4)}…${o.mint.slice(-4)} (${left}/${o.cap})`;
-                    return (
-                      <option key={o.mint} value={o.mint} disabled>
-                        {label} — soon
-                      </option>
-                    );
-                  })}
+                  {splUiRows
+                    .filter((o) => o.published && !o.purchasesLocked)
+                    .map((o) => {
+                      const left = Math.max(0, o.displayCap - o.sold);
+                      const label = `${o.symbol || o.mint.slice(0, 4)} (${left}/${o.displayCap})`;
+                      return (
+                        <option
+                          key={o.mint}
+                          value={o.mint}
+                          disabled={!o.buyable}
+                        >
+                          {label}
+                          {!o.buyable ? " — sold out" : ""}
+                        </option>
+                      );
+                    })}
                 </select>
               </label>
 

@@ -1,3 +1,4 @@
+import { LotteryCurrentDrawSpl } from "@/components/admin/lottery-current-draw-spl";
 import { LotteryOpsPanel } from "@/components/admin/lottery-ops-panel";
 
 export default function AdminLotteriesPage() {
@@ -15,6 +16,7 @@ export default function AdminLotteriesPage() {
         </p>
       </div>
       <LotteryOpsPanel />
+      <LotteryCurrentDrawSpl />
     </div>
   );
 }

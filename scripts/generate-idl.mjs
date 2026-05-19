@@ -42,6 +42,7 @@ const errors = [
   "Unauthorized",
   "InvalidSchedule",
   "TooManySplMints",
+  "SplMintAlreadyInDraw",
   "UnexpectedRemainingAccounts",
   "InvalidSplCap",
   "InvalidSplPrice",
@@ -101,6 +102,11 @@ const idl = {
       arg("seed_lamports", "u64"),
       arg("spl_rows", { vec: { defined: { name: "splMintArg" } } }),
     ]),
+    ix("add_spl_mint_to_draw", [
+      acc("authority", { writable: true, signer: true }),
+      acc("global_config"),
+      acc("draw", { writable: true }),
+    ], [arg("spl_row", { defined: { name: "splMintArg" } })]),
     ix("buy_sol_tickets", [
       acc("buyer", { writable: true, signer: true }),
       acc("draw", { writable: true }),

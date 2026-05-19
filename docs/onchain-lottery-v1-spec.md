@@ -60,21 +60,59 @@ SOL ticket sales are **uncapped** until **`sales_close_ts`** (and `buy_sol` reje
 - **Fee per SPL ticket:** **fixed 0.0005 SOL** (lamports), **always paid in SOL**, per ticket. On-chain split: **2:1** to **team** vs **setup** (same ratio as the **0.001** : **0.0005** non-pot slice of a SOL ticket), applied to **`count * 0.0005` SOL** in one instruction.
 - **Bulk buys:** `buy_spl_tickets(mint, count)` — **`count`** SPL amounts + **`count * 0.0005` SOL** in fees; **`count`** sequential ticket IDs.
 
-### SPL app layer (Postgres + admin; v1 scope)
+### SPL app layer (Postgres + admin)
 
-**On-chain** per-mint **`cap`** is the hard ceiling (`sold` cannot exceed `cap`). The app adds a **Postgres** row per draw + mint (keyed by on-chain `draw_id` + mint address) for ops controls:
+**On-chain** per-mint **`cap`** is the hard ceiling (`sold` cannot exceed `cap`). The app adds **Postgres** rows per draw + mint (keyed by on-chain `draw_id` + mint) for ops controls.
 
-| Field (concept) | Purpose |
-|---------------|---------|
-| **`display_cap`** | Max tickets **shown/sellable in the UI**; must be **`≤` on-chain `cap`**. Authority can **raise** `display_cap` anytime during the draw (no chain tx). |
-| **`published`** | Same idea as project **Published**: token configured at **`create_draw`** but **hidden from buy UI** until admin ticks **published**; stays buyable until **unpublished** (no automatic time window in v1). |
-| *(optional)* **`enabled`** | Alias / complement to **published** for hiding a token without removing on-chain config. |
+| Field | Purpose |
+|-------|---------|
+| **`on_chain_cap`** | Max tickets the program will ever sell for this mint on this draw (e.g. **500**). Set at `create_draw` / `add_spl_mint`. |
+| **`display_cap`** | Max tickets **sellable in the UI**; must be **`≤ on_chain_cap`**. Admin can **raise** during a live draw (Postgres only). |
+| **`published`** | Like project **Published**: hidden from buy UI until ticked on. |
+| **`purchases_locked`** | Ops kill-switch (rug / not supporting): hide from UI and block app-built buys even if published. |
 
-**Buy UI** enforces: draw in selling window, mint **published**, `sold < display_cap`, and chain `sold < cap`. Devnet: direct program calls can still buy up to on-chain **`cap`** if someone bypasses the UI.
+**Buy UI** enforces: selling window, **published**, **not locked**, `sold < display_cap`, chain `sold < on_chain_cap`.
 
-**v1 create flow:** authority registers **all eligible SPL mints** on **`create_draw`** (mint, human price → base units, on-chain **`cap`**, initial **`display_cap`**, **published** default off or on per product choice).
+**Stale draws in UI:** If draw **#N** is settled/refunded, older draws still **Selling** on-chain (e.g. accidental week-long **#2** after **#3** settled) are **ignored** in the homepage — no new program id required.
 
-**Deferred (after basic SPL path is tested):** **`add_spl_mint_to_draw`** (or similar) so authority can attach a **new** mint to an **already live** draw without redeploying the whole draw. Not in the current program; track here before implementing.
+---
+
+### SPL product requirements (v2 — target **50** mints)
+
+**Catalog (persist across draws)**
+
+- Do **not** re-enter every mint on each `create_draw`.
+- **Load** the token list from the **previous draw** (Postgres `LotterySplCatalogEntry` + per-draw rows).
+- Admin can **remove** tokens, change **on-chain cap** / **display cap**, toggle **published**, **lock** purchases, before submitting `create_draw`.
+- Optional link to **Project** `tokenMint` for metadata (symbol, logo).
+
+**Two-level caps**
+
+| Level | Example | Who changes |
+|-------|---------|-------------|
+| **On-chain cap** | 500 | `create_draw` / `add_spl_mint` / future `update_spl_cap` (authority) |
+| **Display cap** | 60 at launch → 120 mid-draw | Admin UI only (Postgres); can start low and **increase** if a token sells out quickly |
+
+On-chain cap should be set **higher than** expected UI allocation so ops headroom does not require a program tx for every bump (within reason).
+
+**Live draw admin**
+
+- **Current draw settings** page: per-mint **display_cap** (raise only, `≤ on_chain_cap`), **published**, **purchases_locked**.
+- **`add_spl_mint_to_draw`** (on-chain, authority): new project onboarded weeks into a month-long draw — append mint + caps + price.
+- Future (optional): **`update_spl_on_chain_cap`** if display needs to exceed what was reserved at add time.
+
+**Scale: 16 → 50 mints**
+
+- v1 program: **`SPL_MINT_MAX = 16`** inline on `Draw` (~49 bytes/row → account size + rent).
+- v2 direction (pick one in implementation):
+  1. **Raise inline limit to 50** if rent/stack tests pass on devnet, or
+  2. **`DrawSplTable` extension PDA** (`["draw_spl", draw]`) holding up to 50 rows so `Draw` stays small.
+- New **program id** only if we ship breaking account layout; otherwise upgrade existing program after audit.
+
+**Pricing (later — not this sprint)**
+
+- **TODO:** Dynamic SPL ticket price = **~0.095 SOL** equivalent in the paid mint (oracle / Jupiter quote at buy time).
+- Until then: fixed **price_per_ticket** (base units) per mint at `create_draw` / `add_spl_mint`.
 
 ---
 
@@ -233,8 +271,10 @@ Concrete layout for Anchor implementation. Revise only if a constraint (rent, ac
 - [x] **Rent** / account size: **16 SPL mints** max per draw (inline rows) + chunked tickets — see §Program design.  
 - [ ] Tests: **done (lib):** `npm run lottery:test` (23 tests). **done (integration):** `npm run lottery:test:integration` — initialize, create_draw, empty refund, SOL buy→settle stub (`tests/slotto_lottery.ts`). **TODO:** SPL buy + cap exhaustion on-chain.  
 - [x] **Keeper:** `npm run lottery:keeper` (local poll), `GET /api/lottery/crank` (Vercel cron every 2m, `CRON_SECRET`), homepage **server action** crank when **SalesClosed** / **VrfRequested** (instant, no secret in browser).
-- [ ] **App:** SPL mint rows on admin **create_draw**; Postgres **`display_cap`** + **`published`**; homepage **`buy_spl_tickets`** wired.
-- [ ] **Later:** on-chain **add mint mid-draw** (see §SPL app layer — deferred).
+- [ ] **App:** Admin SPL table on **create_draw** (load catalog, edit caps/published/lock); Postgres models; homepage **`buy_spl_tickets`** wired.
+- [ ] **App:** **Current draw** SPL settings (raise `display_cap`, published, purchases_locked).
+- [ ] **Program v2:** **50** SPL rows (inline or extension PDA); **`add_spl_mint_to_draw`** for live draws.
+- [ ] **Later:** Dynamic SPL price ≈ **0.095 SOL** equivalent per mint at buy time.
 
 ---
 
@@ -255,3 +295,4 @@ Concrete layout for Anchor implementation. Revise only if a constraint (rent, ac
 | 2026-05-16 | BPF stack: `Draw` + `TicketChunk` `zero_copy`; ticket owners via byte offsets (no `AccountLoader` on remaining accounts). |
 | 2026-05-16 | Build: `bash scripts/anchor-build.sh` = `anchor build --no-idl` + `anchor idl build` on host Rust **1.84** (Anchor 0.30 IDL breaks on 1.85). |
 | 2026-05-17 | **SPL app layer:** Postgres `display_cap` + `published` (project-style toggle); v1 = all mints at `create_draw`; **deferred** = add mint to live draw on-chain. |
+| 2026-05-19 | **SPL v2 product:** catalog across draws, 50 mint target, two-level caps, live admin, `purchases_locked`, add-mint mid-draw; dynamic 0.095 SOL pricing **TODO**; UI ignores stale in-progress draws superseded by a later terminal draw. |

@@ -57,20 +57,38 @@ export async function fetchActiveSellingDraw(
   return draws.find((d) => d.state === DrawState.Selling) ?? null;
 }
 
-/** Latest draw still in the sales / settlement pipeline (not settled or refunded). */
+/** Highest on-chain draw id in a terminal state (settled or refunded). */
+export function highestTerminalDrawId(draws: LotteryDrawView[]): number {
+  let max = -1;
+  for (const d of draws) {
+    if (d.state === DrawState.Settled || d.state === DrawState.Refunded) {
+      max = Math.max(max, d.drawId);
+    }
+  }
+  return max;
+}
+
+/**
+ * Latest draw still in the sales / settlement pipeline.
+ * Skips stale in-progress draws with id ≤ latest terminal draw (e.g. accidental
+ * week-long draw #2 after #3 already settled).
+ */
 export async function fetchInProgressDraw(
   connection: Connection,
   programId: PublicKey,
 ): Promise<LotteryDrawView | null> {
   const draws = await fetchAllDraws(connection, programId);
+  const floor = highestTerminalDrawId(draws);
   for (let i = draws.length - 1; i >= 0; i -= 1) {
-    const s = draws[i].state;
+    const d = draws[i];
+    const s = d.state;
     if (
       s === DrawState.Selling ||
       s === DrawState.SalesClosed ||
       s === DrawState.VrfRequested
     ) {
-      return draws[i];
+      if (d.drawId <= floor) continue;
+      return d;
     }
   }
   return null;
