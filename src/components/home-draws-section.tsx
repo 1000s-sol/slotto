@@ -12,7 +12,7 @@ import {
   formatDrawDateLabel,
   formatSolFromLamports,
 } from "@/lib/lottery/draws";
-import { triggerLotteryCrank } from "@/lib/lottery/trigger-crank";
+import { triggerLotteryCrank } from "@/lib/lottery/trigger-crank-action";
 import { fetchDrawEntrants } from "@/lib/lottery/ticket-holders";
 
 type TickerItem = {

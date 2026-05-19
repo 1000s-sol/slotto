@@ -21,7 +21,7 @@ import {
   fetchWinnerPrizeLamports,
   formatSolFromLamports,
 } from "@/lib/lottery/draws";
-import { triggerLotteryCrank } from "@/lib/lottery/trigger-crank";
+import { triggerLotteryCrank } from "@/lib/lottery/trigger-crank-action";
 
 type Phase =
   | { kind: "idle" }

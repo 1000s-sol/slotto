@@ -232,7 +232,7 @@ Concrete layout for Anchor implementation. Revise only if a constraint (rent, ac
 - [x] **Recipient** pubkeys at `initialize`.  
 - [x] **Rent** / account size: **16 SPL mints** max per draw (inline rows) + chunked tickets — see §Program design.  
 - [ ] Tests: **done (lib):** `npm run lottery:test` (23 tests). **done (integration):** `npm run lottery:test:integration` — initialize, create_draw, empty refund, SOL buy→settle stub (`tests/slotto_lottery.ts`). **TODO:** SPL buy + cap exhaustion on-chain.  
-- [x] **Keeper:** `npm run lottery:keeper` (local poll), `POST/GET /api/lottery/crank` (server wallet + Vercel cron every 2m), homepage triggers crank when a draw is **SalesClosed** / **VrfRequested**.
+- [x] **Keeper:** `npm run lottery:keeper` (local poll), `GET /api/lottery/crank` (Vercel cron every 2m, `CRON_SECRET`), homepage **server action** crank when **SalesClosed** / **VrfRequested** (instant, no secret in browser).
 - [ ] **App:** SPL mint rows on admin **create_draw**; Postgres **`display_cap`** + **`published`**; homepage **`buy_spl_tickets`** wired.
 - [ ] **Later:** on-chain **add mint mid-draw** (see §SPL app layer — deferred).
 
