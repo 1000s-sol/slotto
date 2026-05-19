@@ -268,12 +268,12 @@ Concrete layout for Anchor implementation. Revise only if a constraint (rent, ac
 - [x] **`request_vrf`** + **`settle`** (program, **stub VRF** — see §Randomness; Switchboard CPI still TODO).  
 - [ ] **Switchboard** devnet + mainnet queue / feed addresses.  
 - [x] **Recipient** pubkeys at `initialize`.  
-- [x] **Rent** / account size: **16 SPL mints** max per draw (inline rows) + chunked tickets — see §Program design.  
+- [x] **Rent** / account size: **50 SPL mints** max per draw (inline rows) + chunked tickets — see §Program design.  
 - [ ] Tests: **done (lib):** `npm run lottery:test` (23 tests). **done (integration):** `npm run lottery:test:integration` — initialize, create_draw, empty refund, SOL buy→settle stub (`tests/slotto_lottery.ts`). **TODO:** SPL buy + cap exhaustion on-chain.  
 - [x] **Keeper:** `npm run lottery:keeper` (local poll), `GET /api/lottery/crank` (Vercel cron every 2m, `CRON_SECRET`), homepage **server action** crank when **SalesClosed** / **VrfRequested** (instant, no secret in browser).
-- [ ] **App:** Admin SPL table on **create_draw** (load catalog, edit caps/published/lock); Postgres models; homepage **`buy_spl_tickets`** wired.
-- [ ] **App:** **Current draw** SPL settings (raise `display_cap`, published, purchases_locked).
-- [ ] **Program v2:** **50** SPL rows (inline or extension PDA); **`add_spl_mint_to_draw`** for live draws.
+- [x] **App:** Admin SPL table on **create_draw** (load catalog, edit caps/published/lock); Postgres models; homepage **`buy_spl_tickets`** wired.
+- [x] **App:** **Current draw** SPL settings (raise `display_cap`, published, purchases_locked).
+- [x] **Program v2 (source):** **50** SPL rows + **`add_spl_mint_to_draw`** — **redeploy** devnet program to activate on-chain.
 - [ ] **Later:** Dynamic SPL price ≈ **0.095 SOL** equivalent per mint at buy time.
 
 ---

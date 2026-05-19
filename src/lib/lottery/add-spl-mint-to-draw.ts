@@ -16,19 +16,7 @@ export async function addSplMintToDraw(
   const program = createLotteryProgram(connection, wallet);
   const globalConfig = globalConfigPda(programId);
 
-  // IDL includes `add_spl_mint_to_draw` after program upgrade; types catch up on regen.
-  return (
-    program.methods as {
-      addSplMintToDraw: (args: {
-        mint: PublicKey;
-        pricePerTicket: BN;
-        mintDecimals: number;
-        cap: number;
-      }) => {
-        accounts: (a: object) => { rpc: () => Promise<string> };
-      };
-    }
-  )
+  return program.methods
     .addSplMintToDraw({
       mint: new PublicKey(row.mint),
       pricePerTicket: new BN(row.pricePerTicket),

@@ -116,6 +116,43 @@ export type SlottoLottery = {
       ]
     },
     {
+      "name": "addSplMintToDraw",
+      "discriminator": [
+        158,
+        82,
+        68,
+        38,
+        174,
+        100,
+        173,
+        217
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "globalConfig"
+        },
+        {
+          "name": "draw",
+          "writable": true
+        }
+      ],
+      "args": [
+        {
+          "name": "splRow",
+          "type": {
+            "defined": {
+              "name": "splMintArg"
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "buySolTickets",
       "discriminator": [
         240,
@@ -493,151 +530,156 @@ export type SlottoLottery = {
     },
     {
       "code": 6003,
+      "name": "splMintAlreadyInDraw",
+      "msg": "splMintAlreadyInDraw"
+    },
+    {
+      "code": 6004,
       "name": "unexpectedRemainingAccounts",
       "msg": "unexpectedRemainingAccounts"
     },
     {
-      "code": 6004,
+      "code": 6005,
       "name": "invalidSplCap",
       "msg": "invalidSplCap"
     },
     {
-      "code": 6005,
+      "code": 6006,
       "name": "invalidSplPrice",
       "msg": "invalidSplPrice"
     },
     {
-      "code": 6006,
+      "code": 6007,
       "name": "drawIdOverflow",
       "msg": "drawIdOverflow"
     },
     {
-      "code": 6007,
+      "code": 6008,
       "name": "wrongDrawState",
       "msg": "wrongDrawState"
     },
     {
-      "code": 6008,
+      "code": 6009,
       "name": "outsideSalesWindow",
       "msg": "outsideSalesWindow"
     },
     {
-      "code": 6009,
+      "code": 6010,
       "name": "invalidTicketCount",
       "msg": "invalidTicketCount"
     },
     {
-      "code": 6010,
+      "code": 6011,
       "name": "arithmeticOverflow",
       "msg": "arithmeticOverflow"
     },
     {
-      "code": 6011,
+      "code": 6012,
       "name": "invalidTeamVault",
       "msg": "invalidTeamVault"
     },
     {
-      "code": 6012,
+      "code": 6013,
       "name": "invalidSetupVault",
       "msg": "invalidSetupVault"
     },
     {
-      "code": 6013,
+      "code": 6014,
       "name": "invalidChunkAccounts",
       "msg": "invalidChunkAccounts"
     },
     {
-      "code": 6014,
+      "code": 6015,
       "name": "invalidChunkAccount",
       "msg": "invalidChunkAccount"
     },
     {
-      "code": 6015,
+      "code": 6016,
       "name": "ticketSlotOccupied",
       "msg": "ticketSlotOccupied"
     },
     {
-      "code": 6016,
+      "code": 6017,
       "name": "mintNotInDraw",
       "msg": "mintNotInDraw"
     },
     {
-      "code": 6017,
+      "code": 6018,
       "name": "splCapExceeded",
       "msg": "splCapExceeded"
     },
     {
-      "code": 6018,
+      "code": 6019,
       "name": "splMintDecimalsMismatch",
       "msg": "splMintDecimalsMismatch"
     },
     {
-      "code": 6019,
+      "code": 6020,
       "name": "invalidDrawStateForCloseSales",
       "msg": "invalidDrawStateForCloseSales"
     },
     {
-      "code": 6020,
+      "code": 6021,
       "name": "salesPeriodNotEnded",
       "msg": "salesPeriodNotEnded"
     },
     {
-      "code": 6021,
+      "code": 6022,
       "name": "invalidDrawStateForRefund",
       "msg": "invalidDrawStateForRefund"
     },
     {
-      "code": 6022,
+      "code": 6023,
       "name": "refundDrawHasTickets",
       "msg": "refundDrawHasTickets"
     },
     {
-      "code": 6023,
+      "code": 6024,
       "name": "invalidSeedRefund",
       "msg": "invalidSeedRefund"
     },
     {
-      "code": 6024,
+      "code": 6025,
       "name": "invalidDrawStateForVrf",
       "msg": "invalidDrawStateForVrf"
     },
     {
-      "code": 6025,
+      "code": 6026,
       "name": "vrfNeedsTickets",
       "msg": "vrfNeedsTickets"
     },
     {
-      "code": 6026,
+      "code": 6027,
       "name": "vrfAlreadyRequested",
       "msg": "vrfAlreadyRequested"
     },
     {
-      "code": 6027,
+      "code": 6028,
       "name": "invalidDrawStateForSettle",
       "msg": "invalidDrawStateForSettle"
     },
     {
-      "code": 6028,
+      "code": 6029,
       "name": "vrfNotStubMode",
       "msg": "vrfNotStubMode"
     },
     {
-      "code": 6029,
+      "code": 6030,
       "name": "settleAccountsWrongLen",
       "msg": "settleAccountsWrongLen"
     },
     {
-      "code": 6030,
+      "code": 6031,
       "name": "emptyTicketOwner",
       "msg": "emptyTicketOwner"
     },
     {
-      "code": 6031,
+      "code": 6032,
       "name": "winnerMismatch",
       "msg": "winnerMismatch"
     },
     {
-      "code": 6032,
+      "code": 6033,
       "name": "invalidDrawStateForWithdrawSpl",
       "msg": "invalidDrawStateForWithdrawSpl"
     }

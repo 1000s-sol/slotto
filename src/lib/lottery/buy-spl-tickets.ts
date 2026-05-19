@@ -68,8 +68,6 @@ export async function buySplTickets(
       treasuryToken,
       teamVault: cfg.teamVault,
       setupVault: cfg.setupVault,
-      tokenProgram: TOKEN_PROGRAM_ID,
-      associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
     })
     .remainingAccounts(remainingAccounts)
     .rpc();
