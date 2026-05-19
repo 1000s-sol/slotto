@@ -6,12 +6,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { DrawState } from "@/lib/lottery/constants";
 import { lotteryProgramId, solscanAccountUrl } from "@/lib/lottery/config";
 import {
-  fetchActiveSellingDraw,
+  fetchInProgressDraw,
   fetchPastSettledDraws,
   fetchWinnerPrizeLamports,
   formatDrawDateLabel,
   formatSolFromLamports,
 } from "@/lib/lottery/draws";
+import { triggerLotteryCrank } from "@/lib/lottery/trigger-crank";
 import { fetchDrawEntrants } from "@/lib/lottery/ticket-holders";
 
 type TickerItem = {
@@ -129,7 +130,7 @@ export function HomeDrawsSection() {
   const [pastLoading, setPastLoading] = useState(true);
 
   const refreshDraw = useCallback(async () => {
-    const draw = await fetchActiveSellingDraw(connection, programId);
+    const draw = await fetchInProgressDraw(connection, programId);
     if (!draw) {
       setDrawId(null);
       setDrawAddress(null);
@@ -137,6 +138,12 @@ export function HomeDrawsSection() {
       setDrawState(null);
       setEntrants([]);
       return;
+    }
+    if (
+      draw.state === DrawState.SalesClosed ||
+      draw.state === DrawState.VrfRequested
+    ) {
+      void triggerLotteryCrank(draw.drawId);
     }
     setDrawId(draw.drawId);
     setDrawAddress(draw.draw.toBase58());

@@ -57,6 +57,25 @@ export async function fetchActiveSellingDraw(
   return draws.find((d) => d.state === DrawState.Selling) ?? null;
 }
 
+/** Latest draw still in the sales / settlement pipeline (not settled or refunded). */
+export async function fetchInProgressDraw(
+  connection: Connection,
+  programId: PublicKey,
+): Promise<LotteryDrawView | null> {
+  const draws = await fetchAllDraws(connection, programId);
+  for (let i = draws.length - 1; i >= 0; i -= 1) {
+    const s = draws[i].state;
+    if (
+      s === DrawState.Selling ||
+      s === DrawState.SalesClosed ||
+      s === DrawState.VrfRequested
+    ) {
+      return draws[i];
+    }
+  }
+  return null;
+}
+
 export async function fetchLatestSettledDraw(
   connection: Connection,
   programId: PublicKey,

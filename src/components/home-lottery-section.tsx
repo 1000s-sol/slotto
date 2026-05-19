@@ -16,11 +16,12 @@ import {
 import { DrawState, MAX_SOL_TICKETS_PER_BUY } from "@/lib/lottery/constants";
 import { lotteryProgramId, solscanTxUrl } from "@/lib/lottery/config";
 import {
-  fetchActiveSellingDraw,
+  fetchInProgressDraw,
   fetchLatestSettledDraw,
   fetchWinnerPrizeLamports,
   formatSolFromLamports,
 } from "@/lib/lottery/draws";
+import { triggerLotteryCrank } from "@/lib/lottery/trigger-crank";
 
 type Phase =
   | { kind: "idle" }
@@ -72,18 +73,33 @@ export function HomeLotterySection() {
   const [payWith, setPayWith] = useState<"SOL" | string>("SOL");
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
 
-  const showWinner = Boolean(!activeDraw && settledDraw?.winner);
+  const settling =
+    activeDraw?.state === DrawState.SalesClosed ||
+    activeDraw?.state === DrawState.VrfRequested;
+  const showWinner = Boolean(
+    !activeDraw && !settling && settledDraw?.winner,
+  );
   const draw = activeDraw ?? settledDraw;
 
   const refresh = useCallback(async () => {
-    const active = await fetchActiveSellingDraw(connection, programId);
-    setActiveDraw(active);
-    if (active) {
+    const inProgress = await fetchInProgressDraw(connection, programId);
+    setActiveDraw(inProgress);
+    if (inProgress) {
       setSettledDraw(null);
       setWinnerPrizeLamports(null);
-      setJackpotLamports(
-        await fetchJackpotLamports(connection, active.prizeVault),
-      );
+      if (
+        inProgress.state === DrawState.SalesClosed ||
+        inProgress.state === DrawState.VrfRequested
+      ) {
+        void triggerLotteryCrank(inProgress.drawId);
+      }
+      if (inProgress.state === DrawState.Selling) {
+        setJackpotLamports(
+          await fetchJackpotLamports(connection, inProgress.prizeVault),
+        );
+      } else {
+        setJackpotLamports(null);
+      }
     } else {
       const settled = await fetchLatestSettledDraw(connection, programId);
       setSettledDraw(settled);
@@ -131,6 +147,16 @@ export function HomeLotterySection() {
       return { kind: "next-draw" as const, parts: null };
     }
     if (!activeDraw || nowSec === null) return null;
+    if (
+      activeDraw.state === DrawState.SalesClosed ||
+      activeDraw.state === DrawState.VrfRequested
+    ) {
+      return {
+        kind: "label" as const,
+        label: "Drawing winner…",
+        parts: null,
+      };
+    }
     if (activeDraw.state !== DrawState.Selling) {
       return { kind: "label" as const, label: "Sales closed", parts: null };
     }
