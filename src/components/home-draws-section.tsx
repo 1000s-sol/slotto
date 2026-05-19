@@ -3,8 +3,10 @@
 import { useConnection } from "@solana/wallet-adapter-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { chainUnixTs } from "@/lib/lottery/chain";
 import { DrawState } from "@/lib/lottery/constants";
 import { lotteryProgramId, solscanAccountUrl } from "@/lib/lottery/config";
+import { drawNeedsSettlement } from "@/lib/lottery/draw-settlement";
 import {
   fetchInProgressDraw,
   fetchPastSettledDraws,
@@ -12,8 +14,9 @@ import {
   formatDrawDateLabel,
   formatSolFromLamports,
 } from "@/lib/lottery/draws";
-import { triggerLotteryCrank } from "@/lib/lottery/trigger-crank-action";
+import type { LotteryDrawView } from "@/lib/lottery/chain";
 import { fetchDrawEntrants } from "@/lib/lottery/ticket-holders";
+import { useAutoSettleDraw } from "@/lib/lottery/use-auto-settle-draw";
 
 type TickerItem = {
   mint: string;
@@ -128,9 +131,14 @@ export function HomeDrawsSection() {
   const [drawLoading, setDrawLoading] = useState(true);
   const [pastDraws, setPastDraws] = useState<PastDraw[]>([]);
   const [pastLoading, setPastLoading] = useState(true);
+  const [inProgressDraw, setInProgressDraw] = useState<LotteryDrawView | null>(
+    null,
+  );
+  const [nowSec, setNowSec] = useState<number | null>(null);
 
   const refreshDraw = useCallback(async () => {
     const draw = await fetchInProgressDraw(connection, programId);
+    setInProgressDraw(draw);
     if (!draw) {
       setDrawId(null);
       setDrawAddress(null);
@@ -138,12 +146,6 @@ export function HomeDrawsSection() {
       setDrawState(null);
       setEntrants([]);
       return;
-    }
-    if (
-      draw.state === DrawState.SalesClosed ||
-      draw.state === DrawState.VrfRequested
-    ) {
-      void triggerLotteryCrank(draw.drawId);
     }
     setDrawId(draw.drawId);
     setDrawAddress(draw.draw.toBase58());
@@ -160,6 +162,24 @@ export function HomeDrawsSection() {
       })),
     );
   }, [connection, programId]);
+
+  const needsSettlement = Boolean(
+    inProgressDraw && drawNeedsSettlement(inProgressDraw, nowSec),
+  );
+
+  useAutoSettleDraw(inProgressDraw, nowSec, refreshDraw);
+
+  useEffect(() => {
+    chainUnixTs(connection)
+      .then(setNowSec)
+      .catch(() => undefined);
+    const tick = setInterval(() => {
+      chainUnixTs(connection)
+        .then(setNowSec)
+        .catch(() => undefined);
+    }, 1000);
+    return () => clearInterval(tick);
+  }, [connection]);
 
   const refreshPast = useCallback(async () => {
     const settled = await fetchPastSettledDraws(connection, programId);
@@ -196,14 +216,15 @@ export function HomeDrawsSection() {
         if (!cancelled) setDrawLoading(false);
       }
     })();
+    const pollMs = needsSettlement ? 4_000 : 30_000;
     const poll = setInterval(() => {
       refreshDraw().catch(() => undefined);
-    }, 30_000);
+    }, pollMs);
     return () => {
       cancelled = true;
       clearInterval(poll);
     };
-  }, [refreshDraw]);
+  }, [refreshDraw, needsSettlement]);
 
   useEffect(() => {
     let cancelled = false;
@@ -300,6 +321,7 @@ export function HomeDrawsSection() {
             drawId={drawId}
             drawAddress={drawAddress}
             drawState={drawState}
+            settling={needsSettlement}
             entrants={sortedEntrants}
             tokens={tokens}
             totalTickets={totalTickets}

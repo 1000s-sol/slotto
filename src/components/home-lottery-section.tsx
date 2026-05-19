@@ -15,13 +15,14 @@ import {
 } from "@/lib/lottery/chain";
 import { DrawState, MAX_SOL_TICKETS_PER_BUY } from "@/lib/lottery/constants";
 import { lotteryProgramId, solscanTxUrl } from "@/lib/lottery/config";
+import { drawNeedsSettlement } from "@/lib/lottery/draw-settlement";
 import {
   fetchInProgressDraw,
   fetchLatestSettledDraw,
   fetchWinnerPrizeLamports,
   formatSolFromLamports,
 } from "@/lib/lottery/draws";
-import { triggerLotteryCrank } from "@/lib/lottery/trigger-crank-action";
+import { useAutoSettleDraw } from "@/lib/lottery/use-auto-settle-draw";
 
 type Phase =
   | { kind: "idle" }
@@ -72,10 +73,12 @@ export function HomeLotterySection() {
   const [ticketCount, setTicketCount] = useState(1);
   const [payWith, setPayWith] = useState<"SOL" | string>("SOL");
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
+  const [settleError, setSettleError] = useState<string | null>(null);
 
-  const settling =
-    activeDraw?.state === DrawState.SalesClosed ||
-    activeDraw?.state === DrawState.VrfRequested;
+  const needsSettlement = Boolean(
+    activeDraw && drawNeedsSettlement(activeDraw, nowSec),
+  );
+  const settling = needsSettlement;
   const showWinner = Boolean(
     !activeDraw && !settling && settledDraw?.winner,
   );
@@ -87,12 +90,6 @@ export function HomeLotterySection() {
     if (inProgress) {
       setSettledDraw(null);
       setWinnerPrizeLamports(null);
-      if (
-        inProgress.state === DrawState.SalesClosed ||
-        inProgress.state === DrawState.VrfRequested
-      ) {
-        void triggerLotteryCrank(inProgress.drawId);
-      }
       if (inProgress.state === DrawState.Selling) {
         setJackpotLamports(
           await fetchJackpotLamports(connection, inProgress.prizeVault),
@@ -115,6 +112,8 @@ export function HomeLotterySection() {
     setNowSec(await chainUnixTs(connection));
   }, [connection, programId]);
 
+  useAutoSettleDraw(activeDraw, nowSec, refresh, (msg) => setSettleError(msg));
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -124,14 +123,15 @@ export function HomeLotterySection() {
         if (!cancelled) setLoading(false);
       }
     })();
+    const pollMs = needsSettlement ? 4_000 : 30_000;
     const poll = setInterval(() => {
       refresh().catch(() => undefined);
-    }, 30_000);
+    }, pollMs);
     return () => {
       cancelled = true;
       clearInterval(poll);
     };
-  }, [refresh]);
+  }, [refresh, needsSettlement]);
 
   useEffect(() => {
     const tick = setInterval(() => {
@@ -147,10 +147,7 @@ export function HomeLotterySection() {
       return { kind: "next-draw" as const, parts: null };
     }
     if (!activeDraw || nowSec === null) return null;
-    if (
-      activeDraw.state === DrawState.SalesClosed ||
-      activeDraw.state === DrawState.VrfRequested
-    ) {
+    if (drawNeedsSettlement(activeDraw, nowSec)) {
       return {
         kind: "label" as const,
         label: "Drawing winner…",
@@ -175,7 +172,7 @@ export function HomeLotterySection() {
       };
     }
     return { kind: "label" as const, label: "Sales closed", parts: null };
-  }, [activeDraw, nowSec, showWinner]);
+  }, [activeDraw, nowSec, showWinner, needsSettlement]);
 
   const buyable = Boolean(
     activeDraw && nowSec !== null && isDrawBuyable(activeDraw, nowSec),
@@ -448,6 +445,11 @@ export function HomeLotterySection() {
                     View on Solscan
                   </a>
                 </p>
+              </div>
+            ) : null}
+            {settleError ? (
+              <div className="mt-4 rounded-xl border border-red-500/40 bg-red-950/30 px-4 py-3 text-sm text-red-200">
+                Settlement: {settleError}
               </div>
             ) : null}
             {phase.kind === "error" ? (
