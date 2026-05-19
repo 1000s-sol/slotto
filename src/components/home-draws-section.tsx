@@ -344,6 +344,7 @@ function CurrentDrawTable({
   drawId,
   drawAddress,
   drawState,
+  settling,
   entrants,
   tokens,
   totalTickets,
@@ -351,16 +352,16 @@ function CurrentDrawTable({
   drawId: number;
   drawAddress: string | null;
   drawState: number | null;
+  settling: boolean;
   entrants: Entrant[];
   tokens: Record<string, TickerItem>;
   totalTickets: number;
 }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-border bg-bg-elevated/70">
-      {drawState === DrawState.SalesClosed ||
-      drawState === DrawState.VrfRequested ? (
+      {settling ? (
         <div className="border-b border-amber-500/30 bg-amber-950/20 px-5 py-3 text-sm text-amber-100">
-          Sales ended — settlement pending.
+          Drawing winner and sending prize…
         </div>
       ) : null}
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-5 py-3 text-xs text-muted">
