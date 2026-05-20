@@ -24,6 +24,8 @@ AUTH_TWITTER_SECRET=
 
 `AUTH_SECRET` can match `ADMIN_DASHBOARD_SECRET` in dev only; use a dedicated secret in production.
 
+While testing on Vercel use `AUTH_URL=https://<project>.vercel.app` (not `slotto.gg`) until the custom domain is primary.
+
 ## OAuth redirect URIs
 
 Register these in each developer portal:

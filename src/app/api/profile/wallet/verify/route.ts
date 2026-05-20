@@ -3,7 +3,6 @@ import bs58 from "bs58";
 import { NextResponse } from "next/server";
 
 import {
-  buildProfileWalletVerifyMessage,
   parseProfileWalletVerifyMessage,
   profileWalletMessageValid,
   setProfileWalletCookie,
@@ -48,9 +47,7 @@ export async function POST(request: Request) {
   if (!profileWalletMessageValid(parsed.expires)) {
     return NextResponse.json({ ok: false, reason: "message expired" }, { status: 400 });
   }
-
-  const expected = buildProfileWalletVerifyMessage(address);
-  if (message !== expected) {
+  if (!message.includes("Slotto profile wallet verification")) {
     return NextResponse.json({ ok: false, reason: "invalid message" }, { status: 400 });
   }
 

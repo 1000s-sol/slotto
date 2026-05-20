@@ -1,4 +1,5 @@
 import NextAuth from "next-auth";
+import type { Provider } from "next-auth/providers";
 import Discord from "next-auth/providers/discord";
 import Twitter from "next-auth/providers/twitter";
 
@@ -8,19 +9,42 @@ import {
 } from "@/lib/wallet-profile-db";
 import { readProfileWalletCookie } from "@/lib/wallet-session";
 
+function authSecret(): string | undefined {
+  const s =
+    process.env.AUTH_SECRET?.trim() ||
+    process.env.ADMIN_DASHBOARD_SECRET?.trim();
+  return s && s.length >= 16 ? s : undefined;
+}
+
+function providers(): Provider[] {
+  const list: Provider[] = [];
+  const discordId = process.env.AUTH_DISCORD_ID?.trim();
+  const discordSecret = process.env.AUTH_DISCORD_SECRET?.trim();
+  if (discordId && discordSecret) {
+    list.push(
+      Discord({
+        clientId: discordId,
+        clientSecret: discordSecret,
+      }),
+    );
+  }
+  const twitterId = process.env.AUTH_TWITTER_ID?.trim();
+  const twitterSecret = process.env.AUTH_TWITTER_SECRET?.trim();
+  if (twitterId && twitterSecret) {
+    list.push(
+      Twitter({
+        clientId: twitterId,
+        clientSecret: twitterSecret,
+      }),
+    );
+  }
+  return list;
+}
+
 export const { handlers, signIn } = NextAuth({
   trustHost: true,
-  secret: process.env.AUTH_SECRET,
-  providers: [
-    Discord({
-      clientId: process.env.AUTH_DISCORD_ID,
-      clientSecret: process.env.AUTH_DISCORD_SECRET,
-    }),
-    Twitter({
-      clientId: process.env.AUTH_TWITTER_ID,
-      clientSecret: process.env.AUTH_TWITTER_SECRET,
-    }),
-  ],
+  secret: authSecret(),
+  providers: providers(),
   callbacks: {
     async signIn({ account, profile }) {
       const wallet = await readProfileWalletCookie();

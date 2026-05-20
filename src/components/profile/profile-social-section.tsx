@@ -26,6 +26,11 @@ export function ProfileSocialSection() {
   const [verifiedWallet, setVerifiedWallet] = useState<string | null>(null);
   const [social, setSocial] = useState<WalletSocialPublic | null>(null);
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
+  const [oauthReady, setOauthReady] = useState<{
+    discord: boolean;
+    twitter: boolean;
+    authSecret: boolean;
+  } | null>(null);
 
   const refresh = useCallback(async () => {
     if (!address) {
@@ -54,6 +59,21 @@ export function ProfileSocialSection() {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    fetch("/api/auth/config", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((json: { discord?: boolean; twitter?: boolean; authSecret?: boolean }) => {
+        setOauthReady({
+          discord: !!json.discord,
+          twitter: !!json.twitter,
+          authSecret: !!json.authSecret,
+        });
+      })
+      .catch(() =>
+        setOauthReady({ discord: false, twitter: false, authSecret: false }),
+      );
+  }, []);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -114,8 +134,36 @@ export function ProfileSocialSection() {
       setPhase({ kind: "error", message: "Verify your wallet first." });
       return;
     }
+    if (!oauthReady?.authSecret) {
+      setPhase({
+        kind: "error",
+        message: "AUTH_SECRET is not set on the server (Vercel env).",
+      });
+      return;
+    }
+    if (provider === "discord" && !oauthReady.discord) {
+      setPhase({
+        kind: "error",
+        message: "Discord OAuth is not configured (AUTH_DISCORD_ID / SECRET).",
+      });
+      return;
+    }
+    if (provider === "twitter" && !oauthReady.twitter) {
+      setPhase({
+        kind: "error",
+        message: "X OAuth is not configured (AUTH_TWITTER_ID / SECRET).",
+      });
+      return;
+    }
     setPhase({ kind: "loading" });
-    await signIn(provider, { callbackUrl: "/profile" });
+    try {
+      await signIn(provider, { callbackUrl: "/profile" });
+    } catch (e) {
+      setPhase({
+        kind: "error",
+        message: e instanceof Error ? e.message : "OAuth sign-in failed",
+      });
+    }
   };
 
   const unlink = async (provider: "discord" | "twitter") => {
@@ -202,7 +250,11 @@ export function ProfileSocialSection() {
               ) : (
                 <button
                   type="button"
-                  disabled={!verified || phase.kind === "loading"}
+                  disabled={
+                    !verified ||
+                    phase.kind === "loading" ||
+                    oauthReady?.discord === false
+                  }
                   onClick={() => connectOAuth("discord")}
                   className="rounded-lg bg-[#5865F2] px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
                 >
@@ -228,7 +280,11 @@ export function ProfileSocialSection() {
               ) : (
                 <button
                   type="button"
-                  disabled={!verified || phase.kind === "loading"}
+                  disabled={
+                    !verified ||
+                    phase.kind === "loading" ||
+                    oauthReady?.twitter === false
+                  }
                   onClick={() => connectOAuth("twitter")}
                   className="rounded-lg bg-foreground px-3 py-1.5 text-xs font-semibold text-background disabled:opacity-50"
                 >
