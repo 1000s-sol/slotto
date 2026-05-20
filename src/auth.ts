@@ -25,6 +25,34 @@ function providers(): Provider[] {
       Discord({
         clientId: discordId,
         clientSecret: discordSecret,
+        profile(profile) {
+          const p = profile as {
+            id: string;
+            username: string;
+            discriminator: string;
+            global_name: string | null;
+            avatar: string | null;
+            email: string | null;
+          };
+          let image: string;
+          if (p.avatar === null) {
+            const defaultAvatarNumber =
+              p.discriminator === "0"
+                ? Number(BigInt(p.id) >> BigInt(22)) % 6
+                : parseInt(p.discriminator, 10) % 5;
+            image = `https://cdn.discordapp.com/embed/avatars/${defaultAvatarNumber}.png`;
+          } else {
+            const format = p.avatar.startsWith("a_") ? "gif" : "png";
+            image = `https://cdn.discordapp.com/avatars/${p.id}/${p.avatar}.${format}?size=256`;
+          }
+          return {
+            id: p.id,
+            name: p.global_name ?? p.username,
+            email: p.email,
+            image,
+            avatar: p.avatar,
+          };
+        },
       }),
     );
   }
@@ -63,6 +91,7 @@ export const { handlers, signIn } = NextAuth({
               username?: string | null;
               global_name?: string | null;
               image?: string | null;
+              avatar?: string | null;
             },
           );
         } else if (account.provider === "twitter") {

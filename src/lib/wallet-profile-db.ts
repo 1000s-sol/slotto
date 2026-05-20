@@ -1,8 +1,11 @@
 import { prisma } from "@/lib/prisma";
 import {
+  discordAvatarUrlFromHash,
   discordDefaultAvatar,
   discordProfileUrlFromId,
+  isDiscordEmbedDefaultAvatar,
   normalizeXHandle,
+  resolveDiscordAvatarUrl,
   xAvatarFallback,
   xProfileUrl,
   type SocialProfile,
@@ -20,8 +23,10 @@ function discordProfileFromRow(row: {
     row.discordDisplayName?.trim() ||
     row.discordUsername?.trim() ||
     "Discord user";
-  const avatarUrl =
-    row.discordAvatarUrl?.trim() || discordDefaultAvatar(row.discordId);
+  const avatarUrl = resolveDiscordAvatarUrl(
+    row.discordId,
+    row.discordAvatarUrl?.trim() || discordDefaultAvatar(row.discordId),
+  );
   return {
     username,
     avatarUrl,
@@ -87,7 +92,24 @@ type DiscordOAuthProfile = {
   username?: string | null;
   global_name?: string | null;
   image?: string | null;
+  avatar?: string | null;
 };
+
+function discordAvatarFromOAuth(
+  discordId: string,
+  profile: DiscordOAuthProfile,
+): string {
+  const hash = profile.avatar?.trim();
+  if (hash) {
+    return discordAvatarUrlFromHash(discordId, hash);
+  }
+  const image = profile.image?.trim();
+  if (image && !isDiscordEmbedDefaultAvatar(image)) {
+    return image;
+  }
+  if (image) return image;
+  return discordDefaultAvatar(discordId);
+}
 
 type TwitterOAuthProfile = {
   data?: {
@@ -124,8 +146,7 @@ export async function linkDiscordToWallet(
     throw new Error("This Discord account is already linked to another wallet");
   }
 
-  const avatar =
-    profile.image?.trim() || discordDefaultAvatar(discordId);
+  const avatar = discordAvatarFromOAuth(discordId, profile);
 
   await prisma.walletProfile.upsert({
     where: { wallet },

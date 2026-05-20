@@ -2,7 +2,6 @@
 
 import { LotteryCelebration } from "@/components/lottery/lottery-celebration";
 import { WalletAvatar } from "@/components/lottery/wallet-avatar";
-import { SocialProfileCell } from "@/components/social-profile-cell";
 import { solscanAccountUrl } from "@/lib/lottery/config";
 import type { SocialProfile } from "@/lib/social-profile-url";
 
@@ -67,14 +66,6 @@ export function LotteryWinnerPanel({
           <p className="mt-3 max-w-[240px] truncate text-lg font-semibold text-foreground">
             {displayName}
           </p>
-        ) : null}
-        {(discord || x) ? (
-          <div className="mt-3 flex flex-wrap items-center justify-center gap-3 text-sm">
-            {discord ? (
-              <SocialProfileCell profile={discord} platform="discord" size={28} />
-            ) : null}
-            {x ? <SocialProfileCell profile={x} platform="x" size={28} /> : null}
-          </div>
         ) : null}
         <a
           href={solscanAccountUrl(wallet)}
