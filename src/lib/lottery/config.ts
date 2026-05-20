@@ -6,7 +6,11 @@ export function lotteryProgramId(): PublicKey {
   const raw =
     process.env.NEXT_PUBLIC_SLOTTO_LOTTERY_PROGRAM_ID?.trim() ||
     DEFAULT_PROGRAM_ID;
-  return new PublicKey(raw);
+  try {
+    return new PublicKey(raw);
+  } catch {
+    return new PublicKey(DEFAULT_PROGRAM_ID);
+  }
 }
 
 export function lotteryRpcUrl(): string | undefined {

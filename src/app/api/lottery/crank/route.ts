@@ -1,4 +1,3 @@
-import * as anchor from "@coral-xyz/anchor";
 import { Connection } from "@solana/web3.js";
 import { NextResponse } from "next/server";
 
@@ -7,7 +6,10 @@ import {
   crankDraw,
 } from "@/lib/lottery/crank-draw";
 import { lotteryProgramId } from "@/lib/lottery/config";
-import { loadLotteryKeeperKeypair } from "@/lib/lottery/keeper-wallet";
+import {
+  keypairToAnchorWallet,
+  loadLotteryKeeperKeypair,
+} from "@/lib/lottery/keeper-wallet";
 import { createLotteryProgram } from "@/lib/lottery/program";
 
 export const runtime = "nodejs";
@@ -59,7 +61,7 @@ async function handleCrank(request: Request) {
   const programId = lotteryProgramId();
   const program = createLotteryProgram(
     connection,
-    new anchor.Wallet(payer),
+    keypairToAnchorWallet(payer),
   );
 
   try {

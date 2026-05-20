@@ -1,6 +1,7 @@
 import fs from "node:fs";
 
-import { Keypair } from "@solana/web3.js";
+import type { AnchorWallet } from "@solana/wallet-adapter-react";
+import { Keypair, type Transaction, type VersionedTransaction } from "@solana/web3.js";
 
 function keypairFromJsonBytes(raw: number[]): Keypair | null {
   if (!Array.isArray(raw) || raw.length < 64) return null;
@@ -9,6 +10,33 @@ function keypairFromJsonBytes(raw: number[]): Keypair | null {
   } catch {
     return null;
   }
+}
+
+/** Keypair → wallet adapter shape for Anchor `createLotteryProgram`. */
+export function keypairToAnchorWallet(keypair: Keypair): AnchorWallet {
+  return {
+    publicKey: keypair.publicKey,
+    signTransaction: async <T extends Transaction | VersionedTransaction>(tx: T) => {
+      if ("version" in tx) {
+        tx.sign([keypair]);
+      } else {
+        tx.partialSign(keypair);
+      }
+      return tx;
+    },
+    signAllTransactions: async <T extends Transaction | VersionedTransaction>(
+      txs: T[],
+    ) => {
+      for (const tx of txs) {
+        if ("version" in tx) {
+          tx.sign([keypair]);
+        } else {
+          tx.partialSign(keypair);
+        }
+      }
+      return txs;
+    },
+  };
 }
 
 /** Keypair that pays keeper tx fees (`close_sales` → `request_vrf` → `settle`). */

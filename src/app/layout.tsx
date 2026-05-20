@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { MaintenanceGate } from "@/components/maintenance-gate";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { PriceTicker } from "@/components/price-ticker";
@@ -51,12 +52,14 @@ export default function RootLayout({
         className={`${zenDots.variable} ${michroma.variable} ${geistSans.variable} ${geistMono.variable} font-sans antialiased`}
       >
         <SolanaWalletProvider>
-          <div className="mx-auto flex min-h-dvh max-w-6xl flex-col px-4 pb-8 pt-4 sm:px-6">
+          <MaintenanceGate>
+            <div className="mx-auto flex min-h-dvh max-w-6xl flex-col px-4 pb-8 pt-4 sm:px-6">
             <SiteHeader />
             <PriceTicker />
             <main className="mt-8 flex-1">{children}</main>
             <SiteFooter />
-          </div>
+            </div>
+          </MaintenanceGate>
         </SolanaWalletProvider>
       </body>
     </html>

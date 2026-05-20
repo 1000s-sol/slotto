@@ -1,0 +1,35 @@
+[
+  {
+    "name": "Empire (devnet)",
+    "symbol": "EMP-DEV",
+    "mint": "4WHSeJVPViAwm5QWjFxfCBpESh3P3AiauNy6DfHcETXW",
+    "decimals": 9,
+    "amountUi": "100",
+    "amountRaw": "100000000000",
+    "recipient": "9M7Jqyqasd2SYxXPsLCW32wUsZ8NE9iY5LL2mw2PbHpL",
+    "imageUrl": "https://wsrv.nl/?w=128&h=128&default=1&url=https%3A%2F%2Farweave.net%2FBwS0sd-P4pbiMhn-8bPCMrkJNTCKXUbe2DRVMXMkfZ4",
+    "createdAt": "2026-05-19T22:19:55.899Z"
+  },
+  {
+    "name": "RJCTD (devnet)",
+    "symbol": "RYC-DEV",
+    "mint": "2PY8Dv1TzTQAzqtbADmqrEqAwpjSzveDeMWCQ4CwLM4n",
+    "decimals": 9,
+    "amountUi": "100",
+    "amountRaw": "100000000000",
+    "recipient": "9M7Jqyqasd2SYxXPsLCW32wUsZ8NE9iY5LL2mw2PbHpL",
+    "imageUrl": "https://wsrv.nl/?w=128&h=128&default=1&url=https%3A%2F%2Farweave.net%2FFSll3MexFr3rSqLDHGZsgYPX1dpLoqxMx6LIGvlz7yE",
+    "createdAt": "2026-05-19T22:32:10.447Z"
+  },
+  {
+    "name": "CJT (devnet)",
+    "symbol": "CJT-DEV",
+    "mint": "8vsp2Boh6WFLxZ3k7AFL3FWCCVCYYtmbR7XUUbRheJP",
+    "decimals": 9,
+    "amountUi": "100",
+    "amountRaw": "100000000000",
+    "recipient": "9M7Jqyqasd2SYxXPsLCW32wUsZ8NE9iY5LL2mw2PbHpL",
+    "imageUrl": "https://wsrv.nl/?w=128&h=128&default=1&url=https%3A%2F%2Fcopper-capable-swordfish-79.mypinata.cloud%2Fipfs%2Fbafybeifoowuwmuvgwh7dpphbjce3frshtrb6j2mbmj5frbdiazqv6umwfa",
+    "createdAt": "2026-05-19T22:33:17.478Z"
+  }
+]

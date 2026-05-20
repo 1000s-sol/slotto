@@ -26,6 +26,7 @@
     "lottery:deploy:devnet": "bash scripts/lottery-deploy-devnet.sh",
     "lottery:settle": "tsx scripts/lottery-settle-draw.ts",
     "lottery:keeper": "tsx scripts/lottery-keeper.ts",
+    "lottery:mint-devnet-token": "tsx scripts/mint-devnet-spl.ts",
     "lottery:test:all": "npm run lottery:test && npm run lottery:test:integration"
   },
   "dependencies": {
