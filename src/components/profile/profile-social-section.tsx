@@ -5,10 +5,8 @@ import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { signIn } from "next-auth/react";
 import { useCallback, useEffect, useState } from "react";
 
-import {
-  DiscordProfileTag,
-  XProfileTag,
-} from "@/components/social-profile-tags";
+import { DiscordLogo } from "@/components/discord-logo";
+import { SocialProfileCell } from "@/components/social-profile-cell";
 import type { WalletSocialPublic } from "@/lib/social-profile-url";
 import { buildProfileWalletVerifyMessage } from "@/lib/wallet-verify-message";
 
@@ -49,7 +47,7 @@ export function ProfileSocialSection() {
     };
     if (json.verified && json.wallet === address) {
       setVerifiedWallet(json.wallet);
-      setSocial(json.social ?? { discord: null, xHandle: null });
+      setSocial(json.social ?? { discord: null, x: null });
     } else {
       setVerifiedWallet(null);
       setSocial(null);
@@ -234,10 +232,13 @@ export function ProfileSocialSection() {
 
           <div className="space-y-3 rounded-xl border border-border/80 bg-surface/40 p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="text-sm font-medium text-foreground">Discord</span>
+              <div className="flex items-center gap-2 text-[#5865F2]">
+                <DiscordLogo className="h-5 w-5" />
+                <span className="text-sm font-medium text-foreground">Discord</span>
+              </div>
               {social?.discord ? (
                 <div className="flex items-center gap-2">
-                  <DiscordProfileTag discord={social.discord} />
+                  <SocialProfileCell profile={social.discord} platform="discord" size={32} />
                   <button
                     type="button"
                     disabled={phase.kind === "loading"}
@@ -265,9 +266,9 @@ export function ProfileSocialSection() {
 
             <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-3">
               <span className="text-sm font-medium text-foreground">X</span>
-              {social?.xHandle ? (
+              {social?.x ? (
                 <div className="flex items-center gap-2">
-                  <XProfileTag handle={social.xHandle} />
+                  <SocialProfileCell profile={social.x} platform="x" size={32} />
                   <button
                     type="button"
                     disabled={phase.kind === "loading"}

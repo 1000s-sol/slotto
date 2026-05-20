@@ -62,6 +62,7 @@ export const { handlers, signIn } = NextAuth({
               id?: string;
               username?: string | null;
               global_name?: string | null;
+              image?: string | null;
             },
           );
         } else if (account.provider === "twitter") {

@@ -213,8 +213,10 @@ model WalletProfile {
   discordId          String?  @unique
   discordUsername    String?
   discordDisplayName String?
+  discordAvatarUrl   String?
   xId                String?  @unique
   xHandle            String?
+  xAvatarUrl         String?
   updatedAt          DateTime @updatedAt
   createdAt          DateTime @default(now())
 }

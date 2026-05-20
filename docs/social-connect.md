@@ -65,3 +65,13 @@ Creates `WalletProfile` table.
 ## Unlink
 
 Profile UI **Disconnect**, or `POST /api/profile/social/unlink` with body `{ "provider": "discord" | "twitter" }` (requires verified wallet cookie).
+
+## Avatars
+
+OAuth saves `discordAvatarUrl` / `xAvatarUrl` on link. UI shows profile picture + username (no `@` prefix) on profile, draw tables, and winner panel.
+
+If you linked Discord before this update, **Disconnect → Connect Discord** once to store your current profile picture.
+
+```bash
+npm run db:push   # adds discordAvatarUrl, xAvatarUrl columns
+```

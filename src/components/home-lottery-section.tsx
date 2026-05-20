@@ -6,6 +6,8 @@ import { PublicKey } from "@solana/web3.js";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { LotteryWinnerPanel } from "@/components/lottery/lottery-winner-panel";
+import { fetchWalletSocialsClient } from "@/lib/fetch-wallet-social-client";
+import type { WalletSocialPublic } from "@/lib/social-profile-url";
 import { buySolTickets } from "@/lib/lottery/buy-sol-tickets";
 import { buySplTickets } from "@/lib/lottery/buy-spl-tickets";
 import {
@@ -71,6 +73,9 @@ export function HomeLotterySection() {
   const [winnerPrizeLamports, setWinnerPrizeLamports] = useState<number | null>(
     null,
   );
+  const [winnerSocial, setWinnerSocial] = useState<WalletSocialPublic | null>(
+    null,
+  );
   const [nowSec, setNowSec] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [ticketCount, setTicketCount] = useState(1);
@@ -94,6 +99,7 @@ export function HomeLotterySection() {
     if (inProgress) {
       setSettledDraw(null);
       setWinnerPrizeLamports(null);
+      setWinnerSocial(null);
       if (inProgress.state === DrawState.Selling) {
         setJackpotLamports(
           await fetchJackpotLamports(connection, inProgress.prizeVault),
@@ -106,11 +112,15 @@ export function HomeLotterySection() {
       setSettledDraw(settled);
       setJackpotLamports(null);
       if (settled?.winner) {
-        setWinnerPrizeLamports(
-          await fetchWinnerPrizeLamports(connection, settled.winner, settled),
-        );
+        const [prize, socials] = await Promise.all([
+          fetchWinnerPrizeLamports(connection, settled.winner, settled),
+          fetchWalletSocialsClient([settled.winner]),
+        ]);
+        setWinnerPrizeLamports(prize);
+        setWinnerSocial(socials[settled.winner] ?? null);
       } else {
         setWinnerPrizeLamports(null);
+        setWinnerSocial(null);
       }
     }
     setNowSec(await chainUnixTs(connection));
@@ -380,6 +390,8 @@ export function HomeLotterySection() {
             {showWinner && settledDraw?.winner ? (
               <LotteryWinnerPanel
                 wallet={settledDraw.winner}
+                discord={winnerSocial?.discord}
+                x={winnerSocial?.x}
                 prizeSol={formatSolFromLamports(winnerPrizeLamports ?? 0)}
                 drawId={settledDraw.drawId}
                 winningTicketId={settledDraw.winningTicketId}

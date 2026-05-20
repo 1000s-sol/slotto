@@ -16,8 +16,10 @@ import {
 } from "@/lib/lottery/draws";
 import type { LotteryDrawView } from "@/lib/lottery/chain";
 import { fetchDrawEntrants } from "@/lib/lottery/ticket-holders";
+import { SocialProfileCell } from "@/components/social-profile-cell";
 import { fetchWalletSocialsClient } from "@/lib/fetch-wallet-social-client";
 import { useAutoSettleDraw } from "@/lib/lottery/use-auto-settle-draw";
+import type { SocialProfile } from "@/lib/social-profile-url";
 
 type TickerItem = {
   mint: string;
@@ -30,8 +32,8 @@ const SOL_MINT = "So11111111111111111111111111111111111111112";
 
 type Entrant = {
   wallet: string;
-  discord: string | null;
-  x: string | null;
+  discord: SocialProfile | null;
+  x: SocialProfile | null;
   tickets: number;
   paidWithMints: string[];
 };
@@ -40,8 +42,8 @@ type PastDraw = {
   drawNumber: number;
   date: string;
   winnerWallet: string;
-  discord: string | null;
-  x: string | null;
+  discord: SocialProfile | null;
+  x: SocialProfile | null;
   prizeSol: number;
   ticketsBought: number;
   totalTickets: number;
@@ -87,25 +89,6 @@ function TokenThumb({ item, size = 18 }: { item: TickerItem | undefined; size?: 
     >
       {initial}
     </span>
-  );
-}
-
-function DiscordTag({ name }: { name: string | null }) {
-  if (!name) return <span className="text-muted/40">—</span>;
-  return <span className="text-foreground">{name}</span>;
-}
-
-function XTag({ name }: { name: string | null }) {
-  if (!name) return <span className="text-muted/40">—</span>;
-  return (
-    <a
-      href={`https://x.com/${name}`}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="text-accent-cyan hover:underline"
-    >
-      @{name}
-    </a>
   );
 }
 
@@ -160,7 +143,7 @@ export function HomeDrawsSection() {
         return {
           wallet: h.wallet,
           discord: s?.discord ?? null,
-          x: s?.xHandle ?? null,
+          x: s?.x ?? null,
           tickets: h.tickets,
           paidWithMints: [SOL_MINT],
         };
@@ -207,7 +190,7 @@ export function HomeDrawsSection() {
         date: formatDrawDateLabel(draw.salesCloseTs),
         winnerWallet: draw.winner,
         discord: winnerSocial?.discord ?? null,
-        x: winnerSocial?.xHandle ?? null,
+        x: winnerSocial?.x ?? null,
         prizeSol: parseFloat(formatSolFromLamports(prizeLamports)),
         ticketsBought: winnerRow?.tickets ?? 0,
         totalTickets: draw.totalTickets,
@@ -437,10 +420,10 @@ function CurrentDrawTable({
                       <WalletCell address={e.wallet} />
                     </td>
                     <td className="px-3 py-3 text-xs">
-                      <DiscordTag name={e.discord} />
+                      <SocialProfileCell profile={e.discord} platform="discord" />
                     </td>
                     <td className="px-3 py-3 text-xs">
-                      <XTag name={e.x} />
+                      <SocialProfileCell profile={e.x} platform="x" />
                     </td>
                     <td className="px-3 py-3 text-right font-mono tabular-nums text-foreground">
                       {e.tickets}
@@ -496,10 +479,10 @@ function PastWinnersTable({ draws }: { draws: PastDraw[] }) {
                   <WalletCell address={d.winnerWallet} />
                 </td>
                 <td className="px-3 py-3 text-xs">
-                  <DiscordTag name={d.discord} />
+                  <SocialProfileCell profile={d.discord} platform="discord" />
                 </td>
                 <td className="px-3 py-3 text-xs">
-                  <XTag name={d.x} />
+                  <SocialProfileCell profile={d.x} platform="x" />
                 </td>
                 <td className="px-3 py-3 text-right font-mono tabular-nums text-muted">
                   <span className="text-foreground">{d.ticketsBought}</span>

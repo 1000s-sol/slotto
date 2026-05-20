@@ -1,5 +1,16 @@
 /** Normalize and build profile URLs for linked Discord / X on draws and winner UI. */
 
+export type SocialProfile = {
+  username: string;
+  avatarUrl: string | null;
+  profileUrl: string | null;
+};
+
+export type WalletSocialPublic = {
+  discord: SocialProfile | null;
+  x: SocialProfile | null;
+};
+
 export function normalizeXHandle(raw: string): string | null {
   const s = raw.trim();
   if (!s) return null;
@@ -20,44 +31,25 @@ export function normalizeXHandle(raw: string): string | null {
 
 export function xProfileUrl(handle: string | null | undefined): string | null {
   if (!handle) return null;
-  return `https://x.com/${handle}`;
+  const h = normalizeXHandle(handle);
+  return h ? `https://x.com/${h}` : null;
 }
 
-export function normalizeDiscord(raw: string): string | null {
-  const s = raw.trim();
-  if (!s) return null;
-  if (/^https?:\/\//i.test(s)) return s;
-  if (/^\d{17,20}$/.test(s)) return s;
-  return s.replace(/^@/, "").slice(0, 64) || null;
+export function xAvatarFallback(handle: string): string {
+  const h = normalizeXHandle(handle) ?? handle;
+  return `https://unavatar.io/x/${encodeURIComponent(h)}`;
 }
 
-export function discordProfileUrl(discord: string | null | undefined): string | null {
-  if (!discord) return null;
-  const s = discord.trim();
-  if (/^https?:\/\//i.test(s)) return s;
-  if (/^\d{17,20}$/.test(s)) return `https://discord.com/users/${s}`;
-  return null;
-}
-
-export function discordDisplayLabel(discord: string | null | undefined): string | null {
-  if (!discord) return null;
-  const s = discord.trim();
-  if (/^https?:\/\//i.test(s)) {
-    try {
-      const u = new URL(s);
-      if (u.hostname.includes("discord.com") && u.pathname.startsWith("/users/")) {
-        return "Discord profile";
-      }
-      return "Discord";
-    } catch {
-      return "Discord";
-    }
+export function discordDefaultAvatar(discordId: string): string {
+  try {
+    const id = BigInt(discordId);
+    const index = Number((id >> 22n) % 6n);
+    return `https://cdn.discordapp.com/embed/avatars/${index}.png`;
+  } catch {
+    return "https://cdn.discordapp.com/embed/avatars/0.png";
   }
-  if (/^\d{17,20}$/.test(s)) return "Discord";
-  return s.startsWith("@") ? s : `@${s}`;
 }
 
-export type WalletSocialPublic = {
-  discord: string | null;
-  xHandle: string | null;
-};
+export function discordProfileUrlFromId(discordId: string): string {
+  return `https://discord.com/users/${discordId}`;
+}
