@@ -72,12 +72,12 @@ export function discordDefaultAvatar(discordId: string): string {
   }
 }
 
-/** Real Discord CDN avatar only — never third-party guess services. */
+/** Real custom avatar CDN URL only — never Discord embed defaults (those are not user pfps). */
 export function discordAvatarUrlForProfile(
   discordId: string,
   avatarHash: string | null | undefined,
   storedUrl: string | null | undefined,
-): string {
+): string | null {
   const hash =
     avatarHash?.trim() || discordAvatarHashFromUrl(storedUrl) || null;
   if (hash) {
@@ -87,7 +87,7 @@ export function discordAvatarUrlForProfile(
   if (url && !isDiscordEmbedDefaultAvatar(url)) {
     return url;
   }
-  return discordDefaultAvatar(discordId);
+  return null;
 }
 
 export function discordProfileUrlFromId(discordId: string): string {

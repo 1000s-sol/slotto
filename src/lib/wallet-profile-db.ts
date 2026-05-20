@@ -29,7 +29,7 @@ function discordProfileNeedsRepair(row: WalletProfile): boolean {
   return true;
 }
 
-/** Backfill avatar hash/URL for existing links — no disconnect required. */
+/** Backfill real avatar from Discord API — fixes rows that wrongly stored embed defaults. */
 export async function ensureDiscordProfileComplete(
   row: WalletProfile,
 ): Promise<WalletProfile> {
@@ -44,16 +44,20 @@ export async function ensureDiscordProfileComplete(
 
   if (!hash) {
     const bot = discordBotToken();
-    if (bot) {
-      const user = await fetchDiscordUserByBot(row.discordId, bot);
-      if (user?.avatar) {
-        hash = user.avatar.trim();
-      }
+    if (!bot) {
+      return row;
+    }
+    const user = await fetchDiscordUserByBot(row.discordId, bot);
+    if (user?.avatar) {
+      hash = user.avatar.trim();
     }
   }
 
   if (!hash) {
-    return row;
+    return prisma.walletProfile.update({
+      where: { wallet: row.wallet },
+      data: { discordAvatarUrl: null, discordAvatarHash: null },
+    });
   }
 
   const avatarUrl = discordAvatarUrlFromHash(row.discordId, hash);
@@ -167,7 +171,7 @@ function discordAvatarHashFromProfile(
 function discordAvatarFromOAuth(
   discordId: string,
   profile: DiscordOAuthProfile,
-): string {
+): string | null {
   const hash = discordAvatarHashFromProfile(profile);
   if (hash) {
     return discordAvatarUrlFromHash(discordId, hash);
@@ -176,8 +180,7 @@ function discordAvatarFromOAuth(
   if (image && !isDiscordEmbedDefaultAvatar(image)) {
     return image;
   }
-  if (image) return image;
-  return discordDefaultAvatar(discordId);
+  return null;
 }
 
 type TwitterOAuthProfile = {
@@ -215,8 +218,26 @@ export async function linkDiscordToWallet(
     throw new Error("This Discord account is already linked to another wallet");
   }
 
-  const avatarHash = discordAvatarHashFromProfile(profile);
-  const avatar = discordAvatarFromOAuth(discordId, profile);
+  let avatarHash = discordAvatarHashFromProfile(profile);
+  let avatar = discordAvatarFromOAuth(discordId, profile);
+
+  if (!avatarHash) {
+    const bot = discordBotToken();
+    if (bot) {
+      const user = await fetchDiscordUserByBot(discordId, bot);
+      if (user?.avatar) {
+        const fromApi = discordProfileFromApiUser(user);
+        avatarHash = fromApi.avatar;
+        avatar = fromApi.image;
+      }
+    }
+  }
+
+  if (!avatarHash || !avatar) {
+    throw new Error(
+      "Could not load your Discord profile picture. Add DISCORD_BOT_TOKEN to the server (same Discord app → Bot) and try Connect again.",
+    );
+  }
 
   await prisma.walletProfile.upsert({
     where: { wallet },

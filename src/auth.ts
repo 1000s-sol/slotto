@@ -11,7 +11,6 @@ import {
   linkDiscordToWallet,
   linkTwitterToWallet,
 } from "@/lib/wallet-profile-db";
-import { discordAvatarHashFromUrl } from "@/lib/social-profile-url";
 import { readProfileWalletCookie } from "@/lib/wallet-session";
 
 function authSecret(): string | undefined {
@@ -89,32 +88,15 @@ export const { handlers, signIn } = NextAuth({
       }
       try {
         if (account.provider === "discord") {
-          const base = profile as {
-            id?: string;
-            name?: string | null;
-            email?: string | null;
-            image?: string | null;
-            username?: string | null;
-            global_name?: string | null;
-            avatar?: string | null;
-          };
-          let discordProfile = {
-            id: base.id,
-            username: base.username ?? null,
-            global_name: base.global_name ?? base.name ?? null,
-            image: base.image ?? null,
-            avatar:
-              base.avatar?.trim() ||
-              discordAvatarHashFromUrl(base.image) ||
-              null,
-          };
-          if (account.access_token) {
-            const user = await fetchDiscordUserMe(account.access_token);
-            if (user) {
-              discordProfile = discordProfileFromApiUser(user);
-            }
+          const token = account.access_token?.trim();
+          if (!token) {
+            return "/profile?error=discord_token_missing";
           }
-          await linkDiscordToWallet(wallet, discordProfile);
+          const user = await fetchDiscordUserMe(token);
+          if (!user?.id) {
+            return "/profile?error=discord_profile_failed";
+          }
+          await linkDiscordToWallet(wallet, discordProfileFromApiUser(user));
         } else if (account.provider === "twitter") {
           await linkTwitterToWallet(
             wallet,

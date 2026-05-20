@@ -14,6 +14,7 @@
     "db:studio": "prisma studio",
     "db:seed": "prisma db seed",
     "db:add-admin": "tsx scripts/add-admin-wallet.ts",
+    "db:repair-discord-avatars": "tsx scripts/repair-discord-avatars.ts",
     "postinstall": "prisma generate",
     "fix:npm-temp": "node scripts/rm-npm-temp-dirs.mjs",
     "reinstall": "node scripts/move-node-modules-aside.mjs && npm install --no-fund --no-audit",
