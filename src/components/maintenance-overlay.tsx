@@ -8,7 +8,7 @@ export function MaintenanceOverlay() {
       role="dialog"
       aria-modal="true"
       aria-label="Slotto is under maintenance"
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 backdrop-blur-[2px]"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/25 p-4"
     >
       <div className="relative w-full max-w-3xl">
         <Image

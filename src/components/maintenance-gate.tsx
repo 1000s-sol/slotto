@@ -22,7 +22,7 @@ export async function MaintenanceGate({ children }: Props) {
     <div className="relative min-h-0 flex-1">
       <div
         aria-hidden
-        className="pointer-events-none select-none blur-md brightness-[0.35] saturate-50"
+        className="pointer-events-none select-none blur-[2px] brightness-[0.72] saturate-[0.9]"
       >
         {children}
       </div>
