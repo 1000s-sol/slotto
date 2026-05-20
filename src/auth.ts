@@ -84,16 +84,43 @@ export const { handlers, signIn } = NextAuth({
       }
       try {
         if (account.provider === "discord") {
-          await linkDiscordToWallet(
-            wallet,
-            profile as {
-              id?: string;
-              username?: string | null;
-              global_name?: string | null;
-              image?: string | null;
-              avatar?: string | null;
-            },
-          );
+          let discordProfile = profile as {
+            id?: string;
+            username?: string | null;
+            global_name?: string | null;
+            image?: string | null;
+            avatar?: string | null;
+          };
+          if (account.access_token) {
+            try {
+              const res = await fetch("https://discord.com/api/users/@me", {
+                headers: { Authorization: `Bearer ${account.access_token}` },
+              });
+              if (res.ok) {
+                const user = (await res.json()) as {
+                  id: string;
+                  username: string;
+                  global_name: string | null;
+                  avatar: string | null;
+                };
+                let image: string | null = null;
+                if (user.avatar) {
+                  const format = user.avatar.startsWith("a_") ? "gif" : "png";
+                  image = `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.${format}?size=256`;
+                }
+                discordProfile = {
+                  id: user.id,
+                  username: user.username,
+                  global_name: user.global_name,
+                  avatar: user.avatar,
+                  image,
+                };
+              }
+            } catch {
+              /* use Auth.js profile fallback */
+            }
+          }
+          await linkDiscordToWallet(wallet, discordProfile);
         } else if (account.provider === "twitter") {
           await linkTwitterToWallet(
             wallet,

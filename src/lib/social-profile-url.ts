@@ -41,7 +41,15 @@ export function xAvatarFallback(handle: string): string {
 }
 
 export function isDiscordEmbedDefaultAvatar(url: string): boolean {
-  return /cdn\.discordapp\.com\/embed\/avatars\//.test(url);
+  return /\/embed\/avatars\//.test(url);
+}
+
+export function discordAvatarHashFromUrl(
+  url: string | null | undefined,
+): string | null {
+  if (!url?.trim()) return null;
+  const m = url.trim().match(/\/avatars\/\d+\/([a-zA-Z0-9_]+)\.(?:png|gif|webp)/);
+  return m?.[1] ?? null;
 }
 
 export function discordAvatarUrlFromHash(
@@ -62,16 +70,22 @@ export function discordDefaultAvatar(discordId: string): string {
   }
 }
 
-/** Prefer stored CDN URL; fall back to live lookup when only default embed URL is stored. */
-export function resolveDiscordAvatarUrl(
+/** Real Discord CDN avatar only — never third-party guess services. */
+export function discordAvatarUrlForProfile(
   discordId: string,
-  stored: string | null | undefined,
+  avatarHash: string | null | undefined,
+  storedUrl: string | null | undefined,
 ): string {
-  const url = stored?.trim();
+  const hash =
+    avatarHash?.trim() || discordAvatarHashFromUrl(storedUrl) || null;
+  if (hash) {
+    return discordAvatarUrlFromHash(discordId, hash);
+  }
+  const url = storedUrl?.trim();
   if (url && !isDiscordEmbedDefaultAvatar(url)) {
     return url;
   }
-  return `https://unavatar.io/discord/${discordId}`;
+  return discordDefaultAvatar(discordId);
 }
 
 export function discordProfileUrlFromId(discordId: string): string {

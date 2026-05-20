@@ -1,11 +1,11 @@
 import { prisma } from "@/lib/prisma";
 import {
+  discordAvatarUrlForProfile,
   discordAvatarUrlFromHash,
   discordDefaultAvatar,
   discordProfileUrlFromId,
   isDiscordEmbedDefaultAvatar,
   normalizeXHandle,
-  resolveDiscordAvatarUrl,
   xAvatarFallback,
   xProfileUrl,
   type SocialProfile,
@@ -17,15 +17,17 @@ function discordProfileFromRow(row: {
   discordUsername: string | null;
   discordDisplayName: string | null;
   discordAvatarUrl: string | null;
+  discordAvatarHash: string | null;
 }): SocialProfile | null {
   if (!row.discordId) return null;
   const username =
     row.discordDisplayName?.trim() ||
     row.discordUsername?.trim() ||
     "Discord user";
-  const avatarUrl = resolveDiscordAvatarUrl(
+  const avatarUrl = discordAvatarUrlForProfile(
     row.discordId,
-    row.discordAvatarUrl?.trim() || discordDefaultAvatar(row.discordId),
+    row.discordAvatarHash,
+    row.discordAvatarUrl,
   );
   return {
     username,
@@ -52,6 +54,7 @@ export function walletSocialFromRow(row: {
   discordUsername: string | null;
   discordDisplayName: string | null;
   discordAvatarUrl: string | null;
+  discordAvatarHash: string | null;
   xHandle: string | null;
   xAvatarUrl: string | null;
 }): WalletSocialPublic {
@@ -146,6 +149,7 @@ export async function linkDiscordToWallet(
     throw new Error("This Discord account is already linked to another wallet");
   }
 
+  const avatarHash = profile.avatar?.trim() || null;
   const avatar = discordAvatarFromOAuth(discordId, profile);
 
   await prisma.walletProfile.upsert({
@@ -156,12 +160,14 @@ export async function linkDiscordToWallet(
       discordUsername: profile.username ?? null,
       discordDisplayName: profile.global_name ?? profile.username ?? null,
       discordAvatarUrl: avatar,
+      discordAvatarHash: avatarHash,
     },
     update: {
       discordId,
       discordUsername: profile.username ?? null,
       discordDisplayName: profile.global_name ?? profile.username ?? null,
       discordAvatarUrl: avatar,
+      discordAvatarHash: avatarHash,
     },
   });
 }
@@ -201,6 +207,7 @@ export async function unlinkDiscord(wallet: string): Promise<void> {
       discordUsername: null,
       discordDisplayName: null,
       discordAvatarUrl: null,
+      discordAvatarHash: null,
     },
   });
 }

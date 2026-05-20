@@ -232,13 +232,11 @@ export function ProfileSocialSection() {
 
           <div className="space-y-3 rounded-xl border border-border/80 bg-surface/40 p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2 text-[#5865F2]">
-                <DiscordLogo className="h-5 w-5" />
-                <span className="text-sm font-medium text-foreground">Discord</span>
-              </div>
+              <span className="sr-only">Discord</span>
+              <DiscordLogo size={24} className="shrink-0" />
               {social?.discord ? (
                 <div className="flex items-center gap-2">
-                  <SocialProfileCell profile={social.discord} platform="discord" size={32} />
+                  <SocialProfileCell profile={social.discord} size={32} />
                   <button
                     type="button"
                     disabled={phase.kind === "loading"}
@@ -257,9 +255,11 @@ export function ProfileSocialSection() {
                     oauthReady?.discord === false
                   }
                   onClick={() => connectOAuth("discord")}
-                  className="rounded-lg bg-[#5865F2] px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+                  className="inline-flex items-center gap-2 rounded-lg bg-[#5865F2] px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+                  aria-label="Connect Discord"
                 >
-                  Connect Discord
+                  <DiscordLogo size={16} className="shrink-0 brightness-0 invert" />
+                  Connect
                 </button>
               )}
             </div>

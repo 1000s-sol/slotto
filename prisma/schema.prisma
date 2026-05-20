@@ -214,6 +214,7 @@ model WalletProfile {
   discordUsername    String?
   discordDisplayName String?
   discordAvatarUrl   String?
+  discordAvatarHash  String?
   xId                String?  @unique
   xHandle            String?
   xAvatarUrl         String?

@@ -28,7 +28,7 @@ function WinnerAvatar({
         width={72}
         height={72}
         className="rounded-full object-cover ring-2 ring-accent-gold/50"
-        referrerPolicy="no-referrer"
+        referrerPolicy="strict-origin-when-cross-origin"
       />
     );
   }

@@ -16,6 +16,7 @@ import {
 } from "@/lib/lottery/draws";
 import type { LotteryDrawView } from "@/lib/lottery/chain";
 import { fetchDrawEntrants } from "@/lib/lottery/ticket-holders";
+import { DiscordLogo } from "@/components/discord-logo";
 import { SocialProfileCell } from "@/components/social-profile-cell";
 import { fetchWalletSocialsClient } from "@/lib/fetch-wallet-social-client";
 import { useAutoSettleDraw } from "@/lib/lottery/use-auto-settle-draw";
@@ -387,7 +388,10 @@ function CurrentDrawTable({
             <tr className="border-b border-border">
               <th className="px-5 py-3 font-medium">#</th>
               <th className="px-3 py-3 font-medium">Wallet</th>
-              <th className="px-3 py-3 font-medium">Discord</th>
+              <th className="px-3 py-3 font-medium">
+                <span className="sr-only">Discord</span>
+                <DiscordLogo size={18} />
+              </th>
               <th className="px-3 py-3 font-medium">X</th>
               <th className="px-3 py-3 text-right font-medium">Tickets</th>
               <th className="px-3 py-3 font-medium">Paid with</th>
@@ -459,7 +463,10 @@ function PastWinnersTable({ draws }: { draws: PastDraw[] }) {
               <th className="px-5 py-3 font-medium">Draw</th>
               <th className="px-3 py-3 font-medium">Date</th>
               <th className="px-3 py-3 font-medium">Winner</th>
-              <th className="px-3 py-3 font-medium">Discord</th>
+              <th className="px-3 py-3 font-medium">
+                <span className="sr-only">Discord</span>
+                <DiscordLogo size={18} />
+              </th>
               <th className="px-3 py-3 font-medium">X</th>
               <th className="px-3 py-3 text-right font-medium">Tickets</th>
               <th className="px-5 py-3 text-right font-medium">Won</th>
