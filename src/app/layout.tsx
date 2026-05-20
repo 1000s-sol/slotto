@@ -32,13 +32,39 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ?? "https://slotto.gg";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: {
     default: "Slotto — Solana NFT reviews & monthly lottery",
     template: "%s · Slotto",
   },
   description:
     "Curated, transparent Solana NFT project reviews and a monthly lottery experience.",
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: "/",
+    siteName: "Slotto",
+    title: "Slotto — Solana NFT reviews & monthly lottery",
+    description:
+      "Curated, transparent Solana NFT project reviews and a monthly lottery experience.",
+    images: [
+      {
+        url: "/brands/slotto-tickets.png",
+        alt: "Slotto.gg — Solana NFT reviews and monthly lottery",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Slotto — Solana NFT reviews & monthly lottery",
+    description:
+      "Curated, transparent Solana NFT project reviews and a monthly lottery experience.",
+    images: ["/brands/slotto-tickets.png"],
+  },
 };
 
 export default function RootLayout({
