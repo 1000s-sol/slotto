@@ -16,6 +16,7 @@ import {
 } from "@/lib/lottery/draws";
 import type { LotteryDrawView } from "@/lib/lottery/chain";
 import { fetchDrawEntrants } from "@/lib/lottery/ticket-holders";
+import { fetchWalletSocialsClient } from "@/lib/fetch-wallet-social-client";
 import { useAutoSettleDraw } from "@/lib/lottery/use-auto-settle-draw";
 
 type TickerItem = {
@@ -152,14 +153,18 @@ export function HomeDrawsSection() {
     setTotalTickets(draw.totalTickets);
     setDrawState(draw.state);
     const holders = await fetchDrawEntrants(connection, programId, draw);
+    const socials = await fetchWalletSocialsClient(holders.map((h) => h.wallet));
     setEntrants(
-      holders.map((h) => ({
-        wallet: h.wallet,
-        discord: null,
-        x: null,
-        tickets: h.tickets,
-        paidWithMints: [SOL_MINT],
-      })),
+      holders.map((h) => {
+        const s = socials[h.wallet];
+        return {
+          wallet: h.wallet,
+          discord: s?.discord ?? null,
+          x: s?.xHandle ?? null,
+          tickets: h.tickets,
+          paidWithMints: [SOL_MINT],
+        };
+      }),
     );
   }, [connection, programId]);
 
@@ -188,6 +193,10 @@ export function HomeDrawsSection() {
       if (!draw.winner) continue;
       const holders = await fetchDrawEntrants(connection, programId, draw);
       const winnerRow = holders.find((h) => h.wallet === draw.winner);
+      const socials = await fetchWalletSocialsClient(
+        holders.map((h) => h.wallet),
+      );
+      const winnerSocial = socials[draw.winner];
       const prizeLamports = await fetchWinnerPrizeLamports(
         connection,
         draw.winner,
@@ -197,8 +206,8 @@ export function HomeDrawsSection() {
         drawNumber: draw.drawId,
         date: formatDrawDateLabel(draw.salesCloseTs),
         winnerWallet: draw.winner,
-        discord: null,
-        x: null,
+        discord: winnerSocial?.discord ?? null,
+        x: winnerSocial?.xHandle ?? null,
         prizeSol: parseFloat(formatSolFromLamports(prizeLamports)),
         ticketsBought: winnerRow?.tickets ?? 0,
         totalTickets: draw.totalTickets,

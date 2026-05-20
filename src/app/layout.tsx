@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { AuthSessionProvider } from "@/components/auth-session-provider";
 import { MaintenanceGate } from "@/components/maintenance-gate";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
@@ -80,6 +81,7 @@ export default function RootLayout({
         className={`${zenDots.variable} ${michroma.variable} ${geistSans.variable} ${geistMono.variable} font-sans antialiased`}
       >
         <SolanaWalletProvider>
+          <AuthSessionProvider>
           <MaintenanceGate>
             <div className="mx-auto flex min-h-dvh max-w-6xl flex-col px-4 pb-8 pt-4 sm:px-6">
             <SiteHeader />
@@ -88,6 +90,7 @@ export default function RootLayout({
             <SiteFooter />
             </div>
           </MaintenanceGate>
+          </AuthSessionProvider>
         </SolanaWalletProvider>
       </body>
     </html>

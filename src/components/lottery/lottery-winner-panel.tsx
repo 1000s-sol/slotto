@@ -2,6 +2,10 @@
 
 import { LotteryCelebration } from "@/components/lottery/lottery-celebration";
 import { WalletAvatar } from "@/components/lottery/wallet-avatar";
+import {
+  DiscordProfileTag,
+  XProfileTag,
+} from "@/components/social-profile-tags";
 import { solscanAccountUrl } from "@/lib/lottery/config";
 
 function shortenWallet(address: string) {
@@ -11,12 +15,14 @@ function shortenWallet(address: string) {
 
 export function LotteryWinnerPanel({
   wallet,
+  discord,
   xHandle,
   prizeSol,
   drawId,
   winningTicketId,
 }: {
   wallet: string;
+  discord?: string | null;
   xHandle?: string | null;
   prizeSol: string;
   drawId: number;
@@ -32,15 +38,11 @@ export function LotteryWinnerPanel({
         <div className="mt-4">
           <WalletAvatar address={wallet} size={72} />
         </div>
-        {xHandle ? (
-          <a
-            href={`https://x.com/${xHandle}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-4 text-sm font-semibold text-accent-cyan hover:underline"
-          >
-            @{xHandle}
-          </a>
+        {(discord || xHandle) ? (
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-3 text-sm">
+            {discord ? <DiscordProfileTag discord={discord} /> : null}
+            {xHandle ? <XProfileTag handle={xHandle} /> : null}
+          </div>
         ) : null}
         <a
           href={solscanAccountUrl(wallet)}

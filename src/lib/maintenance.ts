@@ -52,6 +52,8 @@ export function isMaintenanceExemptPath(pathname: string): boolean {
 export function isMaintenanceApiAllowlist(pathname: string): boolean {
   if (!pathname.startsWith("/api/")) return false;
   if (pathname.startsWith("/api/maintenance/")) return true;
+  if (pathname.startsWith("/api/auth/")) return true;
+  if (pathname.startsWith("/api/profile/")) return true;
   return (
     pathname === "/api/lottery/crank" ||
     pathname.startsWith("/api/lottery/crank/") ||

@@ -205,3 +205,16 @@ model LotteryDrawSplMint {
   @@unique([onChainDrawId, mint])
   @@index([onChainDrawId])
 }
+
+// --- User profile: wallet-linked Discord / X (OAuth) ---
+
+model WalletProfile {
+  wallet             String   @id
+  discordId          String?  @unique
+  discordUsername    String?
+  discordDisplayName String?
+  xId                String?  @unique
+  xHandle            String?
+  updatedAt          DateTime @updatedAt
+  createdAt          DateTime @default(now())
+}
