@@ -258,7 +258,7 @@ export function ProfileSocialSection() {
                   className="inline-flex items-center gap-2 rounded-lg bg-[#5865F2] px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
                   aria-label="Connect Discord"
                 >
-                  <DiscordLogo size={16} className="shrink-0 brightness-0 invert" />
+                  <DiscordLogo size={18} variant="white" className="shrink-0" />
                   Connect
                 </button>
               )}

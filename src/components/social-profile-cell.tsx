@@ -28,11 +28,7 @@ function AvatarImg({
       style={{ width: dim, height: dim }}
       loading="lazy"
       decoding="async"
-      referrerPolicy={
-        src.includes("discordapp.com") || src.includes("discord.com")
-          ? "strict-origin-when-cross-origin"
-          : "no-referrer"
-      }
+      referrerPolicy="no-referrer"
     />
   );
 }

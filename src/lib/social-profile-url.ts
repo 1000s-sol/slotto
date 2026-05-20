@@ -48,7 +48,9 @@ export function discordAvatarHashFromUrl(
   url: string | null | undefined,
 ): string | null {
   if (!url?.trim()) return null;
-  const m = url.trim().match(/\/avatars\/\d+\/([a-zA-Z0-9_]+)\.(?:png|gif|webp)/);
+  const m = url
+    .trim()
+    .match(/\/avatars\/\d+\/([a-zA-Z0-9_]+)\.(?:png|gif|webp)(?:\?|$)/);
   return m?.[1] ?? null;
 }
 

@@ -1,22 +1,29 @@
-import Image from "next/image";
+const DISCORD_CLYDE_PATH =
+  "M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,97.68,97.68,0,0,0,48.64,0a105.89,105.89,0,0,0-26.25,8.09A89.27,89.27,0,0,0,2.14,53.57a88.38,88.38,0,0,0,19.84,27.19c6.61,2.47,13.12,4.71,19.52,6.6a75.66,75.66,0,0,0,6.18-9.08,61.29,61.29,0,0,1-9.74-4.59c.82-.62,1.62-1.27,2.39-1.94a73.29,73.29,0,0,0,63.8,0c.77.67,1.57,1.32,2.39,1.94a61.29,61.29,0,0,1-9.74,4.59,75.66,75.66,0,0,0,6.18,9.08,88.38,88.38,0,0,0,19.84-27.19A89.27,89.27,0,0,0,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S54,46,53.89,53,48.84,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.25,60,73.25,53s5-12.74,11.44-12.74S96.23,46,96.12,53,90.67,65.69,84.69,65.69Z";
 
-/** Official Discord Clyde icon (brand asset in /public/brand). */
+/** Official Discord Clyde mark (#5865F2 or white on blurple buttons). */
 export function DiscordLogo({
   className,
   size = 20,
+  variant = "brand",
 }: {
   className?: string;
   size?: number;
+  variant?: "brand" | "white";
 }) {
+  const width = size;
+  const height = (size * 96.36) / 127.14;
   return (
-    <Image
-      src="/brand/discord-icon.svg"
-      alt=""
-      width={size}
-      height={Math.round((size * 96.36) / 127.14)}
+    <svg
+      viewBox="0 0 127.14 96.36"
+      width={width}
+      height={height}
       className={className}
+      fill={variant === "white" ? "#ffffff" : "#5865F2"}
       aria-hidden
-      unoptimized
-    />
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path d={DISCORD_CLYDE_PATH} />
+    </svg>
   );
 }

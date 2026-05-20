@@ -1,5 +1,13 @@
+import type { WalletProfile } from "@prisma/client";
+
+import {
+  discordBotToken,
+  discordProfileFromApiUser,
+  fetchDiscordUserByBot,
+} from "@/lib/discord-api";
 import { prisma } from "@/lib/prisma";
 import {
+  discordAvatarHashFromUrl,
   discordAvatarUrlForProfile,
   discordAvatarUrlFromHash,
   discordDefaultAvatar,
@@ -11,6 +19,52 @@ import {
   type SocialProfile,
   type WalletSocialPublic,
 } from "@/lib/social-profile-url";
+
+function discordProfileNeedsRepair(row: WalletProfile): boolean {
+  if (!row.discordId) return false;
+  const hash = row.discordAvatarHash?.trim();
+  const url = row.discordAvatarUrl?.trim();
+  if (hash && url && !isDiscordEmbedDefaultAvatar(url)) return false;
+  if (hash) return !url || isDiscordEmbedDefaultAvatar(url);
+  return true;
+}
+
+/** Backfill avatar hash/URL for existing links — no disconnect required. */
+export async function ensureDiscordProfileComplete(
+  row: WalletProfile,
+): Promise<WalletProfile> {
+  if (!row.discordId || !discordProfileNeedsRepair(row)) {
+    return row;
+  }
+
+  let hash =
+    row.discordAvatarHash?.trim() ||
+    discordAvatarHashFromUrl(row.discordAvatarUrl) ||
+    null;
+
+  if (!hash) {
+    const bot = discordBotToken();
+    if (bot) {
+      const user = await fetchDiscordUserByBot(row.discordId, bot);
+      if (user?.avatar) {
+        hash = user.avatar.trim();
+      }
+    }
+  }
+
+  if (!hash) {
+    return row;
+  }
+
+  const avatarUrl = discordAvatarUrlFromHash(row.discordId, hash);
+  return prisma.walletProfile.update({
+    where: { wallet: row.wallet },
+    data: {
+      discordAvatarHash: hash,
+      discordAvatarUrl: avatarUrl,
+    },
+  });
+}
 
 function discordProfileFromRow(row: {
   discordId: string | null;
@@ -67,8 +121,9 @@ export function walletSocialFromRow(row: {
 export async function getWalletSocial(
   wallet: string,
 ): Promise<WalletSocialPublic> {
-  const row = await prisma.walletProfile.findUnique({ where: { wallet } });
+  let row = await prisma.walletProfile.findUnique({ where: { wallet } });
   if (!row) return { discord: null, x: null };
+  row = await ensureDiscordProfileComplete(row);
   return walletSocialFromRow(row);
 }
 
@@ -85,7 +140,8 @@ export async function getWalletSocialBatch(
     out[w] = { discord: null, x: null };
   }
   for (const row of rows) {
-    out[row.wallet] = walletSocialFromRow(row);
+    const fixed = await ensureDiscordProfileComplete(row);
+    out[row.wallet] = walletSocialFromRow(fixed);
   }
   return out;
 }
@@ -98,11 +154,21 @@ type DiscordOAuthProfile = {
   avatar?: string | null;
 };
 
+function discordAvatarHashFromProfile(
+  profile: DiscordOAuthProfile,
+): string | null {
+  return (
+    profile.avatar?.trim() ||
+    discordAvatarHashFromUrl(profile.image) ||
+    null
+  );
+}
+
 function discordAvatarFromOAuth(
   discordId: string,
   profile: DiscordOAuthProfile,
 ): string {
-  const hash = profile.avatar?.trim();
+  const hash = discordAvatarHashFromProfile(profile);
   if (hash) {
     return discordAvatarUrlFromHash(discordId, hash);
   }
@@ -149,7 +215,7 @@ export async function linkDiscordToWallet(
     throw new Error("This Discord account is already linked to another wallet");
   }
 
-  const avatarHash = profile.avatar?.trim() || null;
+  const avatarHash = discordAvatarHashFromProfile(profile);
   const avatar = discordAvatarFromOAuth(discordId, profile);
 
   await prisma.walletProfile.upsert({

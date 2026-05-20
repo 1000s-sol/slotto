@@ -4,9 +4,14 @@ import Discord from "next-auth/providers/discord";
 import Twitter from "next-auth/providers/twitter";
 
 import {
+  discordProfileFromApiUser,
+  fetchDiscordUserMe,
+} from "@/lib/discord-api";
+import {
   linkDiscordToWallet,
   linkTwitterToWallet,
 } from "@/lib/wallet-profile-db";
+import { discordAvatarHashFromUrl } from "@/lib/social-profile-url";
 import { readProfileWalletCookie } from "@/lib/wallet-session";
 
 function authSecret(): string | undefined {
@@ -84,40 +89,29 @@ export const { handlers, signIn } = NextAuth({
       }
       try {
         if (account.provider === "discord") {
-          let discordProfile = profile as {
+          const base = profile as {
             id?: string;
+            name?: string | null;
+            email?: string | null;
+            image?: string | null;
             username?: string | null;
             global_name?: string | null;
-            image?: string | null;
             avatar?: string | null;
           };
+          let discordProfile = {
+            id: base.id,
+            username: base.username ?? null,
+            global_name: base.global_name ?? base.name ?? null,
+            image: base.image ?? null,
+            avatar:
+              base.avatar?.trim() ||
+              discordAvatarHashFromUrl(base.image) ||
+              null,
+          };
           if (account.access_token) {
-            try {
-              const res = await fetch("https://discord.com/api/users/@me", {
-                headers: { Authorization: `Bearer ${account.access_token}` },
-              });
-              if (res.ok) {
-                const user = (await res.json()) as {
-                  id: string;
-                  username: string;
-                  global_name: string | null;
-                  avatar: string | null;
-                };
-                let image: string | null = null;
-                if (user.avatar) {
-                  const format = user.avatar.startsWith("a_") ? "gif" : "png";
-                  image = `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.${format}?size=256`;
-                }
-                discordProfile = {
-                  id: user.id,
-                  username: user.username,
-                  global_name: user.global_name,
-                  avatar: user.avatar,
-                  image,
-                };
-              }
-            } catch {
-              /* use Auth.js profile fallback */
+            const user = await fetchDiscordUserMe(account.access_token);
+            if (user) {
+              discordProfile = discordProfileFromApiUser(user);
             }
           }
           await linkDiscordToWallet(wallet, discordProfile);
