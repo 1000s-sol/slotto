@@ -43,7 +43,7 @@ export function xAvatarFallback(handle: string): string {
 export function discordDefaultAvatar(discordId: string): string {
   try {
     const id = BigInt(discordId);
-    const index = Number((id >> 22n) % 6n);
+    const index = Number((id >> BigInt(22)) % BigInt(6));
     return `https://cdn.discordapp.com/embed/avatars/${index}.png`;
   } catch {
     return "https://cdn.discordapp.com/embed/avatars/0.png";
