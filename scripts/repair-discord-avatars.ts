@@ -1,5 +1,5 @@
 /**
- * Fix WalletProfile rows that stored embed/avatars/*.png instead of a real pfp.
+ * Fix UserProfile rows that stored embed/avatars/*.png instead of a real pfp.
  * Requires DISCORD_BOT_TOKEN (same Discord app → Bot → token).
  *
  * Usage: npm run db:repair-discord-avatars
@@ -8,7 +8,7 @@ import "dotenv/config";
 
 import { discordBotToken } from "../src/lib/discord-api";
 import { prisma } from "../src/lib/prisma";
-import { ensureDiscordProfileComplete } from "../src/lib/wallet-profile-db";
+import { ensureDiscordProfileComplete } from "../src/lib/user-profile-db";
 
 async function main() {
   if (!discordBotToken()) {
@@ -18,14 +18,14 @@ async function main() {
     process.exit(1);
   }
 
-  const rows = await prisma.walletProfile.findMany({
+  const rows = await prisma.userProfile.findMany({
     where: { discordId: { not: null } },
   });
 
   for (const row of rows) {
     const fixed = await ensureDiscordProfileComplete(row);
     console.log(
-      fixed.wallet,
+      fixed.id,
       "→",
       fixed.discordAvatarUrl ?? "(no custom avatar on Discord)",
     );

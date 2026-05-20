@@ -8,10 +8,13 @@ import {
   fetchDiscordUserMe,
 } from "@/lib/discord-api";
 import {
-  linkDiscordToWallet,
-  linkTwitterToWallet,
-} from "@/lib/wallet-profile-db";
-import { readProfileWalletCookie } from "@/lib/wallet-session";
+  readProfileSessionCookie,
+  setProfileSessionCookie,
+} from "@/lib/profile-session";
+import {
+  linkDiscordToProfile,
+  linkTwitterToProfile,
+} from "@/lib/user-profile-db";
 
 function authSecret(): string | undefined {
   const s =
@@ -79,14 +82,12 @@ export const { handlers, signIn } = NextAuth({
   providers: providers(),
   callbacks: {
     async signIn({ account, profile }) {
-      const wallet = await readProfileWalletCookie();
-      if (!wallet) {
-        return "/profile?error=wallet_required";
-      }
       if (!account?.provider || !profile) {
         return "/profile?error=oauth_failed";
       }
       try {
+        const sessionProfileId = await readProfileSessionCookie();
+
         if (account.provider === "discord") {
           const token = account.access_token?.trim();
           if (!token) {
@@ -96,16 +97,23 @@ export const { handlers, signIn } = NextAuth({
           if (!user?.id) {
             return "/profile?error=discord_profile_failed";
           }
-          await linkDiscordToWallet(wallet, discordProfileFromApiUser(user));
+          const row = await linkDiscordToProfile(
+            sessionProfileId,
+            discordProfileFromApiUser(user),
+          );
+          await setProfileSessionCookie(row.id);
         } else if (account.provider === "twitter") {
-          await linkTwitterToWallet(
-            wallet,
+          const row = await linkTwitterToProfile(
+            sessionProfileId,
             profile as {
               data?: { id?: string; username?: string | null };
               id?: string;
               username?: string | null;
+              profile_image_url?: string | null;
+              picture?: string | null;
             },
           );
+          await setProfileSessionCookie(row.id);
         } else {
           return "/profile?error=unknown_provider";
         }

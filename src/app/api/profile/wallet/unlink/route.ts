@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { readProfileSessionCookie } from "@/lib/profile-session";
-import { unlinkDiscord, unlinkTwitter } from "@/lib/user-profile-db";
+import { unlinkWalletFromProfile } from "@/lib/user-profile-db";
 
 export const dynamic = "force-dynamic";
 
@@ -11,21 +11,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, reason: "not_signed_in" }, { status: 401 });
   }
 
-  let body: { provider?: string };
+  let body: { wallet?: string };
   try {
-    body = (await request.json()) as { provider?: string };
+    body = (await request.json()) as { wallet?: string };
   } catch {
     return NextResponse.json({ ok: false, reason: "invalid json" }, { status: 400 });
   }
 
-  const provider = body.provider?.trim().toLowerCase();
-  if (provider === "discord") {
-    await unlinkDiscord(profileId);
-  } else if (provider === "twitter" || provider === "x") {
-    await unlinkTwitter(profileId);
-  } else {
-    return NextResponse.json({ ok: false, reason: "unknown provider" }, { status: 400 });
+  const wallet = body.wallet?.trim();
+  if (!wallet) {
+    return NextResponse.json({ ok: false, reason: "missing wallet" }, { status: 400 });
   }
 
+  await unlinkWalletFromProfile(profileId, wallet);
   return NextResponse.json({ ok: true });
 }

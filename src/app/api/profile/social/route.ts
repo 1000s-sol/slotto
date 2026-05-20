@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { getWalletSocialBatch } from "@/lib/wallet-profile-db";
+import { getSocialByWallets } from "@/lib/user-profile-db";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +13,6 @@ export async function GET(request: Request) {
   if (wallets.length === 0) {
     return NextResponse.json({ profiles: {} });
   }
-  const profiles = await getWalletSocialBatch(wallets);
+  const profiles = await getSocialByWallets(wallets);
   return NextResponse.json({ profiles });
 }

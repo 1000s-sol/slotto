@@ -1,15 +1,22 @@
 # Discord & X profile linking
 
-Users link social accounts to their Solana wallet on **Profile** (`/profile`).
+Users build a **profile** on `/profile` (Discord and/or X, plus optional Solana wallets).
 
 ## Flow
 
-1. Connect wallet (Phantom, etc.).
-2. **Verify wallet** — sign a short message (proves ownership, sets HTTP-only cookie).
-3. **Connect Discord** or **Connect X** — OAuth; account is stored on `WalletProfile` for that wallet.
-4. Linked handles appear on draw entrant tables and winner cards.
+1. **Connect Discord** and/or **Connect X** — no wallet required. Sets a profile session cookie.
+2. **Like projects** — requires profile session with at least one social connected.
+3. **Link wallets** (optional) — sign a message per wallet; multiple wallets per profile.
+4. **My tickets** — aggregates on-chain tickets across all linked wallets.
+5. Draw tables on the homepage still list **one row per wallet**; social columns resolve wallet → profile.
 
-## Vercel env (Production)
+## Merge behavior
+
+- One wallet can only belong to one profile.
+- If you link a wallet that already exists on another profile, profiles **merge** (socials + wallets + likes).
+- If you connect Discord on profile A and later connect the same Discord while on profile B, profiles merge into the active session.
+
+## Vercel env
 
 ```env
 AUTH_SECRET=<openssl rand -hex 32>
@@ -17,38 +24,18 @@ AUTH_URL=https://slotto.gg
 
 AUTH_DISCORD_ID=
 AUTH_DISCORD_SECRET=
+DISCORD_BOT_TOKEN=
 
 AUTH_TWITTER_ID=
 AUTH_TWITTER_SECRET=
 ```
 
-`AUTH_SECRET` can match `ADMIN_DASHBOARD_SECRET` in dev only; use a dedicated secret in production.
-
-While testing on Vercel use `AUTH_URL=https://<project>.vercel.app` (not `slotto.gg`) until the custom domain is primary.
-
 ## OAuth redirect URIs
-
-Register these in each developer portal:
 
 | Provider | Redirect URI |
 |----------|----------------|
-| Discord | `https://slotto.gg/api/auth/callback/discord` |
-| X (Twitter) | `https://slotto.gg/api/auth/callback/twitter` |
-
-For local dev, add `http://localhost:3000/api/auth/callback/discord` (and twitter) and set `AUTH_URL=http://localhost:3000`.
-
-## Discord Developer Portal
-
-1. [discord.com/developers](https://discord.com/developers/applications) → New Application.
-2. OAuth2 → Redirects (URI above).
-3. Scopes: `identify` (default for Auth.js Discord provider).
-
-## X Developer Portal
-
-1. [developer.x.com](https://developer.x.com) → Project + App.
-2. User authentication → OAuth 2.0 → enable.
-3. Callback URL (above). Type of App: Web App.
-4. Scopes: at minimum read user (Auth.js Twitter provider defaults).
+| Discord | `https://<site>/api/auth/callback/discord` |
+| X | `https://<site>/api/auth/callback/twitter` |
 
 ## Database
 
@@ -56,22 +43,18 @@ For local dev, add `http://localhost:3000/api/auth/callback/discord` (and twitte
 npm run db:push
 ```
 
-Creates `WalletProfile` table.
-
-## Maintenance mode
-
-`/api/auth/*` and `/api/profile/*` stay reachable during maintenance so OAuth callbacks work. Use the [maintenance bypass](maintenance-mode.md) to open `/profile` on `slotto.gg` while testing.
-
-## Unlink
-
-Profile UI **Disconnect**, or `POST /api/profile/social/unlink` with body `{ "provider": "discord" | "twitter" }` (requires verified wallet cookie).
-
-## Avatars
-
-OAuth saves `discordAvatarUrl` / `xAvatarUrl` on link. UI shows profile picture + username (no `@` prefix) on profile, draw tables, and winner panel.
-
-If you linked Discord before this update, **Disconnect → Connect Discord** once to store your current profile picture.
+If upgrading from `WalletProfile` (wallet-as-PK):
 
 ```bash
-npm run db:push   # adds discordAvatarUrl, xAvatarUrl columns
+npm run db:migrate-profiles   # copies legacy rows if WalletProfile table exists
+npm run db:push
 ```
+
+Schema: `UserProfile`, `LinkedWallet`, `ProjectLike(userProfileId)`.
+
+## APIs
+
+- `GET /api/profile/me` — session profile, socials, wallets
+- `POST /api/profile/wallet/verify` — link wallet (creates profile if needed)
+- `POST /api/profile/wallet/unlink` — remove wallet from profile
+- `POST /api/profile/social/unlink` — disconnect Discord or X

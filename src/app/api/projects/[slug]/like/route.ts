@@ -1,22 +1,13 @@
 import { NextResponse } from "next/server";
-import { PublicKey } from "@solana/web3.js";
 import { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
-
-function parseWallet(raw: unknown): string | null {
-  if (typeof raw !== "string" || !raw.trim()) return null;
-  try {
-    return new PublicKey(raw.trim()).toBase58();
-  } catch {
-    return null;
-  }
-}
+import { readProfileSessionCookie } from "@/lib/profile-session";
+import { userHasLikedProject } from "@/lib/user-profile-db";
 
 export async function GET(_req: Request, ctx: { params: Promise<{ slug: string }> }) {
   const { slug } = await ctx.params;
-  const url = new URL(_req.url);
-  const wallet = parseWallet(url.searchParams.get("wallet"));
+  const profileId = await readProfileSessionCookie();
 
   const project = await prisma.project.findFirst({
     where: { slug, published: true },
@@ -24,30 +15,34 @@ export async function GET(_req: Request, ctx: { params: Promise<{ slug: string }
   });
   if (!project) return NextResponse.json({ error: "not_found" }, { status: 404 });
 
-  if (!wallet) {
+  if (!profileId) {
     return NextResponse.json({ likes: project.likes, liked: false });
   }
 
-  const like = await prisma.projectLike.findUnique({
-    where: { projectId_wallet: { projectId: project.id, wallet } },
-  });
-  return NextResponse.json({ likes: project.likes, liked: !!like });
+  const liked = await userHasLikedProject(profileId, project.id);
+  return NextResponse.json({ likes: project.likes, liked });
 }
 
 export async function POST(req: Request, ctx: { params: Promise<{ slug: string }> }) {
   const { slug } = await ctx.params;
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "invalid_json" }, { status: 400 });
+  const profileId = await readProfileSessionCookie();
+  if (!profileId) {
+    return NextResponse.json(
+      { error: "sign_in_required", message: "Connect Discord or X to like projects." },
+      { status: 401 },
+    );
   }
-  const wallet = parseWallet(
-    typeof body === "object" && body !== null && "wallet" in body
-      ? (body as { wallet: unknown }).wallet
-      : undefined,
-  );
-  if (!wallet) return NextResponse.json({ error: "invalid_wallet" }, { status: 400 });
+
+  const profile = await prisma.userProfile.findUnique({
+    where: { id: profileId },
+    select: { discordId: true, xId: true },
+  });
+  if (!profile?.discordId && !profile?.xId) {
+    return NextResponse.json(
+      { error: "social_required", message: "Connect Discord or X on your profile first." },
+      { status: 403 },
+    );
+  }
 
   const project = await prisma.project.findFirst({
     where: { slug, published: true },
@@ -56,7 +51,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ slug: string }
   if (!project) return NextResponse.json({ error: "not_found" }, { status: 404 });
 
   const existing = await prisma.projectLike.findUnique({
-    where: { projectId_wallet: { projectId: project.id, wallet } },
+    where: { projectId_userProfileId: { projectId: project.id, userProfileId: profileId } },
   });
 
   let liked: boolean;
@@ -72,7 +67,9 @@ export async function POST(req: Request, ctx: { params: Promise<{ slug: string }
       liked = false;
     } else {
       await prisma.$transaction([
-        prisma.projectLike.create({ data: { projectId: project.id, wallet } }),
+        prisma.projectLike.create({
+          data: { projectId: project.id, userProfileId: profileId },
+        }),
         prisma.project.update({
           where: { id: project.id },
           data: { likes: { increment: 1 } },

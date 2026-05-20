@@ -5,20 +5,14 @@ import { getProfilePublic } from "@/lib/user-profile-db";
 
 export const dynamic = "force-dynamic";
 
-/** @deprecated Use GET /api/profile/me — kept for older clients. */
 export async function GET() {
   const profileId = await readProfileSessionCookie();
   if (!profileId) {
-    return NextResponse.json({ verified: false, social: null, wallets: [] });
+    return NextResponse.json({ loggedIn: false, profile: null });
   }
   const profile = await getProfilePublic(profileId);
   if (!profile) {
-    return NextResponse.json({ verified: false, social: null, wallets: [] });
+    return NextResponse.json({ loggedIn: false, profile: null });
   }
-  return NextResponse.json({
-    verified: true,
-    profileId: profile.id,
-    social: profile.social,
-    wallets: profile.wallets,
-  });
+  return NextResponse.json({ loggedIn: true, profile });
 }

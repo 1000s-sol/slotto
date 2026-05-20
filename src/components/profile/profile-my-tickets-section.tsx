@@ -1,10 +1,13 @@
 "use client";
 
-import { useConnection, useWallet } from "@solana/wallet-adapter-react";
+import { useConnection } from "@solana/wallet-adapter-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { lotteryProgramId } from "@/lib/lottery/config";
-import { fetchWalletDrawTickets } from "@/lib/lottery/wallet-tickets";
+import {
+  fetchWalletDrawTickets,
+  type WalletDrawTickets,
+} from "@/lib/lottery/wallet-tickets";
 
 type TickerItem = {
   mint: string;
@@ -48,39 +51,85 @@ function TokenThumb({ item, size = 18 }: { item: TickerItem | undefined; size?: 
   );
 }
 
+function mergeTicketRows(
+  perWallet: WalletDrawTickets[][],
+): WalletDrawTickets[] {
+  const byDraw = new Map<number, WalletDrawTickets>();
+
+  for (const rows of perWallet) {
+    for (const row of rows) {
+      const prev = byDraw.get(row.drawId);
+      if (!prev) {
+        byDraw.set(row.drawId, { ...row, ticketIds: [...row.ticketIds] });
+        continue;
+      }
+      prev.yourTickets += row.yourTickets;
+      prev.ticketIds.push(...row.ticketIds);
+      if (row.outcomeVariant === "won") {
+        prev.outcomeVariant = "won";
+        prev.outcomeLabel = row.outcomeLabel;
+      } else if (
+        row.outcomeVariant === "live" &&
+        prev.outcomeVariant !== "won"
+      ) {
+        prev.outcomeVariant = "live";
+        prev.outcomeLabel = row.outcomeLabel;
+      } else if (
+        row.outcomeVariant === "pending" &&
+        prev.outcomeVariant === "lost"
+      ) {
+        prev.outcomeVariant = "pending";
+        prev.outcomeLabel = row.outcomeLabel;
+      }
+    }
+  }
+
+  return [...byDraw.values()].sort((a, b) => b.drawId - a.drawId);
+}
+
 export function ProfileMyTicketsSection() {
   const { connection } = useConnection();
-  const { publicKey, connected } = useWallet();
   const programId = useMemo(() => lotteryProgramId(), []);
   const [tokens, setTokens] = useState<Record<string, TickerItem>>({});
-  const [rows, setRows] = useState<
-    Awaited<ReturnType<typeof fetchWalletDrawTickets>>
-  >([]);
+  const [wallets, setWallets] = useState<string[]>([]);
+  const [rows, setRows] = useState<WalletDrawTickets[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const refresh = useCallback(async () => {
-    if (!publicKey) {
+  const refreshProfile = useCallback(async () => {
+    const res = await fetch("/api/profile/me", { cache: "no-store" });
+    const json = (await res.json()) as {
+      profile?: { wallets?: string[] } | null;
+    };
+    setWallets(json.profile?.wallets ?? []);
+  }, []);
+
+  const refreshTickets = useCallback(async () => {
+    if (wallets.length === 0) {
       setRows([]);
       return;
     }
     setLoading(true);
     try {
-      const data = await fetchWalletDrawTickets(
-        connection,
-        programId,
-        publicKey.toBase58(),
+      const perWallet = await Promise.all(
+        wallets.map((w) =>
+          fetchWalletDrawTickets(connection, programId, w),
+        ),
       );
-      setRows(data);
+      setRows(mergeTicketRows(perWallet));
     } catch {
       setRows([]);
     } finally {
       setLoading(false);
     }
-  }, [connection, programId, publicKey]);
+  }, [connection, programId, wallets]);
 
   useEffect(() => {
-    refresh().catch(() => undefined);
-  }, [refresh]);
+    void refreshProfile();
+  }, [refreshProfile]);
+
+  useEffect(() => {
+    void refreshTickets();
+  }, [refreshTickets]);
 
   useEffect(() => {
     let cancelled = false;
@@ -107,15 +156,16 @@ export function ProfileMyTicketsSection() {
         My tickets
       </h2>
 
-      {!connected || !publicKey ? (
+      {wallets.length === 0 ? (
         <p className="rounded-2xl border border-border bg-bg-elevated/70 p-6 text-sm text-muted">
-          Connect your wallet to see ticket purchases for this network.
+          Link one or more wallets on your profile to see lottery tickets across all of
+          them.
         </p>
       ) : loading ? (
         <p className="text-sm text-muted">Loading your tickets…</p>
       ) : rows.length === 0 ? (
         <p className="rounded-2xl border border-border bg-bg-elevated/70 p-6 text-sm text-muted">
-          No tickets found for this wallet on the current lottery program.
+          No tickets found for your linked wallets on the current lottery program.
         </p>
       ) : (
         <div className="overflow-hidden rounded-2xl border border-border bg-bg-elevated/70">

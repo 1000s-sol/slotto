@@ -3,10 +3,17 @@ import bs58 from "bs58";
 import { NextResponse } from "next/server";
 
 import {
+  readProfileSessionCookie,
+  setProfileSessionCookie,
+} from "@/lib/profile-session";
+import {
+  createUserProfile,
+  linkWalletToProfile,
+} from "@/lib/user-profile-db";
+import {
   parseProfileWalletVerifyMessage,
   profileWalletMessageValid,
-  setProfileWalletCookie,
-} from "@/lib/wallet-session";
+} from "@/lib/wallet-verify-message";
 
 export const runtime = "nodejs";
 
@@ -71,11 +78,19 @@ export async function POST(request: Request) {
   }
 
   try {
-    await setProfileWalletCookie(address);
+    let profileId = await readProfileSessionCookie();
+    if (!profileId) {
+      const created = await createUserProfile();
+      profileId = created.id;
+    }
+    const { profileId: finalId, merged } = await linkWalletToProfile(
+      profileId,
+      address,
+    );
+    await setProfileSessionCookie(finalId);
+    return NextResponse.json({ ok: true, address, profileId: finalId, merged });
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "server misconfigured";
-    return NextResponse.json({ ok: false, reason: msg }, { status: 503 });
+    const msg = e instanceof Error ? e.message : "link failed";
+    return NextResponse.json({ ok: false, reason: msg }, { status: 400 });
   }
-
-  return NextResponse.json({ ok: true, address });
 }

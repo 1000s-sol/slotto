@@ -119,16 +119,18 @@ model Project {
   @@index([published, name])
 }
 
-/// One like per wallet per published project (wallet = Solana address base58).
+/// One like per user profile per published project.
 model ProjectLike {
-  id        String   @id @default(cuid())
-  projectId String
-  wallet    String
-  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
+  id            String      @id @default(cuid())
+  projectId     String
+  userProfileId String
+  project       Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userProfile   UserProfile @relation(fields: [userProfileId], references: [id], onDelete: Cascade)
+  createdAt     DateTime    @default(now())
 
-  @@unique([projectId, wallet])
+  @@unique([projectId, userProfileId])
   @@index([projectId])
+  @@index([userProfileId])
 }
 
 // --- Lottery (one active draw; ticket rows keyed by wallet) ---
@@ -206,18 +208,31 @@ model LotteryDrawSplMint {
   @@index([onChainDrawId])
 }
 
-// --- User profile: wallet-linked Discord / X (OAuth) ---
+// --- User profile: Discord / X + many linked wallets ---
 
-model WalletProfile {
-  wallet             String   @id
-  discordId          String?  @unique
+model UserProfile {
+  id                 String         @id @default(cuid())
+  discordId          String?        @unique
   discordUsername    String?
   discordDisplayName String?
   discordAvatarUrl   String?
   discordAvatarHash  String?
-  xId                String?  @unique
+  xId                String?        @unique
   xHandle            String?
   xAvatarUrl         String?
-  updatedAt          DateTime @updatedAt
-  createdAt          DateTime @default(now())
+  linkedWallets      LinkedWallet[]
+  projectLikes       ProjectLike[]
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+}
+
+model LinkedWallet {
+  id            String      @id @default(cuid())
+  userProfileId String
+  userProfile   UserProfile @relation(fields: [userProfileId], references: [id], onDelete: Cascade)
+  wallet        String      @unique
+  verifiedAt    DateTime    @default(now())
+  createdAt     DateTime    @default(now())
+
+  @@index([userProfileId])
 }

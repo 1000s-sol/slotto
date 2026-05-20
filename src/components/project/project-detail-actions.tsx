@@ -1,7 +1,6 @@
 "use client";
 
-import { useWallet } from "@solana/wallet-adapter-react";
-import { useWalletModal } from "@solana/wallet-adapter-react-ui";
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 type LikeProps = {
@@ -19,24 +18,33 @@ const likePillCompact =
   "inline-flex items-center gap-1.5 rounded-full border border-accent-gold/35 bg-bg-deep/55 px-2 py-1 text-xs text-accent-gold shadow-md backdrop-blur-md transition hover:border-accent-gold/55 hover:bg-bg-deep/70 disabled:opacity-60";
 
 export function ProjectLikePill({ slug, initialLikes, className = "", variant = "default" }: LikeProps) {
-  const { connected, publicKey } = useWallet();
-  const { setVisible } = useWalletModal();
   const [likes, setLikes] = useState(initialLikes);
   const [liked, setLiked] = useState(false);
+  const [canLike, setCanLike] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  const wallet = publicKey?.toBase58() ?? null;
-
   const refresh = useCallback(async () => {
-    const q = wallet ? `?wallet=${encodeURIComponent(wallet)}` : "";
-    const res = await fetch(`/api/projects/${encodeURIComponent(slug)}/like${q}`, {
+    const res = await fetch(`/api/projects/${encodeURIComponent(slug)}/like`, {
       cache: "no-store",
     });
     if (!res.ok) return;
     const json = (await res.json()) as { likes?: number; liked?: boolean };
     if (typeof json.likes === "number") setLikes(json.likes);
     setLiked(!!json.liked);
-  }, [slug, wallet]);
+    const me = await fetch("/api/profile/me", { cache: "no-store" });
+    if (me.ok) {
+      const profile = (await me.json()) as {
+        loggedIn?: boolean;
+        profile?: { social?: { discord?: unknown; x?: unknown } };
+      };
+      const social = profile.profile?.social;
+      setCanLike(
+        !!profile.loggedIn && !!(social?.discord || social?.x),
+      );
+    } else {
+      setCanLike(false);
+    }
+  }, [slug]);
 
   useEffect(() => {
     void refresh();
@@ -47,17 +55,12 @@ export function ProjectLikePill({ slug, initialLikes, className = "", variant = 
   }, [initialLikes]);
 
   async function onLikeClick() {
-    if (!connected || !publicKey) {
-      setVisible(true);
-      return;
-    }
+    if (!canLike) return;
     if (busy) return;
     setBusy(true);
     try {
       const res = await fetch(`/api/projects/${encodeURIComponent(slug)}/like`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ wallet: publicKey.toBase58() }),
       });
       const json = (await res.json()) as { likes?: number; liked?: boolean };
       if (res.ok && typeof json.likes === "number") {
@@ -69,9 +72,20 @@ export function ProjectLikePill({ slug, initialLikes, className = "", variant = 
     }
   }
 
-  const filled = connected && liked;
-
   const base = variant === "compact" ? likePillCompact : likePillDefault;
+
+  if (!canLike) {
+    return (
+      <Link
+        href="/profile"
+        className={`${base} ${className}`.trim()}
+        aria-label="Connect Discord or X on profile to like"
+      >
+        <StarIcon filled={false} compact={variant === "compact"} />
+        <span className="min-w-[1ch] tabular-nums font-semibold text-accent-gold">{likes}</span>
+      </Link>
+    );
+  }
 
   return (
     <button
@@ -79,10 +93,10 @@ export function ProjectLikePill({ slug, initialLikes, className = "", variant = 
       onClick={() => void onLikeClick()}
       disabled={busy}
       className={`${base} ${className}`.trim()}
-      aria-pressed={connected ? liked : undefined}
-      aria-label={connected ? (liked ? "Unlike project" : "Like project") : "Connect wallet to like"}
+      aria-pressed={liked}
+      aria-label={liked ? "Unlike project" : "Like project"}
     >
-      <StarIcon filled={filled} compact={variant === "compact"} />
+      <StarIcon filled={liked} compact={variant === "compact"} />
       <span className="min-w-[1ch] tabular-nums font-semibold text-accent-gold">{likes}</span>
     </button>
   );
