@@ -52,9 +52,7 @@ export const metadata: Metadata = {
       "Curated, transparent Solana NFT project reviews and a monthly lottery experience.",
     images: [
       {
-        url: "/og.png",
-        width: 1200,
-        height: 630,
+        url: "/brands/slotto-tickets.png",
         alt: "Slotto.gg — Solana NFT reviews and monthly lottery",
       },
     ],
@@ -64,7 +62,7 @@ export const metadata: Metadata = {
     title: "Slotto — Solana NFT reviews & monthly lottery",
     description:
       "Curated, transparent Solana NFT project reviews and a monthly lottery experience.",
-    images: ["/og.png"],
+    images: ["/brands/slotto-tickets.png"],
   },
 };
 
