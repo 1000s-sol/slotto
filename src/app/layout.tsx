@@ -32,13 +32,41 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://slotto.gg";
+
+const shareImage = "/brand/slotto-tickets.png";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: {
-    default: "Slotto — Solana NFT reviews & monthly lottery",
+    default: "Slotto V2 is coming",
     template: "%s · Slotto",
   },
   description:
-    "Curated, transparent Solana NFT project reviews and a monthly lottery experience.",
+    "Working on improvements and upgrades. slotto.gg will be back soon.",
+  openGraph: {
+    type: "website",
+    siteName: "Slotto",
+    title: "Slotto V2 is coming",
+    description:
+      "Working on improvements and upgrades. slotto.gg will be back soon.",
+    images: [
+      {
+        url: shareImage,
+        width: 1254,
+        height: 1254,
+        alt: "Slotto — monthly lottery on Solana",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Slotto V2 is coming",
+    description:
+      "Working on improvements and upgrades. slotto.gg will be back soon.",
+    images: [shareImage],
+  },
 };
 
 export default function RootLayout({
