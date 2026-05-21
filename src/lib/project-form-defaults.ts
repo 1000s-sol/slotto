@@ -1,12 +1,11 @@
-import { magicEdenCollectionUrls } from "@/lib/magiceden-stats";
+import { collectionsForEditor } from "@/lib/project-collections";
 
 export type ProjectFormDefaults = {
   slug: string;
   name: string;
   published: boolean;
   reviewMd: string;
-  /** At least two slots; first is primary (ME stats). */
-  meUrlsInitial: string[];
+  collectionsInitial: ReturnType<typeof collectionsForEditor>;
   discordUrl: string;
   twitterUrl: string;
   websiteUrl: string;
@@ -16,7 +15,6 @@ export type ProjectFormDefaults = {
   tokenName: string;
   bannerImageUrl: string;
   listingImageUrl: string;
-  marketplacesJson: string;
 };
 
 export const emptyDefaults: ProjectFormDefaults = {
@@ -24,7 +22,7 @@ export const emptyDefaults: ProjectFormDefaults = {
   name: "",
   published: false,
   reviewMd: "",
-  meUrlsInitial: ["", ""],
+  collectionsInitial: [{ name: "", links: [{ marketplace: "magicEden", href: "" }] }],
   discordUrl: "",
   twitterUrl: "",
   websiteUrl: "",
@@ -34,14 +32,7 @@ export const emptyDefaults: ProjectFormDefaults = {
   tokenName: "",
   bannerImageUrl: "",
   listingImageUrl: "",
-  marketplacesJson: "[]",
 };
-
-export function padMeUrlsMinTwo(urls: string[]): string[] {
-  const out = urls.map((s) => s.trim());
-  while (out.length < 2) out.push("");
-  return out;
-}
 
 /** Server-safe: build ProjectForm props from a Prisma `Project` row. */
 export function defaultsFromProject(p: {
@@ -51,6 +42,8 @@ export function defaultsFromProject(p: {
   reviewMd: string;
   meUrl: string | null;
   meUrls: unknown;
+  collections?: unknown;
+  marketplaces: unknown;
   discordUrl: string | null;
   twitterUrl: string | null;
   websiteUrl: string | null;
@@ -60,14 +53,13 @@ export function defaultsFromProject(p: {
   tokenName?: string | null;
   bannerImageUrl: string | null;
   listingImageUrl: string | null;
-  marketplaces: unknown;
 }): ProjectFormDefaults {
   return {
     slug: p.slug,
     name: p.name,
     published: p.published,
     reviewMd: p.reviewMd,
-    meUrlsInitial: padMeUrlsMinTwo(magicEdenCollectionUrls(p.meUrls, p.meUrl)),
+    collectionsInitial: collectionsForEditor(p.collections, p.meUrls, p.meUrl, p.marketplaces),
     discordUrl: p.discordUrl ?? "",
     twitterUrl: p.twitterUrl ?? "",
     websiteUrl: p.websiteUrl ?? "",
@@ -77,6 +69,5 @@ export function defaultsFromProject(p: {
     tokenName: p.tokenName ?? "",
     bannerImageUrl: p.bannerImageUrl ?? "",
     listingImageUrl: p.listingImageUrl ?? "",
-    marketplacesJson: JSON.stringify(Array.isArray(p.marketplaces) ? p.marketplaces : [], null, 2),
   };
 }

@@ -1,10 +1,16 @@
-import { marketplaceIconForHref } from "@/lib/marketplace-icons";
+import { marketplaceLogo, type MarketplaceId } from "@/lib/marketplace-icons";
 
 const chipClass =
-  "inline-flex max-w-[min(100%,20rem)] items-center gap-2 rounded-full border border-border/60 bg-surface/35 px-3 py-1.5 text-xs text-muted backdrop-blur-sm transition hover:border-accent-purple/35 hover:text-foreground";
+  "inline-flex shrink-0 items-center rounded-lg border border-border/60 bg-surface/35 p-1 transition hover:border-accent-purple/35 hover:bg-surface/55";
 
-export function MarketplaceLinkChip({ href, label }: { href: string; label: string }) {
-  const iconSrc = marketplaceIconForHref(href);
+export function MarketplaceLogoLink({
+  href,
+  marketplace,
+}: {
+  href: string;
+  marketplace: MarketplaceId;
+}) {
+  const src = marketplaceLogo(marketplace);
   return (
     <a
       href={href}
@@ -12,27 +18,15 @@ export function MarketplaceLinkChip({ href, label }: { href: string; label: stri
       rel="noopener noreferrer"
       className={chipClass}
       title={href}
+      aria-label={marketplace}
     >
-      {iconSrc ? (
-        <img
-          src={iconSrc}
-          alt=""
-          className="h-7 w-7 shrink-0 rounded-md object-contain sm:h-8 sm:w-8"
-          loading="lazy"
-          decoding="async"
-        />
-      ) : (
-        <GenericLinkGlyph className="h-7 w-7 shrink-0 text-muted sm:h-8 sm:w-8" />
-      )}
-      <span className="truncate font-medium">{label}</span>
+      <img
+        src={src}
+        alt=""
+        className="h-8 w-auto max-w-[9.5rem] object-contain object-left sm:h-9 sm:max-w-[10.5rem]"
+        loading="lazy"
+        decoding="async"
+      />
     </a>
-  );
-}
-
-function GenericLinkGlyph({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden>
-      <path d="M10 13a5 5 0 0 1 0-7l1-1a5 5 0 0 1 7 7l-1 1M14 11a5 5 0 0 1 0 7l-1 1a5 5 0 0 1-7-7l1-1" strokeLinecap="round" />
-    </svg>
   );
 }

@@ -1,42 +1,18 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { MarketplaceLinkChip } from "@/components/project/marketplace-link-chip";
+import { ProjectCollectionsPanel } from "@/components/project/project-collections-panel";
 import { ProjectLikePill, ProjectSocialLinks } from "@/components/project/project-detail-actions";
-import { ProjectMeLinks } from "@/components/project/project-me-links";
 import { ProjectTokenBlock } from "@/components/project/project-token-block";
-import { fetchLiveMagicEdenStats, magicEdenCollectionUrls } from "@/lib/magiceden-stats";
+import { fetchLiveMagicEdenStats } from "@/lib/magiceden-stats";
+import {
+  magicEdenLink,
+  parseProjectCollections,
+} from "@/lib/project-collections";
 import { prisma } from "@/lib/prisma";
 import { fetchProjectTokenDisplay } from "@/lib/project-token-display";
 
 type Props = { params: Promise<{ slug: string }> };
-
-type MpRow = { label: string; href: string };
-
-function listingsStatValue(listings: string, totalSupply: string | null): string {
-  const listed = Number(String(listings).replace(/,/g, ""));
-  const total =
-    totalSupply != null && String(totalSupply).trim() !== ""
-      ? Number(String(totalSupply).replace(/,/g, ""))
-      : NaN;
-  if (!Number.isFinite(listed) || !Number.isFinite(total) || total <= 0) {
-    return listings;
-  }
-  const pct = (listed / total) * 100;
-  const pctStr = String(parseFloat(pct.toFixed(2)));
-  return `${listings} (${pctStr}%)`;
-}
-
-function asMarketplaces(raw: unknown): MpRow[] {
-  if (!Array.isArray(raw)) return [];
-  return raw.filter(
-    (x): x is MpRow =>
-      !!x &&
-      typeof x === "object" &&
-      typeof (x as MpRow).label === "string" &&
-      typeof (x as MpRow).href === "string",
-  );
-}
 
 export default async function ProjectPage({ params }: Props) {
   const { slug } = await params;
@@ -45,23 +21,16 @@ export default async function ProjectPage({ params }: Props) {
   });
   if (!project) notFound();
 
-  const marketplaces = asMarketplaces(project.marketplaces);
-  const meCollectionUrls = magicEdenCollectionUrls(project.meUrls, project.meUrl);
-  const live = await fetchLiveMagicEdenStats(meCollectionUrls[0] ?? null, 120);
+  const collections = parseProjectCollections(
+    project.collections,
+    project.meUrls,
+    project.meUrl,
+    project.marketplaces,
+  );
 
-  const statRows: { label: string; value: string }[] = [];
-  if (live.ok) {
-    if (live.floorSol) statRows.push({ label: "Floor", value: `${live.floorSol} SOL` });
-    if (live.supply) statRows.push({ label: "Total supply", value: live.supply });
-    if (live.listings) {
-      statRows.push({
-        label: "Listings",
-        value: listingsStatValue(live.listings, live.supply),
-      });
-    }
-    if (live.volumeSol) statRows.push({ label: "Volume (all-time)", value: `${live.volumeSol} SOL` });
-    if (live.avg24hSol) statRows.push({ label: "24h avg sale", value: `${live.avg24hSol} SOL` });
-  }
+  const statsByIndex = await Promise.all(
+    collections.map((c) => fetchLiveMagicEdenStats(magicEdenLink(c), 120)),
+  );
 
   const tokenMint = project.tokenMint?.trim() ?? "";
   const tokenLiquid = project.tokenLiquid ?? true;
@@ -108,7 +77,6 @@ export default async function ProjectPage({ params }: Props) {
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0 flex-1">
               <h1 className="text-3xl font-semibold tracking-tight">{project.name}</h1>
-              <ProjectMeLinks urls={meCollectionUrls} />
             </div>
             <ProjectSocialLinks
               websiteUrl={project.websiteUrl}
@@ -117,24 +85,8 @@ export default async function ProjectPage({ params }: Props) {
             />
           </div>
 
-          {live.ok && statRows.length > 0 ? (
-            <div>
-              <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
-                {statRows.map((row) => (
-                  <div
-                    key={row.label}
-                    className="rounded-xl border border-border bg-surface/50 px-3 py-3 text-sm"
-                  >
-                    <div className="text-xs uppercase tracking-wide text-muted">{row.label}</div>
-                    <div className="mt-1 font-semibold tabular-nums text-accent-gold">{row.value}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : live.message ? (
-            <div className="rounded-xl border border-border bg-surface/40 px-4 py-3 text-sm text-muted">
-              {live.message}
-            </div>
+          {collections.some((c) => c.links.length > 0) ? (
+            <ProjectCollectionsPanel collections={collections} statsByIndex={statsByIndex} />
           ) : null}
 
           {tokenMint && tokenDisplay ? (
@@ -144,17 +96,6 @@ export default async function ProjectPage({ params }: Props) {
               logoUrl={tokenDisplay.logoUrl}
               liquid={tokenLiquid}
             />
-          ) : null}
-
-          {marketplaces.length > 0 ? (
-            <div>
-              <h2 className="text-lg font-semibold">Marketplaces</h2>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {marketplaces.map((m) => (
-                  <MarketplaceLinkChip key={m.href} href={m.href} label={m.label} />
-                ))}
-              </div>
-            </div>
           ) : null}
 
           <article className="prose prose-invert max-w-none prose-headings:scroll-mt-24 prose-p:text-muted prose-li:text-muted">

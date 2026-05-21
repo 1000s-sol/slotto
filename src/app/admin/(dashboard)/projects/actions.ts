@@ -11,56 +11,9 @@ import {
   cleanupReplacedTokenImage,
   resolveProjectTokenFromForm,
 } from "@/lib/parse-project-token-form";
+import { validateCollectionsJson } from "@/lib/project-collections";
 import { isValidSlug, normalizeSlugInput, slugifyName } from "@/lib/project-slug";
 import { prisma } from "@/lib/prisma";
-
-function parseMeUrlsJson(raw: string): { primary: string | null; json: Prisma.InputJsonValue | typeof Prisma.JsonNull } {
-  const t = raw.trim() || "[]";
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(t) as unknown;
-  } catch {
-    throw new Error("Magic Eden URLs: invalid JSON.");
-  }
-  if (!Array.isArray(parsed)) throw new Error("Magic Eden URLs must be a JSON array of strings.");
-  const lines: string[] = [];
-  for (let i = 0; i < parsed.length; i++) {
-    const x = parsed[i];
-    if (typeof x !== "string") throw new Error(`Magic Eden URL at position ${i + 1} must be a string.`);
-    const line = x.trim();
-    if (line) lines.push(line);
-  }
-  if (!lines.length) return { primary: null, json: Prisma.JsonNull };
-  for (let i = 0; i < lines.length; i++) {
-    if (!/^https?:\/\//i.test(lines[i])) {
-      throw new Error(`Magic Eden URL ${i + 1} must start with http:// or https://.`);
-    }
-  }
-  return { primary: lines[0], json: lines as unknown as Prisma.InputJsonValue };
-}
-
-function parseMarketplacesJson(raw: string): Prisma.InputJsonValue | undefined {
-  const t = raw.trim();
-  if (!t) return undefined;
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(t) as unknown;
-  } catch {
-    throw new Error("Marketplaces JSON is not valid JSON.");
-  }
-  if (!Array.isArray(parsed)) throw new Error("Marketplaces must be a JSON array.");
-  const out: { label: string; href: string }[] = [];
-  for (let i = 0; i < parsed.length; i++) {
-    const row = parsed[i];
-    if (!row || typeof row !== "object") throw new Error(`Marketplaces[${i}] must be an object.`);
-    const label = String((row as Record<string, unknown>).label ?? "").trim();
-    const href = String((row as Record<string, unknown>).href ?? "").trim();
-    if (!label || !href) throw new Error(`Marketplaces[${i}] needs both "label" and "href".`);
-    if (!/^https?:\/\//i.test(href)) throw new Error(`Marketplaces[${i}] href must start with http:// or https://`);
-    out.push({ label, href });
-  }
-  return out;
-}
 
 function str(formData: FormData, key: string) {
   return String(formData.get(key) ?? "").trim();
@@ -96,18 +49,11 @@ export async function createProjectAction(
   const reviewMd = str(formData, "reviewMd");
   if (!reviewMd) return { ok: false, message: "Review (Markdown) is required." };
 
-  let meUrlsParsed: { primary: string | null; json: Prisma.InputJsonValue | typeof Prisma.JsonNull };
+  let collectionsParsed: ReturnType<typeof validateCollectionsJson>;
   try {
-    meUrlsParsed = parseMeUrlsJson(str(formData, "meUrlsJson"));
+    collectionsParsed = validateCollectionsJson(str(formData, "collectionsJson"));
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Invalid Magic Eden URLs." };
-  }
-
-  let marketplaces: Prisma.InputJsonValue | undefined;
-  try {
-    marketplaces = parseMarketplacesJson(str(formData, "marketplacesJson"));
-  } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Invalid marketplaces." };
+    return { ok: false, message: e instanceof Error ? e.message : "Invalid collections." };
   }
 
   const bannerRes = await resolveProjectImageFromForm(formData, "bannerFile", "bannerImageUrl");
@@ -131,8 +77,13 @@ export async function createProjectAction(
     tagline: null,
     likes: 0,
     reviewMd,
-    meUrl: meUrlsParsed.primary,
-    meUrls: meUrlsParsed.json === Prisma.JsonNull ? undefined : meUrlsParsed.json,
+    collections: collectionsParsed.collections as unknown as Prisma.InputJsonValue,
+    meUrl: collectionsParsed.meUrl,
+    meUrls:
+      collectionsParsed.meUrls.length > 0
+        ? (collectionsParsed.meUrls as unknown as Prisma.InputJsonValue)
+        : undefined,
+    marketplaces: Prisma.JsonNull,
     discordUrl: str(formData, "discordUrl") || null,
     twitterUrl: str(formData, "twitterUrl") || null,
     websiteUrl: str(formData, "websiteUrl") || null,
@@ -144,7 +95,6 @@ export async function createProjectAction(
     listingImageUrl: listingRes.url,
     published,
     ...(admin ? { createdBy: { connect: { id: admin.id } } } : {}),
-    ...(marketplaces !== undefined ? { marketplaces } : {}),
   };
 
   try {
@@ -193,18 +143,11 @@ export async function updateProjectAction(
   const reviewMd = str(formData, "reviewMd");
   if (!reviewMd) return { ok: false, message: "Review (Markdown) is required." };
 
-  let marketplaces: Prisma.InputJsonValue | undefined;
+  let collectionsParsed: ReturnType<typeof validateCollectionsJson>;
   try {
-    marketplaces = parseMarketplacesJson(str(formData, "marketplacesJson"));
+    collectionsParsed = validateCollectionsJson(str(formData, "collectionsJson"));
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Invalid marketplaces." };
-  }
-
-  let meUrlsParsed: { primary: string | null; json: Prisma.InputJsonValue | typeof Prisma.JsonNull };
-  try {
-    meUrlsParsed = parseMeUrlsJson(str(formData, "meUrlsJson"));
-  } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Invalid Magic Eden URLs." };
+    return { ok: false, message: e instanceof Error ? e.message : "Invalid collections." };
   }
 
   const bannerRes = await resolveProjectImageFromForm(formData, "bannerFile", "bannerImageUrl");
@@ -223,9 +166,6 @@ export async function updateProjectAction(
 
   const published = formData.get("published") === "on";
 
-  const marketplacesData =
-    marketplaces === undefined ? Prisma.JsonNull : (marketplaces as Prisma.InputJsonValue);
-
   try {
     await prisma.project.update({
       where: { id },
@@ -234,8 +174,13 @@ export async function updateProjectAction(
         name,
         tagline: null,
         reviewMd,
-        meUrl: meUrlsParsed.primary,
-        meUrls: meUrlsParsed.json,
+        collections: collectionsParsed.collections as unknown as Prisma.InputJsonValue,
+        meUrl: collectionsParsed.meUrl,
+        meUrls:
+          collectionsParsed.meUrls.length > 0
+            ? (collectionsParsed.meUrls as unknown as Prisma.InputJsonValue)
+            : Prisma.JsonNull,
+        marketplaces: Prisma.JsonNull,
         discordUrl: str(formData, "discordUrl") || null,
         twitterUrl: str(formData, "twitterUrl") || null,
         websiteUrl: str(formData, "websiteUrl") || null,
@@ -246,7 +191,6 @@ export async function updateProjectAction(
         bannerImageUrl: newBanner,
         listingImageUrl: newListing,
         stats: Prisma.JsonNull,
-        marketplaces: marketplacesData,
         published,
       },
     });

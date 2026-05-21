@@ -9,166 +9,8 @@ import {
 } from "@/app/admin/(dashboard)/projects/actions";
 import type { ProjectFormState } from "@/lib/project-form-state";
 import { projectFormInitialState } from "@/lib/project-form-state";
-import { emptyDefaults, padMeUrlsMinTwo, type ProjectFormDefaults } from "@/lib/project-form-defaults";
-
-function MagicEdenUrlsEditor({ initialUrls }: { initialUrls: string[] }) {
-  const [rows, setRows] = useState<string[]>(() => padMeUrlsMinTwo(initialUrls));
-
-  useEffect(() => {
-    setRows(padMeUrlsMinTwo(initialUrls));
-  }, [JSON.stringify(initialUrls)]);
-
-  const meUrlsJson = JSON.stringify(rows.map((r) => r.trim()).filter(Boolean));
-
-  return (
-    <div className="space-y-3">
-      <input type="hidden" name="meUrlsJson" value={meUrlsJson} readOnly />
-      <div>
-        <h3 className="text-sm font-semibold text-foreground">Magic Eden collection URLs</h3>
-        <p className="mt-1 text-[11px] leading-relaxed text-muted">
-          The <strong className="text-muted">first URL</strong> is the primary collection — live floor and volume on
-          the public page use that one only. Leave a field empty if you do not need it.
-        </p>
-      </div>
-      <div className="space-y-3">
-        {rows.map((url, i) => (
-          <div key={i} className="flex flex-col gap-2 sm:flex-row sm:items-end sm:gap-3">
-            <label className="flex min-w-0 flex-1 flex-col gap-1 text-xs text-muted">
-              {i === 0 ? "Primary collection URL" : `Collection URL ${i + 1}`}
-              <input
-                type="text"
-                inputMode="url"
-                value={url}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setRows((prev) => prev.map((p, j) => (j === i ? v : p)));
-                }}
-                placeholder="https://magiceden.io/marketplace/…"
-                className="rounded-xl border border-border bg-surface/60 px-3 py-2 font-mono text-xs text-foreground outline-none focus:border-accent-purple/40 focus:ring-4 focus:ring-accent-purple/15 sm:text-sm"
-              />
-            </label>
-            {rows.length > 2 ? (
-              <button
-                type="button"
-                className="shrink-0 rounded-xl border border-border px-3 py-2 text-xs font-medium text-muted transition hover:border-red-500/40 hover:text-red-300"
-                onClick={() => setRows((prev) => (prev.length <= 2 ? prev : prev.filter((_, j) => j !== i)))}
-              >
-                Remove
-              </button>
-            ) : (
-              <span className="hidden shrink-0 sm:block sm:w-[5.5rem]" aria-hidden />
-            )}
-          </div>
-        ))}
-        <button
-          type="button"
-          className="text-xs font-medium text-accent-cyan hover:underline"
-          onClick={() => setRows((p) => [...p, ""])}
-        >
-          + Add another collection URL
-        </button>
-      </div>
-    </div>
-  );
-}
-
-type MpRow = { label: string; href: string };
-
-function parseMarketplacesForEditor(json: string): MpRow[] {
-  try {
-    const p = JSON.parse(json) as unknown;
-    if (!Array.isArray(p)) return [];
-    return p
-      .filter(
-        (x): x is MpRow =>
-          !!x &&
-          typeof x === "object" &&
-          typeof (x as MpRow).label === "string" &&
-          typeof (x as MpRow).href === "string",
-      )
-      .map((x) => ({ label: x.label, href: x.href }));
-  } catch {
-    return [];
-  }
-}
-
-function MarketplacesEditor({ initialJson }: { initialJson: string }) {
-  const [rows, setRows] = useState<MpRow[]>([{ label: "", href: "" }]);
-
-  useEffect(() => {
-    const next = parseMarketplacesForEditor(initialJson);
-    setRows(next.length > 0 ? next.map((r) => ({ ...r })) : [{ label: "", href: "" }]);
-  }, [initialJson]);
-
-  const marketplacesJson = JSON.stringify(
-    rows.filter((r) => r.label.trim() && r.href.trim()),
-  );
-
-  return (
-    <div className="space-y-3">
-      <input type="hidden" name="marketplacesJson" value={marketplacesJson} readOnly />
-      <div>
-        <h3 className="text-sm font-semibold text-foreground">Other marketplace links</h3>
-        <p className="mt-1 text-[11px] leading-relaxed text-muted">
-          Optional buttons on the public project page — e.g. Tensor, OpenSea, or a custom storefront. Each row is a
-          <strong className="font-medium text-muted"> label </strong> (what visitors see) and a{" "}
-          <strong className="font-medium text-muted"> URL</strong>. Magic Eden collections belong in the field above,
-          not here.
-        </p>
-      </div>
-      <div className="space-y-3">
-        {rows.map((row, i) => (
-          <div key={i} className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
-            <label className="flex min-w-0 flex-col gap-1 text-xs text-muted">
-              Label
-              <input
-                type="text"
-                value={row.label}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setRows((prev) => prev.map((p, j) => (j === i ? { ...p, label: v } : p)));
-                }}
-                placeholder="e.g. Tensor"
-                className="rounded-xl border border-border bg-surface/60 px-3 py-2 text-sm text-foreground outline-none focus:border-accent-purple/40 focus:ring-4 focus:ring-accent-purple/15"
-              />
-            </label>
-            <label className="flex min-w-0 flex-col gap-1 text-xs text-muted">
-              URL
-              <input
-                type="text"
-                inputMode="url"
-                value={row.href}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setRows((prev) => prev.map((p, j) => (j === i ? { ...p, href: v } : p)));
-                }}
-                placeholder="https://…"
-                className="rounded-xl border border-border bg-surface/60 px-3 py-2 font-mono text-xs text-foreground outline-none focus:border-accent-purple/40 focus:ring-4 focus:ring-accent-purple/15 sm:text-sm"
-              />
-            </label>
-            <button
-              type="button"
-              className="rounded-xl border border-border px-3 py-2 text-xs font-medium text-muted transition hover:border-red-500/40 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-40"
-              disabled={rows.length <= 1}
-              onClick={() =>
-                setRows((prev) => (prev.length <= 1 ? [{ label: "", href: "" }] : prev.filter((_, j) => j !== i)))
-              }
-            >
-              Remove
-            </button>
-          </div>
-        ))}
-        <button
-          type="button"
-          className="text-xs font-medium text-accent-cyan hover:underline"
-          onClick={() => setRows((p) => [...p, { label: "", href: "" }])}
-        >
-          + Add link
-        </button>
-      </div>
-    </div>
-  );
-}
+import { CollectionsEditor } from "@/components/admin/collections-editor";
+import { emptyDefaults, type ProjectFormDefaults } from "@/lib/project-form-defaults";
 
 function TokenMintEditor({
   defaultMint,
@@ -394,7 +236,10 @@ export function ProjectForm({
         />
       </div>
 
-      <MagicEdenUrlsEditor key={projectId ?? "new-project"} initialUrls={merged.meUrlsInitial} />
+      <CollectionsEditor
+        key={projectId ?? "new-project"}
+        initialCollections={merged.collectionsInitial}
+      />
 
       <label className="flex flex-col gap-2 text-xs text-muted">
         Project website (optional)
@@ -435,8 +280,6 @@ export function ProjectForm({
         defaultTokenImageUrl={merged.tokenImageUrl}
         defaultTokenName={merged.tokenName}
       />
-
-      <MarketplacesEditor key={projectId ?? "new-project"} initialJson={merged.marketplacesJson} />
 
       <div className="flex flex-wrap items-center gap-3">
         <button

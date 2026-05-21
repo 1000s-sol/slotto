@@ -95,8 +95,10 @@ model Project {
   likes            Int          @default(0)
   reviewMd         String       @db.Text
   meUrl            String?
-  /// string[] — Magic Eden collection URLs; first entry is primary (live stats + main collection link)
+  /// string[] — legacy; synced from `collections` Magic Eden links
   meUrls           Json?
+  /// [{ name?, links: [{ marketplace, href }] }] — collections + marketplace URLs per collection
+  collections      Json?
   discordUrl       String?
   twitterUrl       String?
   websiteUrl       String?
@@ -109,7 +111,7 @@ model Project {
   tokenName        String?
   /// { floor, supply, listings, volume, sales24h } as strings for display
   stats            Json?
-  /// [{ "label": "Magic Eden", "href": "https://..." }]
+  /// legacy flat marketplace list — migrated into `collections`
   marketplaces     Json?
   bannerImageUrl   String?
   /// Square / ~1:1 image for directory & mobile listings (URL or /uploads/... from upload)
