@@ -69,10 +69,6 @@ function blobPutOptions(mime: string, ext: string) {
   if (token) {
     opts.token = token;
   }
-  const storeId = blobStoreId();
-  if (storeId) {
-    opts.storeId = storeId;
-  }
   return opts;
 }
 
@@ -127,7 +123,8 @@ export async function deleteProjectUploadFile(publicPath: string | null | undefi
 
   if (publicPath.startsWith("https://")) {
     try {
-      await del(publicPath, blobPutOptions("image/png", "png"));
+      const token = blobReadWriteToken();
+      await del(publicPath, token ? { token } : undefined);
     } catch {
       /* already gone or missing credentials locally */
     }
