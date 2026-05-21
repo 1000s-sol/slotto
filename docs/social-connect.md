@@ -46,8 +46,8 @@ npm run db:push
 If upgrading from `WalletProfile` (wallet-as-PK):
 
 ```bash
-npm run db:migrate-profiles   # copies legacy rows if WalletProfile table exists
-npm run db:push
+npm run db:migrate-profiles   # creates UserProfile tables + copies legacy data
+npm run db:push               # then sync schema (drops old WalletProfile table)
 ```
 
 Schema: `UserProfile`, `LinkedWallet`, `ProjectLike(userProfileId)`.
