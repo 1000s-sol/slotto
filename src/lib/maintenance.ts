@@ -41,6 +41,8 @@ export function isValidBypassKey(key: string | null | undefined): boolean {
 /** Paths that stay reachable during maintenance (no redirect). */
 export function isMaintenanceExemptPath(pathname: string): boolean {
   if (pathname === "/") return true;
+  /** Public project pages must stay reachable for Open Graph / Discord / X link previews */
+  if (pathname === "/projects" || pathname.startsWith("/projects/")) return true;
   if (pathname.startsWith("/api/maintenance/")) return true;
   if (pathname.startsWith("/_next")) return true;
   if (pathname === "/favicon.ico" || pathname === "/robots.txt") return true;

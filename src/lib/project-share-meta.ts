@@ -1,10 +1,42 @@
+import { headers } from "next/headers";
+
 /** Site origin for absolute Open Graph / Twitter image URLs */
 export function getSiteUrl(): string {
   return process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://slotto.gg";
 }
 
+/** Prefer the request host so og:url matches the link being shared */
+export async function getRequestSiteUrl(): Promise<string> {
+  const h = await headers();
+  const host = (h.get("x-forwarded-host") ?? h.get("host") ?? "").split(",")[0]?.trim();
+  if (host) {
+    const proto = (h.get("x-forwarded-proto") ?? "https").split(",")[0]?.trim() || "https";
+    return `${proto}://${host}`;
+  }
+  return getSiteUrl();
+}
+
 const DEFAULT_SHARE_IMAGE = "/brand/slotto-tickets.png";
 const DESCRIPTION_MAX = 200;
+
+/** Hosts that block hotlinking — unusable for Discord / X / iMessage previews */
+const OG_IMAGE_HOST_BLOCKLIST = [
+  "pbs.twimg.com",
+  "twimg.com",
+  "discordapp.com",
+  "discord.com",
+  "cdn.discordapp.com",
+  "media.discordapp.net",
+];
+
+function isEmbeddableImageUrl(url: string): boolean {
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    return !OG_IMAGE_HOST_BLOCKLIST.some((b) => host === b || host.endsWith(`.${b}`));
+  } catch {
+    return false;
+  }
+}
 
 /** Plain-text excerpt from project review for link previews */
 export function projectShareDescription(reviewMd: string): string {
@@ -30,13 +62,19 @@ function absoluteAssetUrl(path: string, siteUrl: string): string {
   return path.startsWith("/") ? `${base}${path}` : `${base}/${path}`;
 }
 
-/** Prefer wide banner for large cards; fall back to listing thumbnail, then site default */
+/** Prefer wide banner for large cards; skip Twitter/Discord URLs crawlers cannot fetch */
 export function projectShareImageUrl(
   bannerImageUrl: string | null | undefined,
   listingImageUrl: string | null | undefined,
   siteUrl = getSiteUrl(),
 ): string {
-  const raw = bannerImageUrl?.trim() || listingImageUrl?.trim();
-  if (!raw) return absoluteAssetUrl(DEFAULT_SHARE_IMAGE, siteUrl);
-  return absoluteAssetUrl(raw, siteUrl);
+  const fallback = absoluteAssetUrl(DEFAULT_SHARE_IMAGE, siteUrl);
+  const candidates = [bannerImageUrl?.trim(), listingImageUrl?.trim()].filter(Boolean) as string[];
+
+  for (const raw of candidates) {
+    const abs = absoluteAssetUrl(raw, siteUrl);
+    if (isEmbeddableImageUrl(abs)) return abs;
+  }
+
+  return fallback;
 }

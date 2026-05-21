@@ -13,7 +13,7 @@ import {
 import { prisma } from "@/lib/prisma";
 import { fetchProjectTokenDisplay } from "@/lib/project-token-display";
 import {
-  getSiteUrl,
+  getRequestSiteUrl,
   projectShareDescription,
   projectShareImageUrl,
 } from "@/lib/project-share-meta";
@@ -36,11 +36,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return { title: "Project not found" };
   }
 
-  const siteUrl = getSiteUrl();
+  const siteUrl = await getRequestSiteUrl();
   const title = project.name;
   const description = projectShareDescription(project.reviewMd);
   const image = projectShareImageUrl(project.bannerImageUrl, project.listingImageUrl, siteUrl);
   const pageUrl = `${siteUrl.replace(/\/$/, "")}/projects/${slug}`;
+  const isDefaultImage = image.includes("/brand/slotto-tickets");
 
   return {
     title,
@@ -55,6 +56,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         {
           url: image,
           alt: `${title} on Slotto`,
+          ...(isDefaultImage ? { width: 1254, height: 1254 } : {}),
         },
       ],
     },
@@ -62,7 +64,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       card: "summary_large_image",
       title: `${title} · Slotto`,
       description,
-      images: [image],
+      images: [{ url: image, alt: `${title} on Slotto` }],
     },
   };
 }
