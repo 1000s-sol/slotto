@@ -18,16 +18,25 @@ function isVercelRuntime(): boolean {
   return Boolean(process.env.VERCEL);
 }
 
-function blobToken(): string | undefined {
+function blobReadWriteToken(): string | undefined {
   return process.env.BLOB_READ_WRITE_TOKEN?.trim();
 }
 
-function useBlobStorage(): boolean {
-  return Boolean(blobToken()) || isVercelRuntime();
+function blobStoreId(): string | undefined {
+  return process.env.BLOB_STORE_ID?.trim();
 }
 
-const BLOB_SETUP_MESSAGE =
-  "Image uploads on Vercel need Blob storage. Vercel dashboard → your project → Storage → Create Blob Store → Connect to Project, then redeploy (adds BLOB_READ_WRITE_TOKEN).";
+/** Use Blob on Vercel or whenever credentials exist. */
+function useBlobStorage(): boolean {
+  return (
+    isVercelRuntime() ||
+    Boolean(blobReadWriteToken()) ||
+    Boolean(blobStoreId())
+  );
+}
+
+const BLOB_SETUP_HINT =
+  "Connect a Vercel Blob store to this project, then redeploy. Env vars from Settings only apply to new deployments — a browser refresh is not enough.";
 
 /**
  * True for images we saved ourselves (local uploads dir or this app's Vercel Blob prefix), so replace/delete is safe.
@@ -50,6 +59,23 @@ function uploadAbsolutePath(relativeFromPublic: string): string {
   return path.join(process.cwd(), "public", relativeFromPublic);
 }
 
+function blobPutOptions(mime: string, ext: string) {
+  const opts: Parameters<typeof put>[2] = {
+    access: "public",
+    contentType: mime || `image/${ext}`,
+    addRandomSuffix: false,
+  };
+  const token = blobReadWriteToken();
+  if (token) {
+    opts.token = token;
+  }
+  const storeId = blobStoreId();
+  if (storeId) {
+    opts.storeId = storeId;
+  }
+  return opts;
+}
+
 /** Save an uploaded image. Returns a public URL (absolute HTTPS on Blob, or /uploads/projects/… on disk). */
 export async function saveProjectImageFile(file: File): Promise<string> {
   const mime = (file.type || "").toLowerCase().trim();
@@ -68,17 +94,14 @@ export async function saveProjectImageFile(file: File): Promise<string> {
   const name = `${randomUUID()}.${ext}`;
 
   if (useBlobStorage()) {
-    if (!blobToken()) {
-      throw new Error(BLOB_SETUP_MESSAGE);
-    }
     const pathname = `projects/${name}`;
-    const { url } = await put(pathname, buf, {
-      access: "public",
-      contentType: mime || `image/${ext}`,
-      addRandomSuffix: false,
-      token: blobToken(),
-    });
-    return url;
+    try {
+      const { url } = await put(pathname, buf, blobPutOptions(mime, ext));
+      return url;
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
+      throw new Error(`${BLOB_SETUP_HINT} (${detail})`);
+    }
   }
 
   const dir = uploadAbsolutePath(path.join("uploads", "projects"));
@@ -104,9 +127,9 @@ export async function deleteProjectUploadFile(publicPath: string | null | undefi
 
   if (publicPath.startsWith("https://")) {
     try {
-      await del(publicPath, blobToken() ? { token: blobToken() } : undefined);
+      await del(publicPath, blobPutOptions("image/png", "png"));
     } catch {
-      /* already gone or missing token locally */
+      /* already gone or missing credentials locally */
     }
   }
 }
