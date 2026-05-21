@@ -14,10 +14,20 @@ const ALLOWED = new Map<string, string>([
   ["image/gif", "gif"],
 ]);
 
-/** Vercel Blob when this is set (auto on Vercel after creating a Blob store); otherwise local disk under public/. */
-function useBlobStorage(): boolean {
-  return Boolean(process.env.BLOB_READ_WRITE_TOKEN?.trim());
+function isVercelRuntime(): boolean {
+  return Boolean(process.env.VERCEL);
 }
+
+function blobToken(): string | undefined {
+  return process.env.BLOB_READ_WRITE_TOKEN?.trim();
+}
+
+function useBlobStorage(): boolean {
+  return Boolean(blobToken()) || isVercelRuntime();
+}
+
+const BLOB_SETUP_MESSAGE =
+  "Image uploads on Vercel need Blob storage. Vercel dashboard → your project → Storage → Create Blob Store → Connect to Project, then redeploy (adds BLOB_READ_WRITE_TOKEN).";
 
 /**
  * True for images we saved ourselves (local uploads dir or this app's Vercel Blob prefix), so replace/delete is safe.
@@ -58,11 +68,15 @@ export async function saveProjectImageFile(file: File): Promise<string> {
   const name = `${randomUUID()}.${ext}`;
 
   if (useBlobStorage()) {
+    if (!blobToken()) {
+      throw new Error(BLOB_SETUP_MESSAGE);
+    }
     const pathname = `projects/${name}`;
     const { url } = await put(pathname, buf, {
       access: "public",
       contentType: mime || `image/${ext}`,
       addRandomSuffix: false,
+      token: blobToken(),
     });
     return url;
   }
@@ -90,7 +104,7 @@ export async function deleteProjectUploadFile(publicPath: string | null | undefi
 
   if (publicPath.startsWith("https://")) {
     try {
-      await del(publicPath);
+      await del(publicPath, blobToken() ? { token: blobToken() } : undefined);
     } catch {
       /* already gone or missing token locally */
     }
