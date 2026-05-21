@@ -4,6 +4,7 @@ import { signIn } from "next-auth/react";
 import { useCallback, useEffect, useState } from "react";
 
 import { DiscordLogo } from "@/components/discord-logo";
+import { SocialDisconnectButton } from "@/components/social-disconnect-button";
 import { XLogo } from "@/components/x-logo";
 import { SocialProfileCell } from "@/components/social-profile-cell";
 import type { WalletSocialPublic } from "@/lib/social-profile-url";
