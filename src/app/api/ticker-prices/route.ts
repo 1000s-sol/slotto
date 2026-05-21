@@ -4,9 +4,9 @@ import { fetchHeliusTokenMeta, normalizeImageUrl } from "@/lib/helius-token-meta
 import { fetchLiquidTickerProjects } from "@/lib/ticker-liquid-projects";
 
 /** Wrapped SOL — DexScreener / Jupiter “SOL” spot price */
-export const SOL_MINT = "So11111111111111111111111111111111111111112";
+const SOL_MINT = "So11111111111111111111111111111111111111112";
 
-export type TickerItem = {
+type TickerItem = {
   mint: string;
   symbol: string;
   priceUsd: number | null;
