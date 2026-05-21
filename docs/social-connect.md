@@ -47,7 +47,10 @@ If upgrading from `WalletProfile` (wallet-as-PK):
 
 ```bash
 npm run db:migrate-profiles   # creates UserProfile tables + copies legacy data
-npm run db:push               # then sync schema (drops old WalletProfile table)
+npm run db:push               # sync schema (use DIRECT_URL in .env, not pooler)
+
+# If db:push fails with "UserProfile_discordId_key already exists":
+npm run db:fix-profile-push && npm run db:push
 ```
 
 Schema: `UserProfile`, `LinkedWallet`, `ProjectLike(userProfileId)`.

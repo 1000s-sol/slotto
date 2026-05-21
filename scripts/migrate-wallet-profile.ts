@@ -56,14 +56,6 @@ async function ensureNewTables() {
     );
   `);
   await prisma.$executeRawUnsafe(`
-    CREATE UNIQUE INDEX IF NOT EXISTS "UserProfile_discordId_key"
-    ON "UserProfile"("discordId") WHERE "discordId" IS NOT NULL;
-  `);
-  await prisma.$executeRawUnsafe(`
-    CREATE UNIQUE INDEX IF NOT EXISTS "UserProfile_xId_key"
-    ON "UserProfile"("xId") WHERE "xId" IS NOT NULL;
-  `);
-  await prisma.$executeRawUnsafe(`
     CREATE TABLE IF NOT EXISTS "LinkedWallet" (
       "id" TEXT NOT NULL,
       "userProfileId" TEXT NOT NULL,
@@ -75,13 +67,7 @@ async function ensureNewTables() {
         FOREIGN KEY ("userProfileId") REFERENCES "UserProfile"("id") ON DELETE CASCADE
     );
   `);
-  await prisma.$executeRawUnsafe(`
-    CREATE UNIQUE INDEX IF NOT EXISTS "LinkedWallet_wallet_key" ON "LinkedWallet"("wallet");
-  `);
-  await prisma.$executeRawUnsafe(`
-    CREATE INDEX IF NOT EXISTS "LinkedWallet_userProfileId_idx" ON "LinkedWallet"("userProfileId");
-  `);
-  console.log("UserProfile + LinkedWallet tables ready.");
+  console.log("UserProfile + LinkedWallet tables ready (indexes added by db:push).");
 }
 
 type LegacyRow = {

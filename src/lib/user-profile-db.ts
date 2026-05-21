@@ -104,16 +104,16 @@ export function socialFromUserProfile(row: UserProfile): WalletSocialPublic {
 export async function getProfilePublic(
   userProfileId: string,
 ): Promise<ProfilePublic | null> {
-  let row = await prisma.userProfile.findUnique({
+  const loaded = await prisma.userProfile.findUnique({
     where: { id: userProfileId },
     include: { linkedWallets: { orderBy: { verifiedAt: "desc" } } },
   });
-  if (!row) return null;
-  row = await ensureDiscordProfileComplete(row);
+  if (!loaded) return null;
+  const profile = await ensureDiscordProfileComplete(loaded);
   return {
-    id: row.id,
-    social: socialFromUserProfile(row),
-    wallets: row.linkedWallets.map((w) => w.wallet),
+    id: profile.id,
+    social: socialFromUserProfile(profile),
+    wallets: loaded.linkedWallets.map((w) => w.wallet),
   };
 }
 
