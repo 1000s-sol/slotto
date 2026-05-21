@@ -155,14 +155,11 @@ export function ProfileSocialSection() {
           {social?.discord ? (
             <div className="flex items-center gap-2">
               <SocialProfileCell profile={social.discord} size={32} />
-              <button
-                type="button"
+              <SocialDisconnectButton
+                label="Disconnect Discord"
                 disabled={phase.kind === "loading"}
                 onClick={() => unlink("discord")}
-                className="text-xs text-red-400 hover:underline disabled:opacity-50"
-              >
-                Disconnect
-              </button>
+              />
             </div>
           ) : (
             <button
@@ -184,14 +181,11 @@ export function ProfileSocialSection() {
           {social?.x ? (
             <div className="flex items-center gap-2">
               <SocialProfileCell profile={social.x} platform="x" size={32} />
-              <button
-                type="button"
+              <SocialDisconnectButton
+                label="Disconnect X"
                 disabled={phase.kind === "loading"}
                 onClick={() => unlink("twitter")}
-                className="text-xs text-red-400 hover:underline disabled:opacity-50"
-              >
-                Disconnect
-              </button>
+              />
             </div>
           ) : (
             <button
