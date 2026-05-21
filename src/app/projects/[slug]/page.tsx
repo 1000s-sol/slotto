@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -11,8 +12,60 @@ import {
 } from "@/lib/project-collections";
 import { prisma } from "@/lib/prisma";
 import { fetchProjectTokenDisplay } from "@/lib/project-token-display";
+import {
+  getSiteUrl,
+  projectShareDescription,
+  projectShareImageUrl,
+} from "@/lib/project-share-meta";
 
 type Props = { params: Promise<{ slug: string }> };
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { slug } = await params;
+  const project = await prisma.project.findFirst({
+    where: { slug, published: true },
+    select: {
+      name: true,
+      reviewMd: true,
+      bannerImageUrl: true,
+      listingImageUrl: true,
+    },
+  });
+
+  if (!project) {
+    return { title: "Project not found" };
+  }
+
+  const siteUrl = getSiteUrl();
+  const title = project.name;
+  const description = projectShareDescription(project.reviewMd);
+  const image = projectShareImageUrl(project.bannerImageUrl, project.listingImageUrl, siteUrl);
+  const pageUrl = `${siteUrl.replace(/\/$/, "")}/projects/${slug}`;
+
+  return {
+    title,
+    description,
+    openGraph: {
+      type: "website",
+      url: pageUrl,
+      title: `${title} · Slotto`,
+      description,
+      siteName: "Slotto",
+      images: [
+        {
+          url: image,
+          alt: `${title} on Slotto`,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${title} · Slotto`,
+      description,
+      images: [image],
+    },
+  };
+}
 
 export default async function ProjectPage({ params }: Props) {
   const { slug } = await params;
