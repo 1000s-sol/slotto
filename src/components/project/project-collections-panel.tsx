@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 
+import { SiteSelect } from "@/components/ui/site-select";
 import { MarketplaceLogoLink } from "@/components/project/marketplace-link-chip";
 import type { CollectionLink, ProjectCollection } from "@/lib/project-collections";
 import { collectionDisplayName } from "@/lib/project-collections";
@@ -101,17 +102,16 @@ export function ProjectCollectionsPanel({
       {collections.length > 1 ? (
         <label className="flex max-w-md flex-col gap-2 text-xs text-muted">
           Collection
-          <select
+          <SiteSelect
             value={safeIndex}
             onChange={(e) => setSelected(Number(e.target.value))}
-            className="rounded-xl border border-border bg-surface/60 px-3 py-2.5 text-sm font-medium text-foreground outline-none focus:border-accent-purple/40 focus:ring-4 focus:ring-accent-purple/15"
           >
             {options.map((o) => (
               <option key={o.index} value={o.index}>
                 {o.label}
               </option>
             ))}
-          </select>
+          </SiteSelect>
         </label>
       ) : null}
 

@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { updateFeaturedProjectAction } from "@/app/admin/(dashboard)/settings/actions";
+import { SITE_SELECT_CLASS } from "@/components/ui/site-select";
 import { prisma } from "@/lib/prisma";
 import { getFeaturedProjectSlugFromDb } from "@/lib/site-settings";
 
@@ -53,7 +54,7 @@ export default async function AdminSettingsPage({ searchParams }: Props) {
           <select
             name="featuredProjectSlug"
             defaultValue={currentSlug ?? ""}
-            className="rounded-xl border border-border bg-surface/60 px-3 py-2.5 text-sm text-foreground outline-none focus:border-accent-purple/40 focus:ring-4 focus:ring-accent-purple/15"
+            className={SITE_SELECT_CLASS}
           >
             <option value="">Automatic (env slug if set, else highest likes)</option>
             {published.map((p) => (

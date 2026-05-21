@@ -1,5 +1,6 @@
 "use client";
 
+import { SiteSelect } from "@/components/ui/site-select";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo, useTransition } from "react";
 
@@ -43,21 +44,20 @@ export function ProjectsToolbar({ defaultSort }: { defaultSort: ProjectsSortValu
     <div className="flex w-full flex-col gap-3 sm:ml-auto sm:w-auto sm:flex-row sm:items-end sm:justify-end sm:gap-4">
       <label className="flex min-w-[10rem] flex-col gap-1 text-xs text-muted sm:min-w-[11rem]">
         Sort by
-        <select
+        <SiteSelect
           value={currentSort}
           disabled={pending}
           onChange={(e) => {
             const sort = e.target.value as ProjectsSortValue;
             apply({ sort });
           }}
-          className="rounded-xl border border-border bg-surface/60 px-3 py-2 text-sm text-foreground outline-none transition focus:border-accent-purple/40 focus:ring-4 focus:ring-accent-purple/15 disabled:opacity-50"
         >
           {SORT_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>
               {o.label}
             </option>
           ))}
-        </select>
+        </SiteSelect>
       </label>
       <form
         className="flex w-full flex-col gap-2 text-xs text-muted sm:w-72"

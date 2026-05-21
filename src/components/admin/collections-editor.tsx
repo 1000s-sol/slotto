@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+import { SiteSelect } from "@/components/ui/site-select";
 import {
   MARKETPLACE_IDS,
   MARKETPLACE_LABEL,
@@ -129,7 +130,7 @@ export function CollectionsEditor({ initialCollections }: { initialCollections: 
               >
                 <label className="flex flex-col gap-1 text-xs text-muted">
                   Marketplace
-                  <select
+                  <SiteSelect
                     value={link.marketplace}
                     onChange={(e) => {
                       const v = e.target.value;
@@ -137,14 +138,13 @@ export function CollectionsEditor({ initialCollections }: { initialCollections: 
                         updateLink(collIndex, linkIndex, { marketplace: v as MarketplaceId });
                       }
                     }}
-                    className="rounded-xl border border-border bg-surface/60 px-3 py-2 text-sm text-foreground outline-none focus:border-accent-purple/40 focus:ring-4 focus:ring-accent-purple/15"
                   >
                     {MARKETPLACE_IDS.map((id) => (
                       <option key={id} value={id}>
                         {MARKETPLACE_LABEL[id]}
                       </option>
                     ))}
-                  </select>
+                  </SiteSelect>
                 </label>
                 <label className="flex min-w-0 flex-col gap-1 text-xs text-muted">
                   URL

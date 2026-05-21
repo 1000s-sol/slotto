@@ -6,6 +6,7 @@ import { PublicKey } from "@solana/web3.js";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { LotteryWinnerPanel } from "@/components/lottery/lottery-winner-panel";
+import { SiteSelect } from "@/components/ui/site-select";
 import { fetchWalletSocialsClient } from "@/lib/fetch-wallet-social-client";
 import type { WalletSocialPublic } from "@/lib/social-profile-url";
 import { buySolTickets } from "@/lib/lottery/buy-sol-tickets";
@@ -438,11 +439,10 @@ export function HomeLotterySection() {
             <div className="mt-6 grid gap-4 sm:grid-cols-3">
               <label className="flex flex-col gap-2 text-xs text-muted">
                 Pay with
-                <select
+                <SiteSelect
                   value={payWith}
                   onChange={(e) => setPayWith(e.target.value)}
                   disabled={buySectionDisabled}
-                  className="rounded-xl border border-neutral-400/80 bg-neutral-200 px-3 py-2 text-sm text-neutral-900 outline-none focus:border-accent-purple focus:ring-2 focus:ring-accent-purple/30 disabled:cursor-not-allowed"
                 >
                   <option value="SOL">SOL</option>
                   {splUiRows
@@ -461,7 +461,7 @@ export function HomeLotterySection() {
                         </option>
                       );
                     })}
-                </select>
+                </SiteSelect>
               </label>
 
               <label className="flex flex-col gap-2 text-xs text-muted">
