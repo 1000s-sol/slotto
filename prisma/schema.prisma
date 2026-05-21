@@ -101,6 +101,10 @@ model Project {
   twitterUrl       String?
   websiteUrl       String?
   tokenMint        String?
+  /// When true (default), token is tradeable — Dex/Birdeye. When false, use tokenImageUrl and Solscan.
+  tokenLiquid      Boolean      @default(true)
+  /// Custom logo for non-liquid project tokens (URL or /uploads/…)
+  tokenImageUrl    String?
   /// { floor, supply, listings, volume, sales24h } as strings for display
   stats            Json?
   /// [{ "label": "Magic Eden", "href": "https://..." }]

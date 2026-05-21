@@ -66,29 +66,43 @@ export default async function ProjectsPage({ searchParams }: Props) {
     stats: true,
   } as const;
 
+  const statsPromise = Promise.all([
+    prisma.project.count({ where: { published: true } }),
+    prisma.project.count({
+      where: { published: true, NOT: { tokenMint: null } },
+    }),
+  ]);
+
   let featured: ProjectRow | null = null;
   let grid: ProjectRow[];
+  let stats: { projectCount: number; tokenCount: number };
 
   if (query) {
-    const raw = await prisma.project.findMany({
-      where: {
-        published: true,
-        name: { contains: query, mode: "insensitive" as const },
-      },
-      select,
-    });
+    const [raw, counts] = await Promise.all([
+      prisma.project.findMany({
+        where: {
+          published: true,
+          name: { contains: query, mode: "insensitive" as const },
+        },
+        select,
+      }),
+      statsPromise,
+    ]);
     grid = sortProjects(raw as ProjectRow[], sort);
+    stats = { projectCount: counts[0], tokenCount: counts[1] };
   } else {
-    const [allRows, adminFeaturedSlug] = await Promise.all([
+    const [allRows, adminFeaturedSlug, counts] = await Promise.all([
       prisma.project.findMany({
         where: { published: true },
         select,
       }),
       getFeaturedProjectSlugFromDb(),
+      statsPromise,
     ]);
     const all = allRows as ProjectRow[];
     featured = pickFeaturedProject(all, adminFeaturedSlug);
     grid = sortProjects(all, sort);
+    stats = { projectCount: counts[0], tokenCount: counts[1] };
   }
 
   return (
@@ -109,6 +123,16 @@ export default async function ProjectsPage({ searchParams }: Props) {
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">
             All listings are independent and unbiased. Slotto.gg does not offer paid promotion of any kind.
           </p>
+          <dl className="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-sm">
+            <div>
+              <dt className="inline text-muted">Projects listed: </dt>
+              <dd className="inline font-semibold tabular-nums text-foreground">{stats.projectCount}</dd>
+            </div>
+            <div>
+              <dt className="inline text-muted">Tokens enabled: </dt>
+              <dd className="inline font-semibold tabular-nums text-foreground">{stats.tokenCount}</dd>
+            </div>
+          </dl>
         </div>
         <Suspense
           fallback={

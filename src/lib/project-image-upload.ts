@@ -36,7 +36,7 @@ function useBlobStorage(): boolean {
 }
 
 const BLOB_SETUP_HINT =
-  "Connect a Vercel Blob store to this project, then redeploy. Env vars from Settings only apply to new deployments — a browser refresh is not enough.";
+  "Connect a Public Vercel Blob store to this project (Storage → your store → Connect to Project), then redeploy. Env vars only apply to new deployments — a browser refresh is not enough.";
 
 /**
  * True for images we saved ourselves (local uploads dir or this app's Vercel Blob prefix), so replace/delete is safe.
@@ -96,7 +96,12 @@ export async function saveProjectImageFile(file: File): Promise<string> {
       return url;
     } catch (err) {
       const detail = err instanceof Error ? err.message : String(err);
-      throw new Error(`${BLOB_SETUP_HINT} (${detail})`);
+      const privateStore =
+        /private store|private access/i.test(detail);
+      const hint = privateStore
+        ? "This app uploads with public access (images must load on the public site). Create a new Blob store with Public access, connect it to slotto, redeploy — or delete the private store and recreate as Public."
+        : BLOB_SETUP_HINT;
+      throw new Error(`${hint} (${detail})`);
     }
   }
 

@@ -1,30 +1,18 @@
 import { NextResponse } from "next/server";
 
 import { fetchHeliusTokenMeta, normalizeImageUrl } from "@/lib/helius-token-meta";
+import { fetchLiquidTickerProjects } from "@/lib/ticker-liquid-projects";
 
 /** Wrapped SOL — DexScreener / Jupiter “SOL” spot price */
-const SOL_MINT = "So11111111111111111111111111111111111111112";
-
-const TRACKED_MINTS = [
-  SOL_MINT,
-  "7ztGsbEkbSzeeUgm3SwCp6hkmaJe3Gwi4zgvANKSfYML",
-  "E5ZVeBMazQAYq4UEiSNRLxfMeRds9SKL31yPan7j5GJK",
-  "C9vfeaCLhJy7sykgKnfzi6RikawQNoGtRKwsaupKavmV",
-  "EmpirdtfUMfBQXEjnNmTngeimjfizfuSBD3TN9zqzydj",
-  "64vQ6Km98vEZnz7a1MmgMjsaDYUL7RaLJCDmRiggBAGS",
-  "FPTaXcvgE4Jwf5NK4tLcZAqPqHooPgFxZ8yWbEaTZ6W5",
-] as const;
-
-/** DexScreener batch can omit thin pools — keep display names stable */
-const KNOWN_SYMBOLS: Record<string, string> = {
-  C9vfeaCLhJy7sykgKnfzi6RikawQNoGtRKwsaupKavmV: "BLUNANA",
-};
+export const SOL_MINT = "So11111111111111111111111111111111111111112";
 
 export type TickerItem = {
   mint: string;
   symbol: string;
   priceUsd: number | null;
   logoUrl: string | null;
+  projectSlug: string | null;
+  projectName: string | null;
 };
 
 type DexRow = {
@@ -33,13 +21,20 @@ type DexRow = {
   info?: { imageUrl?: string };
 };
 
+type TickerSlot = {
+  mint: string;
+  projectSlug: string | null;
+  projectName: string | null;
+};
+
 function abbrevMint(mint: string) {
   return `${mint.slice(0, 4)}…${mint.slice(-4)}`;
 }
 
-async function fetchJupiterUsd(mints: readonly string[]): Promise<Record<string, number | null>> {
+async function fetchJupiterUsd(mints: string[]): Promise<Record<string, number | null>> {
   const out: Record<string, number | null> = {};
   for (const m of mints) out[m] = null;
+  if (!mints.length) return out;
   try {
     const url = `https://api.jup.ag/price/v3/price?ids=${mints.join(",")}`;
     const res = await fetch(url, { next: { revalidate: 30 } });
@@ -55,29 +50,49 @@ async function fetchJupiterUsd(mints: readonly string[]): Promise<Record<string,
   return out;
 }
 
-export async function GET() {
-  try {
-    const [dexRes, jupUsd] = await Promise.all([
-      fetch(
-        `https://api.dexscreener.com/tokens/v1/solana/${TRACKED_MINTS.join(",")}`,
+async function fetchDexByMint(mints: string[]): Promise<Map<string, DexRow>> {
+  const byMint = new Map<string, DexRow>();
+  const unique = [...new Set(mints)];
+  const chunkSize = 20;
+  for (let i = 0; i < unique.length; i += chunkSize) {
+    const chunk = unique.slice(i, i + chunkSize);
+    try {
+      const res = await fetch(
+        `https://api.dexscreener.com/tokens/v1/solana/${chunk.join(",")}`,
         { headers: { Accept: "application/json" }, next: { revalidate: 30 } },
-      ),
-      fetchJupiterUsd(TRACKED_MINTS),
-    ]);
-
-    const byMint = new Map<string, DexRow>();
-    if (dexRes.ok) {
-      const data = (await dexRes.json()) as DexRow[];
+      );
+      if (!res.ok) continue;
+      const data = (await res.json()) as DexRow[];
       for (const row of data) {
         const addr = row.baseToken?.address;
         if (addr && !byMint.has(addr)) byMint.set(addr, row);
       }
+    } catch {
+      /* partial data ok */
     }
+  }
+  return byMint;
+}
 
-    /** Helius backfills logos (and symbols) when Dex has no image or no row */
-    const needsHelius = TRACKED_MINTS.filter((mint) => {
+async function buildTickerSlots(): Promise<TickerSlot[]> {
+  const projects = await fetchLiquidTickerProjects();
+  const slots: TickerSlot[] = [{ mint: SOL_MINT, projectSlug: null, projectName: null }];
+  for (const p of projects) {
+    slots.push({ mint: p.mint, projectSlug: p.slug, projectName: p.name });
+  }
+  return slots;
+}
+
+export async function GET() {
+  try {
+    const slots = await buildTickerSlots();
+    const mints = [...new Set(slots.map((s) => s.mint))];
+
+    const [byMint, jupUsd] = await Promise.all([fetchDexByMint(mints), fetchJupiterUsd(mints)]);
+
+    const needsHelius = mints.filter((mint) => {
       const row = byMint.get(mint);
-      return !row?.info?.imageUrl?.trim();
+      return mint !== SOL_MINT && !row?.info?.imageUrl?.trim();
     });
 
     const heliusMap = new Map<string, Awaited<ReturnType<typeof fetchHeliusTokenMeta>>>();
@@ -87,7 +102,8 @@ export async function GET() {
       }),
     );
 
-    const items: TickerItem[] = TRACKED_MINTS.map((mint) => {
+    const items: TickerItem[] = slots.map((slot) => {
+      const { mint, projectSlug, projectName } = slot;
       const row = byMint.get(mint);
       const helius = heliusMap.get(mint) ?? null;
 
@@ -108,7 +124,6 @@ export async function GET() {
           ? "SOL"
           : row?.baseToken?.symbol?.trim() ||
             helius?.symbol?.trim() ||
-            KNOWN_SYMBOLS[mint] ||
             abbrevMint(mint);
 
       if (mint !== SOL_MINT && symbol.length > 12) {
@@ -119,7 +134,14 @@ export async function GET() {
       const heliusLogo = normalizeImageUrl(helius?.image);
       const logoUrl = dexLogo || heliusLogo || null;
 
-      return { mint, symbol, priceUsd, logoUrl };
+      return {
+        mint,
+        symbol,
+        priceUsd,
+        logoUrl,
+        projectSlug,
+        projectName,
+      };
     });
 
     return NextResponse.json(
@@ -127,12 +149,17 @@ export async function GET() {
       { headers: { "Cache-Control": "public, s-maxage=30, stale-while-revalidate=60" } },
     );
   } catch {
+    const slots = await buildTickerSlots().catch(() => [
+      { mint: SOL_MINT, projectSlug: null, projectName: null },
+    ]);
     return NextResponse.json({
-      items: TRACKED_MINTS.map((mint) => ({
-        mint,
-        symbol: mint === SOL_MINT ? "SOL" : abbrevMint(mint),
+      items: slots.map((slot) => ({
+        mint: slot.mint,
+        symbol: slot.mint === SOL_MINT ? "SOL" : abbrevMint(slot.mint),
         priceUsd: null,
         logoUrl: null,
+        projectSlug: slot.projectSlug,
+        projectName: slot.projectName,
       })),
     });
   }

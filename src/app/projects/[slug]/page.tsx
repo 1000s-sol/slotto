@@ -64,7 +64,13 @@ export default async function ProjectPage({ params }: Props) {
   }
 
   const tokenMint = project.tokenMint?.trim() ?? "";
-  const tokenDisplay = tokenMint ? await fetchProjectTokenDisplay(tokenMint) : null;
+  const tokenLiquid = project.tokenLiquid ?? true;
+  const tokenDisplay = tokenMint
+    ? await fetchProjectTokenDisplay(tokenMint, {
+        liquid: tokenLiquid,
+        tokenImageUrl: project.tokenImageUrl,
+      })
+    : null;
 
   return (
     <div className="space-y-6">
@@ -131,7 +137,12 @@ export default async function ProjectPage({ params }: Props) {
           ) : null}
 
           {tokenMint && tokenDisplay ? (
-            <ProjectTokenBlock mint={tokenMint} symbol={tokenDisplay.symbol} logoUrl={tokenDisplay.logoUrl} />
+            <ProjectTokenBlock
+              mint={tokenMint}
+              symbol={tokenDisplay.symbol}
+              logoUrl={tokenDisplay.logoUrl}
+              liquid={tokenLiquid}
+            />
           ) : null}
 
           {marketplaces.length > 0 ? (

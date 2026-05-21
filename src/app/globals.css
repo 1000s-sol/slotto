@@ -70,7 +70,7 @@ img[src^="/brand/"] {
 .ticker-track {
   display: flex;
   width: max-content;
-  animation: ticker-scroll 22s linear infinite;
+  animation: ticker-scroll 32s linear infinite;
 }
 
 .ticker-track:hover {

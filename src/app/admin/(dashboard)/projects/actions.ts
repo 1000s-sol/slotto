@@ -7,6 +7,10 @@ import { currentAdminAddress } from "@/lib/admin-session";
 import type { ProjectFormState } from "@/lib/project-form-state";
 import { resolveProjectImageFromForm } from "@/lib/project-image-form";
 import { deleteProjectUploadFile, isProjectUploadPath } from "@/lib/project-image-upload";
+import {
+  cleanupReplacedTokenImage,
+  resolveProjectTokenFromForm,
+} from "@/lib/parse-project-token-form";
 import { isValidSlug, normalizeSlugInput, slugifyName } from "@/lib/project-slug";
 import { prisma } from "@/lib/prisma";
 
@@ -111,6 +115,9 @@ export async function createProjectAction(
   const listingRes = await resolveProjectImageFromForm(formData, "listingFile", "listingImageUrl");
   if (listingRes.error) return { ok: false, message: listingRes.error };
 
+  const tokenRes = await resolveProjectTokenFromForm(formData);
+  if (tokenRes.error) return { ok: false, message: tokenRes.error };
+
   const published = formData.get("published") === "on";
 
   const admin = await prisma.adminWallet.findFirst({
@@ -129,7 +136,9 @@ export async function createProjectAction(
     discordUrl: str(formData, "discordUrl") || null,
     twitterUrl: str(formData, "twitterUrl") || null,
     websiteUrl: str(formData, "websiteUrl") || null,
-    tokenMint: str(formData, "tokenMint") || null,
+    tokenMint: tokenRes.tokenMint,
+    tokenLiquid: tokenRes.tokenLiquid,
+    tokenImageUrl: tokenRes.tokenImageUrl,
     bannerImageUrl: bannerRes.url,
     listingImageUrl: listingRes.url,
     published,
@@ -202,6 +211,11 @@ export async function updateProjectAction(
   const listingRes = await resolveProjectImageFromForm(formData, "listingFile", "listingImageUrl");
   if (listingRes.error) return { ok: false, message: listingRes.error };
 
+  const tokenRes = await resolveProjectTokenFromForm(formData, {
+    tokenImageUrl: existing.tokenImageUrl,
+  });
+  if (tokenRes.error) return { ok: false, message: tokenRes.error };
+
   const newBanner = bannerRes.url;
   const newListing = listingRes.url;
 
@@ -223,7 +237,9 @@ export async function updateProjectAction(
         discordUrl: str(formData, "discordUrl") || null,
         twitterUrl: str(formData, "twitterUrl") || null,
         websiteUrl: str(formData, "websiteUrl") || null,
-        tokenMint: str(formData, "tokenMint") || null,
+        tokenMint: tokenRes.tokenMint,
+        tokenLiquid: tokenRes.tokenLiquid,
+        tokenImageUrl: tokenRes.tokenImageUrl,
         bannerImageUrl: newBanner,
         listingImageUrl: newListing,
         stats: Prisma.JsonNull,
@@ -257,6 +273,7 @@ export async function updateProjectAction(
   if (newListing !== existing.listingImageUrl && isProjectUploadPath(existing.listingImageUrl)) {
     await deleteProjectUploadFile(existing.listingImageUrl);
   }
+  await cleanupReplacedTokenImage(existing.tokenImageUrl, tokenRes.tokenImageUrl);
 
   redirect(`/admin/projects/${slug}/edit?saved=1`);
 }
@@ -273,7 +290,7 @@ export async function deleteProjectAction(
 
   const row = await prisma.project.findUnique({
     where: { id },
-    select: { bannerImageUrl: true, listingImageUrl: true },
+    select: { bannerImageUrl: true, listingImageUrl: true, tokenImageUrl: true },
   });
   if (!row) return { ok: false, message: "Project not found." };
 
@@ -285,6 +302,7 @@ export async function deleteProjectAction(
 
   await deleteProjectUploadFile(row.bannerImageUrl);
   await deleteProjectUploadFile(row.listingImageUrl);
+  await deleteProjectUploadFile(row.tokenImageUrl);
 
   redirect("/admin/projects?deleted=1");
 }

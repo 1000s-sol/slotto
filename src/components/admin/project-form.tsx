@@ -170,6 +170,64 @@ function MarketplacesEditor({ initialJson }: { initialJson: string }) {
   );
 }
 
+function TokenMintEditor({
+  defaultMint,
+  defaultLiquid,
+  defaultTokenImageUrl,
+}: {
+  defaultMint: string;
+  defaultLiquid: boolean;
+  defaultTokenImageUrl: string;
+}) {
+  const [liquid, setLiquid] = useState(defaultLiquid);
+
+  useEffect(() => {
+    setLiquid(defaultLiquid);
+  }, [defaultLiquid]);
+
+  return (
+    <div className="space-y-4 rounded-2xl border border-border bg-surface/25 p-4">
+      <div>
+        <h3 className="text-sm font-semibold text-foreground">Project token</h3>
+        <p className="mt-1 text-[11px] leading-relaxed text-muted">
+          Optional SPL mint for the project page. <strong className="text-muted">Liquid</strong> tokens are tradeable
+          (Birdeye + ticker). Uncheck for utility tokens that are not tradeable — add a custom image and link to
+          Solscan instead.
+        </p>
+      </div>
+      <input type="hidden" name="tokenLiquid" value={liquid ? "true" : "false"} readOnly />
+      <label className="flex flex-col gap-2 text-xs text-muted">
+        Token mint (optional)
+        <input
+          name="tokenMint"
+          defaultValue={defaultMint}
+          placeholder="Mint address"
+          className="rounded-xl border border-border bg-surface/60 px-3 py-2 font-mono text-xs text-foreground outline-none focus:border-accent-purple/40 focus:ring-4 focus:ring-accent-purple/15 sm:text-sm"
+        />
+      </label>
+      <label className="inline-flex cursor-pointer items-center gap-3 text-sm text-foreground">
+        <input
+          type="checkbox"
+          checked={liquid}
+          onChange={(e) => setLiquid(e.target.checked)}
+          className="h-4 w-4 rounded border-border accent-accent-purple"
+        />
+        Liquid (tradeable on markets)
+      </label>
+      {!liquid ? (
+        <ImageFieldBlock
+          title="Token image"
+          description="Shown on the public project page for non-liquid tokens. Required when Liquid is unchecked."
+          urlName="tokenImageUrl"
+          fileName="tokenImageFile"
+          defaultUrl={defaultTokenImageUrl}
+          previewUrl={defaultTokenImageUrl}
+        />
+      ) : null}
+    </div>
+  );
+}
+
 function ImageFieldBlock({
   title,
   description,
@@ -358,14 +416,11 @@ export function ProjectForm({
         </label>
       </div>
 
-      <label className="flex flex-col gap-2 text-xs text-muted">
-        Token mint (optional)
-        <input
-          name="tokenMint"
-          defaultValue={merged.tokenMint}
-          className="rounded-xl border border-border bg-surface/60 px-3 py-2 font-mono text-xs text-foreground outline-none focus:border-accent-purple/40 focus:ring-4 focus:ring-accent-purple/15 sm:text-sm"
-        />
-      </label>
+      <TokenMintEditor
+        defaultMint={merged.tokenMint}
+        defaultLiquid={merged.tokenLiquid}
+        defaultTokenImageUrl={merged.tokenImageUrl}
+      />
 
       <MarketplacesEditor key={projectId ?? "new-project"} initialJson={merged.marketplacesJson} />
 
