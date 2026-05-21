@@ -174,10 +174,12 @@ function TokenMintEditor({
   defaultMint,
   defaultLiquid,
   defaultTokenImageUrl,
+  defaultTokenName,
 }: {
   defaultMint: string;
   defaultLiquid: boolean;
   defaultTokenImageUrl: string;
+  defaultTokenName: string;
 }) {
   const [liquid, setLiquid] = useState(defaultLiquid);
 
@@ -215,14 +217,25 @@ function TokenMintEditor({
         Liquid (tradeable on markets)
       </label>
       {!liquid ? (
-        <ImageFieldBlock
-          title="Token image"
-          description="Shown on the public project page for non-liquid tokens. Required when Liquid is unchecked."
-          urlName="tokenImageUrl"
-          fileName="tokenImageFile"
-          defaultUrl={defaultTokenImageUrl}
-          previewUrl={defaultTokenImageUrl}
-        />
+        <>
+          <label className="flex flex-col gap-2 text-xs text-muted">
+            Token name
+            <input
+              name="tokenName"
+              defaultValue={defaultTokenName}
+              placeholder="e.g. BUX"
+              className="rounded-xl border border-border bg-surface/60 px-3 py-2 text-sm text-foreground outline-none focus:border-accent-purple/40 focus:ring-4 focus:ring-accent-purple/15"
+            />
+          </label>
+          <ImageFieldBlock
+            title="Token image"
+            description="Shown on the public project page for non-liquid tokens. Required when Liquid is unchecked."
+            urlName="tokenImageUrl"
+            fileName="tokenImageFile"
+            defaultUrl={defaultTokenImageUrl}
+            previewUrl={defaultTokenImageUrl}
+          />
+        </>
       ) : null}
     </div>
   );
@@ -420,6 +433,7 @@ export function ProjectForm({
         defaultMint={merged.tokenMint}
         defaultLiquid={merged.tokenLiquid}
         defaultTokenImageUrl={merged.tokenImageUrl}
+        defaultTokenName={merged.tokenName}
       />
 
       <MarketplacesEditor key={projectId ?? "new-project"} initialJson={merged.marketplacesJson} />

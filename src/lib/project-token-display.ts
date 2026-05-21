@@ -12,6 +12,7 @@ type DexRow = {
 export type ProjectTokenDisplayOpts = {
   liquid?: boolean;
   tokenImageUrl?: string | null;
+  tokenName?: string | null;
 };
 
 /** Symbol + logo for a project token mint (DexScreener + Helius, same spirit as ticker). */
@@ -25,10 +26,16 @@ export async function fetchProjectTokenDisplay(
   const m = mint.trim();
   if (!m) return { symbol: "", logoUrl: null };
 
+  const nonLiquid = opts?.liquid === false;
   const customLogo =
-    opts?.liquid === false && opts.tokenImageUrl?.trim()
-      ? opts.tokenImageUrl.trim()
-      : null;
+    nonLiquid && opts.tokenImageUrl?.trim() ? opts.tokenImageUrl.trim() : null;
+  const customName = nonLiquid && opts.tokenName?.trim() ? opts.tokenName.trim() : null;
+
+  if (customName) {
+    const logoUrl = customLogo ?? null;
+    if (logoUrl) return { symbol: customName, logoUrl };
+    // still resolve logo from chain if no custom image was stored yet
+  }
 
   let dexSymbol: string | undefined;
   let dexLogo: string | null = null;
@@ -54,7 +61,7 @@ export async function fetchProjectTokenDisplay(
   const heliusLogo = normalizeImageUrl(helius?.image);
   const logoUrl = customLogo || dexLogo || heliusLogo || null;
 
-  let symbol = dexSymbol || helius?.symbol?.trim() || abbrevMint(m);
+  let symbol = customName || dexSymbol || helius?.symbol?.trim() || abbrevMint(m);
   if (symbol.length > 12) symbol = symbol.slice(0, 12);
 
   return { symbol, logoUrl };

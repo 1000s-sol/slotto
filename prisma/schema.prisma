@@ -105,6 +105,8 @@ model Project {
   tokenLiquid      Boolean      @default(true)
   /// Custom logo for non-liquid project tokens (URL or /uploads/…)
   tokenImageUrl    String?
+  /// Display name for non-liquid tokens (e.g. BUX)
+  tokenName        String?
   /// { floor, supply, listings, volume, sales24h } as strings for display
   stats            Json?
   /// [{ "label": "Magic Eden", "href": "https://..." }]

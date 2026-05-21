@@ -139,6 +139,7 @@ export async function createProjectAction(
     tokenMint: tokenRes.tokenMint,
     tokenLiquid: tokenRes.tokenLiquid,
     tokenImageUrl: tokenRes.tokenImageUrl,
+    tokenName: tokenRes.tokenName,
     bannerImageUrl: bannerRes.url,
     listingImageUrl: listingRes.url,
     published,
@@ -213,6 +214,7 @@ export async function updateProjectAction(
 
   const tokenRes = await resolveProjectTokenFromForm(formData, {
     tokenImageUrl: existing.tokenImageUrl,
+    tokenName: existing.tokenName,
   });
   if (tokenRes.error) return { ok: false, message: tokenRes.error };
 
@@ -240,6 +242,7 @@ export async function updateProjectAction(
         tokenMint: tokenRes.tokenMint,
         tokenLiquid: tokenRes.tokenLiquid,
         tokenImageUrl: tokenRes.tokenImageUrl,
+        tokenName: tokenRes.tokenName,
         bannerImageUrl: newBanner,
         listingImageUrl: newListing,
         stats: Prisma.JsonNull,

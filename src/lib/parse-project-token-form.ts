@@ -9,27 +9,46 @@ export type ResolvedProjectToken = {
   tokenMint: string | null;
   tokenLiquid: boolean;
   tokenImageUrl: string | null;
+  tokenName: string | null;
   error?: string;
+};
+
+const emptyToken: ResolvedProjectToken = {
+  tokenMint: null,
+  tokenLiquid: true,
+  tokenImageUrl: null,
+  tokenName: null,
 };
 
 export async function resolveProjectTokenFromForm(
   formData: FormData,
-  existing?: { tokenImageUrl: string | null },
+  existing?: { tokenImageUrl: string | null; tokenName: string | null },
 ): Promise<ResolvedProjectToken> {
   const tokenMint = str(formData, "tokenMint") || null;
   const tokenLiquid = formData.get("tokenLiquid") !== "false";
 
   if (!tokenMint) {
-    return { tokenMint: null, tokenLiquid: true, tokenImageUrl: null };
+    return emptyToken;
   }
 
   if (tokenLiquid) {
-    return { tokenMint, tokenLiquid: true, tokenImageUrl: null };
+    return { tokenMint, tokenLiquid: true, tokenImageUrl: null, tokenName: null };
+  }
+
+  const tokenName = str(formData, "tokenName");
+  if (!tokenName) {
+    return {
+      tokenMint,
+      tokenLiquid: false,
+      tokenImageUrl: null,
+      tokenName: null,
+      error: "Non-liquid tokens need a token name (e.g. BUX).",
+    };
   }
 
   const imgRes = await resolveProjectImageFromForm(formData, "tokenImageFile", "tokenImageUrl");
   if (imgRes.error) {
-    return { tokenMint, tokenLiquid: false, tokenImageUrl: null, error: imgRes.error };
+    return { tokenMint, tokenLiquid: false, tokenImageUrl: null, tokenName, error: imgRes.error };
   }
 
   let tokenImageUrl = imgRes.url ?? existing?.tokenImageUrl ?? null;
@@ -38,11 +57,12 @@ export async function resolveProjectTokenFromForm(
       tokenMint,
       tokenLiquid: false,
       tokenImageUrl: null,
+      tokenName,
       error: "Non-liquid tokens need a token image (URL or file upload).",
     };
   }
 
-  return { tokenMint, tokenLiquid: false, tokenImageUrl };
+  return { tokenMint, tokenLiquid: false, tokenImageUrl, tokenName };
 }
 
 /** Remove replaced uploaded token image after a successful save. */

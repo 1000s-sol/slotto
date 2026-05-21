@@ -13,6 +13,7 @@ export type ProjectFormDefaults = {
   tokenMint: string;
   tokenLiquid: boolean;
   tokenImageUrl: string;
+  tokenName: string;
   bannerImageUrl: string;
   listingImageUrl: string;
   marketplacesJson: string;
@@ -30,6 +31,7 @@ export const emptyDefaults: ProjectFormDefaults = {
   tokenMint: "",
   tokenLiquid: true,
   tokenImageUrl: "",
+  tokenName: "",
   bannerImageUrl: "",
   listingImageUrl: "",
   marketplacesJson: "[]",
@@ -55,6 +57,7 @@ export function defaultsFromProject(p: {
   tokenMint: string | null;
   tokenLiquid?: boolean;
   tokenImageUrl?: string | null;
+  tokenName?: string | null;
   bannerImageUrl: string | null;
   listingImageUrl: string | null;
   marketplaces: unknown;
@@ -71,6 +74,7 @@ export function defaultsFromProject(p: {
     tokenMint: p.tokenMint ?? "",
     tokenLiquid: p.tokenLiquid ?? true,
     tokenImageUrl: p.tokenImageUrl ?? "",
+    tokenName: p.tokenName ?? "",
     bannerImageUrl: p.bannerImageUrl ?? "",
     listingImageUrl: p.listingImageUrl ?? "",
     marketplacesJson: JSON.stringify(Array.isArray(p.marketplaces) ? p.marketplaces : [], null, 2),

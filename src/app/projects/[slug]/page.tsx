@@ -69,6 +69,7 @@ export default async function ProjectPage({ params }: Props) {
     ? await fetchProjectTokenDisplay(tokenMint, {
         liquid: tokenLiquid,
         tokenImageUrl: project.tokenImageUrl,
+        tokenName: project.tokenName,
       })
     : null;
 
