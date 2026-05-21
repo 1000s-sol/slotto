@@ -4,6 +4,7 @@ import { signIn } from "next-auth/react";
 import { useCallback, useEffect, useState } from "react";
 
 import { DiscordLogo } from "@/components/discord-logo";
+import { XLogo } from "@/components/x-logo";
 import { SocialProfileCell } from "@/components/social-profile-cell";
 import type { WalletSocialPublic } from "@/lib/social-profile-url";
 
@@ -178,7 +179,8 @@ export function ProfileSocialSection() {
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-3">
-          <span className="text-sm font-medium text-foreground">X</span>
+          <span className="sr-only">X</span>
+          <XLogo size={24} className="shrink-0 text-foreground" />
           {social?.x ? (
             <div className="flex items-center gap-2">
               <SocialProfileCell profile={social.x} platform="x" size={32} />
@@ -196,9 +198,11 @@ export function ProfileSocialSection() {
               type="button"
               disabled={phase.kind === "loading" || oauthReady?.twitter === false}
               onClick={() => connectOAuth("twitter")}
-              className="rounded-lg bg-foreground px-3 py-1.5 text-xs font-semibold text-background disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-lg bg-black px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+              aria-label="Connect X"
             >
-              Connect X
+              <XLogo size={18} variant="white" className="shrink-0" />
+              Connect
             </button>
           )}
         </div>
