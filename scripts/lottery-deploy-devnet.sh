@@ -3,6 +3,8 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+export PATH="${HOME}/.avm/bin:${HOME}/.cargo/bin:${HOME}/.local/share/solana/install/active_release/bin:${PATH:-}"
+
 if [[ -f .env ]]; then
   set -a
   # shellcheck disable=SC1091

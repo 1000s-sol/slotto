@@ -5,7 +5,7 @@
  * IDL can be found at `target/idl/slotto_lottery.json`.
  */
 export type SlottoLottery = {
-  "address": "CiSuRzLSXbbbStNaDjjZbmSU8dn3zhx9qs3Nd9gvNYke",
+  "address": "6mYYxtJ4NPH1oNJoy2CpJGQq6XiWCsu8iB5y6ior6TMq",
   "metadata": {
     "name": "slottoLottery",
     "version": "0.1.0",
@@ -43,6 +43,10 @@ export type SlottoLottery = {
       "args": [
         {
           "name": "teamVault",
+          "type": "pubkey"
+        },
+        {
+          "name": "buxVault",
           "type": "pubkey"
         },
         {
@@ -186,6 +190,10 @@ export type SlottoLottery = {
           "writable": true
         },
         {
+          "name": "buxVault",
+          "writable": true
+        },
+        {
           "name": "setupVault",
           "writable": true
         },
@@ -238,18 +246,14 @@ export type SlottoLottery = {
           "name": "mint"
         },
         {
-          "name": "splVaultAuthority"
+          "name": "teamVault"
         },
         {
           "name": "buyerToken",
           "writable": true
         },
         {
-          "name": "treasuryToken",
-          "writable": true
-        },
-        {
-          "name": "teamVault",
+          "name": "teamToken",
           "writable": true
         },
         {
@@ -580,106 +584,111 @@ export type SlottoLottery = {
     },
     {
       "code": 6013,
+      "name": "invalidBuxVault",
+      "msg": "invalidBuxVault"
+    },
+    {
+      "code": 6014,
       "name": "invalidSetupVault",
       "msg": "invalidSetupVault"
     },
     {
-      "code": 6014,
+      "code": 6015,
       "name": "invalidChunkAccounts",
       "msg": "invalidChunkAccounts"
     },
     {
-      "code": 6015,
+      "code": 6016,
       "name": "invalidChunkAccount",
       "msg": "invalidChunkAccount"
     },
     {
-      "code": 6016,
+      "code": 6017,
       "name": "ticketSlotOccupied",
       "msg": "ticketSlotOccupied"
     },
     {
-      "code": 6017,
+      "code": 6018,
       "name": "mintNotInDraw",
       "msg": "mintNotInDraw"
     },
     {
-      "code": 6018,
+      "code": 6019,
       "name": "splCapExceeded",
       "msg": "splCapExceeded"
     },
     {
-      "code": 6019,
+      "code": 6020,
       "name": "splMintDecimalsMismatch",
       "msg": "splMintDecimalsMismatch"
     },
     {
-      "code": 6020,
+      "code": 6021,
       "name": "invalidDrawStateForCloseSales",
       "msg": "invalidDrawStateForCloseSales"
     },
     {
-      "code": 6021,
+      "code": 6022,
       "name": "salesPeriodNotEnded",
       "msg": "salesPeriodNotEnded"
     },
     {
-      "code": 6022,
+      "code": 6023,
       "name": "invalidDrawStateForRefund",
       "msg": "invalidDrawStateForRefund"
     },
     {
-      "code": 6023,
+      "code": 6024,
       "name": "refundDrawHasTickets",
       "msg": "refundDrawHasTickets"
     },
     {
-      "code": 6024,
+      "code": 6025,
       "name": "invalidSeedRefund",
       "msg": "invalidSeedRefund"
     },
     {
-      "code": 6025,
+      "code": 6026,
       "name": "invalidDrawStateForVrf",
       "msg": "invalidDrawStateForVrf"
     },
     {
-      "code": 6026,
+      "code": 6027,
       "name": "vrfNeedsTickets",
       "msg": "vrfNeedsTickets"
     },
     {
-      "code": 6027,
+      "code": 6028,
       "name": "vrfAlreadyRequested",
       "msg": "vrfAlreadyRequested"
     },
     {
-      "code": 6028,
+      "code": 6029,
       "name": "invalidDrawStateForSettle",
       "msg": "invalidDrawStateForSettle"
     },
     {
-      "code": 6029,
+      "code": 6030,
       "name": "vrfNotStubMode",
       "msg": "vrfNotStubMode"
     },
     {
-      "code": 6030,
+      "code": 6031,
       "name": "settleAccountsWrongLen",
       "msg": "settleAccountsWrongLen"
     },
     {
-      "code": 6031,
+      "code": 6032,
       "name": "emptyTicketOwner",
       "msg": "emptyTicketOwner"
     },
     {
-      "code": 6032,
+      "code": 6033,
       "name": "winnerMismatch",
       "msg": "winnerMismatch"
     },
     {
-      "code": 6033,
+      "code": 6034,
       "name": "invalidDrawStateForWithdrawSpl",
       "msg": "invalidDrawStateForWithdrawSpl"
     }
@@ -862,6 +871,10 @@ export type SlottoLottery = {
         "fields": [
           {
             "name": "teamVault",
+            "type": "pubkey"
+          },
+          {
+            "name": "buxVault",
             "type": "pubkey"
           },
           {

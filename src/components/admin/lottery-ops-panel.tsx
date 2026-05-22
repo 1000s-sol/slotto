@@ -12,6 +12,11 @@ import {
   solscanTxUrl,
 } from "@/lib/lottery/config";
 import { drawPda, globalConfigPda, prizeVaultPda } from "@/lib/lottery/pdas";
+import {
+  LOTTERY_BUX_VAULT,
+  LOTTERY_SETUP_VAULT,
+  LOTTERY_TEAM_VAULT,
+} from "@/lib/lottery/recipients";
 import { createLotteryProgram } from "@/lib/lottery/program";
 import type { SplMintDraft } from "@/lib/lottery/spl-types";
 import {
@@ -25,6 +30,7 @@ import {
 type GlobalConfigView = {
   authority: string;
   teamVault: string;
+  buxVault: string;
   setupVault: string;
   nextDrawId: string;
 };
@@ -57,8 +63,9 @@ export function LotteryOpsPanel() {
   const [config, setConfig] = useState<GlobalConfigView | null>(null);
   const [initialized, setInitialized] = useState<boolean | null>(null);
 
-  const [teamVault, setTeamVault] = useState("");
-  const [setupVault, setSetupVault] = useState("");
+  const [teamVault, setTeamVault] = useState(LOTTERY_TEAM_VAULT);
+  const [buxVault, setBuxVault] = useState(LOTTERY_BUX_VAULT);
+  const [setupVault, setSetupVault] = useState(LOTTERY_SETUP_VAULT);
 
   const [salesOpen, setSalesOpen] = useState("");
   const [salesClose, setSalesClose] = useState("");
@@ -80,6 +87,7 @@ export function LotteryOpsPanel() {
     setConfig({
       authority: cfg.authority.toBase58(),
       teamVault: cfg.teamVault.toBase58(),
+      buxVault: cfg.buxVault.toBase58(),
       setupVault: cfg.setupVault.toBase58(),
       nextDrawId: cfg.nextDrawId.toString(),
     });
@@ -110,8 +118,6 @@ export function LotteryOpsPanel() {
 
   useEffect(() => {
     if (!publicKey) return;
-    setTeamVault((v) => v || publicKey.toBase58());
-    setSetupVault((v) => v || publicKey.toBase58());
     setSeedRefund((v) => v || publicKey.toBase58());
 
     const now = new Date();
@@ -131,9 +137,10 @@ export function LotteryOpsPanel() {
     try {
       const program = createLotteryProgram(connection, wallet);
       const team = new PublicKey(teamVault.trim());
+      const bux = new PublicKey(buxVault.trim());
       const setup = new PublicKey(setupVault.trim());
       const sig = await program.methods
-        .initialize(team, setup)
+        .initialize(team, bux, setup)
         .accounts({
           authority: publicKey,
           globalConfig,
@@ -319,10 +326,18 @@ export function LotteryOpsPanel() {
             {initialized === false ? (
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className="flex flex-col gap-1 text-xs text-muted">
-                  Team vault (SOL)
+                  Team vault (SOL + SPL)
                   <input
                     value={teamVault}
                     onChange={(e) => setTeamVault(e.target.value)}
+                    className="rounded-lg border border-border bg-surface px-3 py-2 font-mono text-xs text-foreground"
+                  />
+                </label>
+                <label className="flex flex-col gap-1 text-xs text-muted">
+                  BUX project vault (SOL)
+                  <input
+                    value={buxVault}
+                    onChange={(e) => setBuxVault(e.target.value)}
                     className="rounded-lg border border-border bg-surface px-3 py-2 font-mono text-xs text-foreground"
                   />
                 </label>

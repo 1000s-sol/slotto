@@ -1,6 +1,6 @@
 import { PublicKey } from "@solana/web3.js";
 
-const DEFAULT_PROGRAM_ID = "CiSuRzLSXbbbStNaDjjZbmSU8dn3zhx9qs3Nd9gvNYke";
+const DEFAULT_PROGRAM_ID = "6mYYxtJ4NPH1oNJoy2CpJGQq6XiWCsu8iB5y6ior6TMq";
 
 export function lotteryProgramId(): PublicKey {
   const raw =

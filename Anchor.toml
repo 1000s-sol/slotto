@@ -6,10 +6,10 @@ resolution = true
 skip-lint = false
 
 [programs.devnet]
-slotto_lottery = "CiSuRzLSXbbbStNaDjjZbmSU8dn3zhx9qs3Nd9gvNYke"
+slotto_lottery = "6mYYxtJ4NPH1oNJoy2CpJGQq6XiWCsu8iB5y6ior6TMq"
 
 [programs.localnet]
-slotto_lottery = "CiSuRzLSXbbbStNaDjjZbmSU8dn3zhx9qs3Nd9gvNYke"
+slotto_lottery = "6mYYxtJ4NPH1oNJoy2CpJGQq6XiWCsu8iB5y6ior6TMq"
 
 [registry]
 url = "https://api.apr.dev"

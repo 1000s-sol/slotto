@@ -27,6 +27,7 @@
     "lottery:test:integration": "bash scripts/lottery-test-integration.sh",
     "lottery:build": "bash scripts/anchor-build.sh",
     "lottery:deploy:devnet": "bash scripts/lottery-deploy-devnet.sh",
+    "lottery:init-devnet": "tsx scripts/lottery-initialize-devnet.ts",
     "lottery:settle": "tsx scripts/lottery-settle-draw.ts",
     "lottery:keeper": "tsx scripts/lottery-keeper.ts",
     "lottery:mint-devnet-token": "tsx scripts/mint-devnet-spl.ts",

@@ -27,7 +27,6 @@ import {
   LAMPORTS_SPL_TICKET_FEE_TOTAL,
   prizeVaultPda,
   sleep,
-  splVaultAuthPda,
   ticketChunkPda,
 } from "./pdas";
 
@@ -54,6 +53,7 @@ describe("slotto_lottery", () => {
   const authority = (provider.wallet as anchor.Wallet).payer;
   // Must be funded system accounts — buy_sol_tickets transfers SOL to these.
   const teamVault = authority.publicKey;
+  const buxVault = authority.publicKey;
   const setupVault = authority.publicKey;
   const globalConfig = globalConfigPda(program.programId);
 
@@ -67,7 +67,7 @@ describe("slotto_lottery", () => {
       return;
     }
     await program.methods
-      .initialize(teamVault, setupVault)
+      .initialize(teamVault, buxVault, setupVault)
       .accounts({
         authority: authority.publicKey,
         globalConfig,
@@ -211,6 +211,7 @@ describe("slotto_lottery", () => {
         prizeVault,
         globalConfig,
         teamVault,
+        buxVault,
         setupVault,
         systemProgram: SystemProgram.programId,
         rent: SYSVAR_RENT_PUBKEY,
@@ -281,7 +282,7 @@ describe("slotto_lottery", () => {
     expect(winnerBalAfter).to.be.gt(winnerBalBefore);
   });
 
-  it("buys SPL tickets into treasury ATA", async () => {
+  it("buys SPL tickets into team wallet ATA", async () => {
     const mint = await createMint(
       provider.connection,
       authority,
@@ -304,7 +305,6 @@ describe("slotto_lottery", () => {
       ],
     });
 
-    const splAuth = splVaultAuthPda(program.programId, draw);
     const buyerTokenAcct = await getOrCreateAssociatedTokenAccount(
       provider.connection,
       authority,
@@ -312,10 +312,10 @@ describe("slotto_lottery", () => {
       authority.publicKey
     );
     const buyerAta = buyerTokenAcct.address;
-    const treasuryAta = getAssociatedTokenAddressSync(
+    const teamAta = getAssociatedTokenAddressSync(
       mint,
-      splAuth,
-      true,
+      teamVault,
+      false,
       TOKEN_PROGRAM_ID,
       ASSOCIATED_TOKEN_PROGRAM_ID
     );
@@ -345,10 +345,9 @@ describe("slotto_lottery", () => {
         draw,
         globalConfig,
         mint,
-        splVaultAuthority: splAuth,
-        buyerToken: buyerAta,
-        treasuryToken: treasuryAta,
         teamVault,
+        buyerToken: buyerAta,
+        teamToken: teamAta,
         setupVault,
         tokenProgram: TOKEN_PROGRAM_ID,
         associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -365,8 +364,8 @@ describe("slotto_lottery", () => {
     expect(drawAcct.totalTickets).to.equal(2);
     expect(drawAcct.splMintRows[0].sold).to.equal(2);
 
-    const treasury = await getAccount(provider.connection, treasuryAta);
-    expect(Number(treasury.amount)).to.equal(2_000_000);
+    const teamToken = await getAccount(provider.connection, teamAta);
+    expect(Number(teamToken.amount)).to.equal(2_000_000);
 
     const buyerTokenAfter = await getAccount(provider.connection, buyerAta);
     expect(Number(buyerTokenBefore.amount - buyerTokenAfter.amount)).to.equal(

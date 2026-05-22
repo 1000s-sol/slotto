@@ -63,10 +63,9 @@ export async function buySplTickets(
       draw: draw.draw,
       globalConfig,
       mint,
-      splVaultAuthority,
+      teamVault,
       buyerToken,
-      treasuryToken,
-      teamVault: cfg.teamVault,
+      teamToken,
       setupVault: cfg.setupVault,
     })
     .remainingAccounts(remainingAccounts)

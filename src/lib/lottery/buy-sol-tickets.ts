@@ -38,6 +38,7 @@ export async function buySolTickets(
       prizeVault: draw.prizeVault,
       globalConfig,
       teamVault: cfg.teamVault,
+      buxVault: cfg.buxVault,
       setupVault: cfg.setupVault,
     })
     .remainingAccounts(remainingAccounts)

@@ -11,7 +11,7 @@ use anchor_lang::system_program;
 use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token::{self, Mint, Token, TokenAccount};
 
-declare_id!("CiSuRzLSXbbbStNaDjjZbmSU8dn3zhx9qs3Nd9gvNYke");
+declare_id!("6mYYxtJ4NPH1oNJoy2CpJGQq6XiWCsu8iB5y6ior6TMq");
 
 /// Max SPL mints inlined on [`Draw`] (see spec).
 pub const SPL_MINT_MAX: usize = 50;
@@ -21,8 +21,10 @@ pub const TICKETS_PER_CHUNK: usize = 256;
 
 /// Per SOL ticket: **0.009** SOL → prize vault (lamports).
 pub const LAMPORTS_SOL_TICKET_POT: u64 = 9_000_000;
-/// Per SOL ticket: **0.001** SOL → team (lamports).
-pub const LAMPORTS_SOL_TICKET_TEAM: u64 = 1_000_000;
+/// Per SOL ticket: **0.0008** SOL → team (8% of 0.01 ticket price, lamports).
+pub const LAMPORTS_SOL_TICKET_TEAM: u64 = 800_000;
+/// Per SOL ticket: **0.0002** SOL → BUX project wallet (2% of 0.01, lamports).
+pub const LAMPORTS_SOL_TICKET_BUX: u64 = 200_000;
 /// Per SOL ticket: **0.0005** SOL → setup (lamports).
 pub const LAMPORTS_SOL_TICKET_SETUP: u64 = 500_000;
 /// Per SOL ticket total charged: **0.0105** SOL (lamports).
@@ -109,13 +111,20 @@ pub const LAMPORTS_SPL_TICKET_FEE_TOTAL: u64 = 500_000;
 pub mod slotto_lottery {
     use super::*;
 
-    /// One-time program config: team + setup SOL recipients, draw authority, `next_draw_id` counter.
-    pub fn initialize(ctx: Context<Initialize>, team_vault: Pubkey, setup_vault: Pubkey) -> Result<()> {
+    /// One-time program config: team + BUX + setup SOL recipients, draw authority, `next_draw_id` counter.
+    pub fn initialize(
+        ctx: Context<Initialize>,
+        team_vault: Pubkey,
+        bux_vault: Pubkey,
+        setup_vault: Pubkey,
+    ) -> Result<()> {
         require_keys_neq!(team_vault, Pubkey::default());
+        require_keys_neq!(bux_vault, Pubkey::default());
         require_keys_neq!(setup_vault, Pubkey::default());
 
         let cfg = &mut ctx.accounts.global_config;
         cfg.team_vault = team_vault;
+        cfg.bux_vault = bux_vault;
         cfg.setup_vault = setup_vault;
         cfg.authority = ctx.accounts.authority.key();
         cfg.next_draw_id = 0;
@@ -125,8 +134,8 @@ pub mod slotto_lottery {
 
     /// Authority opens a new draw: schedule, optional seed SOL into prize vault, SPL mint table (rows only).
     ///
-    /// SPL treasury ATAs (authority PDA `["spl_vault_auth", draw]`) are created in `buy_spl_tickets` via
-    /// `init_if_needed` to keep this instruction small and rent-predictable.
+    /// SPL ticket proceeds go to the global **team** wallet ATA (`init_if_needed` in `buy_spl_tickets`).
+    /// Legacy per-draw treasury PDAs remain for **`withdraw_spl`** on older draws only.
     pub fn create_draw(
         ctx: Context<CreateDraw>,
         sales_open_ts: i64,
@@ -361,8 +370,8 @@ pub mod slotto_lottery {
         Ok(())
     }
 
-    /// Buy `count` SPL tickets for `mint` (allowlisted on the draw). SPL → treasury ATA; **0.0005 SOL × count**
-    /// fee split team:setup in the same **2:1** ratio as the non-pot part of a SOL ticket (`1_000_000` : `500_000`).
+    /// Buy `count` SPL tickets for `mint` (allowlisted on the draw). SPL → team wallet ATA at purchase;
+    /// **0.0005 SOL × count** setup fee only (no SOL team/BUX slice on SPL buys).
     ///
     /// **Remaining accounts:** same as [`buy_sol_tickets`] — ticket chunk PDAs, sorted by chunk index.
     pub fn buy_spl_tickets(ctx: Context<BuySplTickets>, count: u32) -> Result<()> {
@@ -403,7 +412,7 @@ pub mod slotto_lottery {
 
         let spl_amount = spl_token_amount_for_buy(row.price_per_ticket, count)?;
 
-        let (fee_team, fee_setup) = spl_fee_lamports_split(count)?;
+        let fee_setup = spl_fee_lamports_total(count)?;
 
         let chunk_indices = ticket_chunk_indices_for_range(base, count)?;
         require_eq!(
@@ -420,16 +429,6 @@ pub mod slotto_lottery {
                 ctx.accounts.system_program.to_account_info(),
                 system_program::Transfer {
                     from: ctx.accounts.buyer.to_account_info(),
-                    to: ctx.accounts.team_vault.to_account_info(),
-                },
-            ),
-            fee_team,
-        )?;
-        system_program::transfer(
-            CpiContext::new(
-                ctx.accounts.system_program.to_account_info(),
-                system_program::Transfer {
-                    from: ctx.accounts.buyer.to_account_info(),
                     to: ctx.accounts.setup_vault.to_account_info(),
                 },
             ),
@@ -441,7 +440,7 @@ pub mod slotto_lottery {
                 ctx.accounts.token_program.to_account_info(),
                 token::Transfer {
                     from: ctx.accounts.buyer_token.to_account_info(),
-                    to: ctx.accounts.treasury_token.to_account_info(),
+                    to: ctx.accounts.team_token.to_account_info(),
                     authority: ctx.accounts.buyer.to_account_info(),
                 },
             ),
@@ -751,20 +750,11 @@ pub(crate) fn sol_ticket_lamports_splits(count: u32) -> Result<(u64, u64, u64)> 
     Ok((pot, team, setup))
 }
 
-/// Split **total** SPL fee lamports (`LAMPORTS_SPL_TICKET_FEE_TOTAL * count`) in **2:1** team:setup ratio (matches `1_000_000` : `500_000` from SOL ticket margins).
-pub(crate) fn spl_fee_lamports_split(count: u32) -> Result<(u64, u64)> {
-    let total: u128 = (LAMPORTS_SPL_TICKET_FEE_TOTAL as u128)
-        .checked_mul(count as u128)
-        .ok_or(error!(ErrorCode::ArithmeticOverflow))?;
-    let team: u128 = total
-        .checked_mul(1_000_000)
-        .ok_or(error!(ErrorCode::ArithmeticOverflow))?
-        .checked_div(1_500_000)
-        .ok_or(error!(ErrorCode::ArithmeticOverflow))?;
-    let setup: u128 = total
-        .checked_sub(team)
-        .ok_or(error!(ErrorCode::ArithmeticOverflow))?;
-    Ok((team as u64, setup as u64))
+/// **Total** SPL setup fee lamports (`LAMPORTS_SPL_TICKET_FEE_TOTAL * count`). No team vault payment.
+pub(crate) fn spl_fee_lamports_total(count: u32) -> Result<u64> {
+    LAMPORTS_SPL_TICKET_FEE_TOTAL
+        .checked_mul(count as u64)
+        .ok_or(error!(ErrorCode::ArithmeticOverflow))
 }
 
 #[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize)]
@@ -950,6 +940,7 @@ impl PrizeVault {
 #[account]
 pub struct GlobalConfig {
     pub team_vault: Pubkey,
+    pub bux_vault: Pubkey,
     pub setup_vault: Pubkey,
     pub authority: Pubkey,
     /// Monotonic: next `create_draw` receives this id, then increments.
@@ -958,7 +949,7 @@ pub struct GlobalConfig {
 }
 
 impl GlobalConfig {
-    pub const LEN: usize = 32 + 32 + 32 + 8 + 1;
+    pub const LEN: usize = 32 + 32 + 32 + 32 + 8 + 1;
 }
 
 #[derive(Accounts)]
@@ -1030,6 +1021,9 @@ pub struct BuySolTickets<'info> {
     /// CHECK: team SOL recipient from global config.
     #[account(mut, constraint = team_vault.key() == global_config.team_vault @ ErrorCode::InvalidTeamVault)]
     pub team_vault: UncheckedAccount<'info>,
+    /// CHECK: BUX project SOL recipient from global config.
+    #[account(mut, constraint = bux_vault.key() == global_config.bux_vault @ ErrorCode::InvalidBuxVault)]
+    pub bux_vault: UncheckedAccount<'info>,
     /// CHECK: setup SOL recipient from global config.
     #[account(mut, constraint = setup_vault.key() == global_config.setup_vault @ ErrorCode::InvalidSetupVault)]
     pub setup_vault: UncheckedAccount<'info>,
@@ -1048,9 +1042,9 @@ pub struct BuySplTickets<'info> {
     #[account(seeds = [b"global_config"], bump = global_config.bump)]
     pub global_config: Account<'info, GlobalConfig>,
     pub mint: Account<'info, Mint>,
-    /// CHECK: PDA authority for SPL treasury ATAs (matches `draw.spl_auth_bump`).
-    #[account(seeds = [b"spl_vault_auth", draw.key().as_ref()], bump)]
-    pub spl_vault_authority: UncheckedAccount<'info>,
+    /// CHECK: team wallet from global config (SPL recipient at purchase).
+    #[account(constraint = team_vault.key() == global_config.team_vault @ ErrorCode::InvalidTeamVault)]
+    pub team_vault: UncheckedAccount<'info>,
     #[account(
         mut,
         token::mint = mint,
@@ -1061,13 +1055,10 @@ pub struct BuySplTickets<'info> {
         init_if_needed,
         payer = buyer,
         associated_token::mint = mint,
-        associated_token::authority = spl_vault_authority,
+        associated_token::authority = team_vault,
     )]
-    pub treasury_token: Account<'info, TokenAccount>,
-    /// CHECK: team SOL recipient from global config.
-    #[account(mut, constraint = team_vault.key() == global_config.team_vault @ ErrorCode::InvalidTeamVault)]
-    pub team_vault: UncheckedAccount<'info>,
-    /// CHECK: setup SOL recipient from global config.
+    pub team_token: Account<'info, TokenAccount>,
+    /// CHECK: setup SOL recipient from global config (SPL ticket fee only).
     #[account(mut, constraint = setup_vault.key() == global_config.setup_vault @ ErrorCode::InvalidSetupVault)]
     pub setup_vault: UncheckedAccount<'info>,
     pub token_program: Program<'info, Token>,
@@ -1180,6 +1171,8 @@ pub enum ErrorCode {
     ArithmeticOverflow,
     #[msg("team vault does not match global config")]
     InvalidTeamVault,
+    #[msg("BUX vault does not match global config")]
+    InvalidBuxVault,
     #[msg("setup vault does not match global config")]
     InvalidSetupVault,
     #[msg("remaining ticket chunk accounts missing or out of order")]
@@ -1259,37 +1252,32 @@ mod tests {
     #[test]
     fn sol_ticket_per_ticket_constants_sum_to_total() {
         assert_eq!(
-            LAMPORTS_SOL_TICKET_POT + LAMPORTS_SOL_TICKET_TEAM + LAMPORTS_SOL_TICKET_SETUP,
+            LAMPORTS_SOL_TICKET_POT
+                + LAMPORTS_SOL_TICKET_TEAM
+                + LAMPORTS_SOL_TICKET_BUX
+                + LAMPORTS_SOL_TICKET_SETUP,
             LAMPORTS_SOL_TICKET_TOTAL
         );
     }
 
     #[test]
     fn sol_ticket_lamports_splits_bulk() {
-        let (pot, team, setup) = sol_ticket_lamports_splits(3).unwrap();
+        let (pot, team, bux, setup) = sol_ticket_lamports_splits(3).unwrap();
         assert_eq!(pot, LAMPORTS_SOL_TICKET_POT * 3);
         assert_eq!(team, LAMPORTS_SOL_TICKET_TEAM * 3);
+        assert_eq!(bux, LAMPORTS_SOL_TICKET_BUX * 3);
         assert_eq!(setup, LAMPORTS_SOL_TICKET_SETUP * 3);
-        assert_eq!(pot + team + setup, LAMPORTS_SOL_TICKET_TOTAL * 3);
+        assert_eq!(pot + team + bux + setup, LAMPORTS_SOL_TICKET_TOTAL * 3);
     }
 
     #[test]
-    fn spl_fee_split_one_ticket() {
-        let (team, setup) = spl_fee_lamports_split(1).unwrap();
-        assert_eq!(team + setup, LAMPORTS_SPL_TICKET_FEE_TOTAL);
-        assert_eq!(team, 333_333);
-        assert_eq!(setup, 166_667);
+    fn spl_fee_total_one_ticket() {
+        assert_eq!(spl_fee_lamports_total(1).unwrap(), LAMPORTS_SPL_TICKET_FEE_TOTAL);
     }
 
     #[test]
-    fn spl_fee_split_bulk_matches_2_to_1() {
-        let (team, setup) = spl_fee_lamports_split(2).unwrap();
-        assert_eq!(team + setup, LAMPORTS_SPL_TICKET_FEE_TOTAL * 2);
-        assert_eq!(team, 666_666);
-        assert_eq!(setup, 333_334);
-        let (t3, s3) = spl_fee_lamports_split(3).unwrap();
-        assert_eq!(t3, 1_000_000);
-        assert_eq!(s3, 500_000);
+    fn spl_fee_total_bulk() {
+        assert_eq!(spl_fee_lamports_total(3).unwrap(), LAMPORTS_SPL_TICKET_FEE_TOTAL * 3);
     }
 
     #[test]
