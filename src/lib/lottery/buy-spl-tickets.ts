@@ -28,10 +28,7 @@ export async function buySplTickets(
   const globalConfig = globalConfigPda(programId);
   const cfg = await program.account.globalConfig.fetch(globalConfig);
 
-  const [splVaultAuthority] = PublicKey.findProgramAddressSync(
-    [Buffer.from("spl_vault_auth"), draw.draw.toBuffer()],
-    programId,
-  );
+  const teamVault = cfg.teamVault;
 
   const buyerToken = getAssociatedTokenAddressSync(
     mint,
@@ -40,10 +37,10 @@ export async function buySplTickets(
     TOKEN_PROGRAM_ID,
     ASSOCIATED_TOKEN_PROGRAM_ID,
   );
-  const treasuryToken = getAssociatedTokenAddressSync(
+  const teamToken = getAssociatedTokenAddressSync(
     mint,
-    splVaultAuthority,
-    true,
+    teamVault,
+    false,
     TOKEN_PROGRAM_ID,
     ASSOCIATED_TOKEN_PROGRAM_ID,
   );
