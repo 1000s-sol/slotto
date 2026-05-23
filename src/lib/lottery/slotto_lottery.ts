@@ -751,6 +751,15 @@ export type SlottoLottery = {
           {
             "name": "sold",
             "type": "u32"
+          },
+          {
+            "name": "padding1",
+            "type": {
+              "array": [
+                "u8",
+                4
+              ]
+            }
           }
         ]
       }

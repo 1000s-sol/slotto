@@ -6,6 +6,10 @@ import {
 
 import { DrawState } from "./constants";
 import {
+  readDrawFromRaw,
+  readSplMintRowFromRaw,
+} from "./draw-account";
+import {
   drawPda,
   globalConfigPda,
   prizeVaultPda,
@@ -54,6 +58,45 @@ export async function fetchJackpotLamports(
   return Math.max(0, info.lamports - rentMin);
 }
 
+function toDrawViewFromRaw(
+  programId: PublicKey,
+  drawId: number,
+  drawKey: PublicKey,
+  data: Buffer,
+): LotteryDrawView | null {
+  const raw = readDrawFromRaw(data);
+  if (!raw) return null;
+
+  const emptyMint = PublicKey.default.toBase58();
+  const splMints: SplMintRowView[] = [];
+  for (let i = 0; i < raw.splCount; i += 1) {
+    const row = readSplMintRowFromRaw(data, i);
+    if (!row) continue;
+    const mint = row.mint.toBase58();
+    if (mint === emptyMint) continue;
+    splMints.push({
+      mint,
+      cap: row.cap,
+      sold: row.sold,
+      pricePerTicket: row.pricePerTicket.toString(),
+      decimals: row.mintDecimals,
+    });
+  }
+
+  return {
+    drawId,
+    draw: drawKey,
+    prizeVault: prizeVaultPda(programId, drawKey),
+    salesOpenTs: raw.salesOpenTs,
+    salesCloseTs: raw.salesCloseTs,
+    state: raw.state,
+    totalTickets: raw.totalTickets,
+    splMints,
+    winningTicketId: raw.winningTicketId,
+    winner: raw.winner?.toBase58() ?? null,
+  };
+}
+
 /** Latest draw in `Selling` state, else the most recently created draw for status display. */
 export async function fetchLotteryDraw(
   connection: Connection,
@@ -75,15 +118,10 @@ export async function fetchLotteryDraw(
   let fallback: LotteryDrawView | null = null;
 
   for (let drawId = nextId - 1; drawId >= 0; drawId -= 1) {
-    const drawKey = drawPda(programId, drawId);
-    try {
-      const acct = await program.account.draw.fetch(drawKey);
-      const view = toDrawView(programId, drawId, drawKey, acct);
-      if (acct.state === DrawState.Selling) return view;
-      if (!fallback) fallback = view;
-    } catch {
-      continue;
-    }
+    const draw = await fetchDrawById(connection, programId, drawId);
+    if (!draw) continue;
+    if (draw.state === DrawState.Selling) return draw;
+    if (!fallback) fallback = draw;
   }
 
   return fallback;
@@ -94,58 +132,10 @@ export async function fetchDrawById(
   programId: PublicKey,
   drawId: number,
 ): Promise<LotteryDrawView | null> {
-  const program = createLotteryReadOnlyProgram(connection);
   const drawKey = drawPda(programId, drawId);
-  try {
-    const acct = await program.account.draw.fetch(drawKey);
-    return toDrawView(programId, drawId, drawKey, acct);
-  } catch {
-    return null;
-  }
-}
-
-function toDrawView(
-  programId: PublicKey,
-  drawId: number,
-  drawKey: PublicKey,
-  acct: Awaited<
-    ReturnType<
-      ReturnType<typeof createLotteryReadOnlyProgram>["account"]["draw"]["fetch"]
-    >
-  >,
-): LotteryDrawView {
-  const emptyMint = PublicKey.default.toBase58();
-  const splMints: SplMintRowView[] = [];
-  for (let i = 0; i < acct.splCount; i += 1) {
-    const row = acct.splMintRows[i];
-    if (!row) continue;
-    const mint = row.mint.toBase58();
-    if (mint === emptyMint) continue;
-    splMints.push({
-      mint,
-      cap: row.cap,
-      sold: row.sold,
-      pricePerTicket: row.pricePerTicket.toString(),
-      decimals: row.mintDecimals,
-    });
-  }
-
-  const winnerPk = acct.winner;
-  const winner =
-    winnerPk.equals(PublicKey.default) ? null : winnerPk.toBase58();
-
-  return {
-    drawId,
-    draw: drawKey,
-    prizeVault: prizeVaultPda(programId, drawKey),
-    salesOpenTs: Number(acct.salesOpenTs),
-    salesCloseTs: Number(acct.salesCloseTs),
-    state: acct.state,
-    totalTickets: acct.totalTickets,
-    splMints,
-    winningTicketId: acct.winningTicketId,
-    winner,
-  };
+  const info = await connection.getAccountInfo(drawKey, "confirmed");
+  if (!info?.data?.length) return null;
+  return toDrawViewFromRaw(programId, drawId, drawKey, Buffer.from(info.data));
 }
 
 export function isDrawBuyable(

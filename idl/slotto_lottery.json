@@ -568,6 +568,15 @@
           {
             "name": "sold",
             "type": "u32"
+          },
+          {
+            "name": "_padding1",
+            "type": {
+              "array": [
+                "u8",
+                4
+              ]
+            }
           }
         ]
       }
