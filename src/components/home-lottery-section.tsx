@@ -453,7 +453,7 @@ export function HomeLotterySection() {
                 <>
                   0.01 SOL per ticket{" "}
                   <span className="text-[11px] text-muted/75">
-                    (+ 0.001 SOL fees: 0.0008 team, 0.0002 BUX, 0.0005 setup)
+                    (+ 0.0005 SOL platform fee)
                   </span>
                 </>
               ) : (
