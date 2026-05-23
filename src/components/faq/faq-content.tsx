@@ -1,5 +1,20 @@
+"use client";
+
 import Link from "next/link";
-import type { ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useId,
+  useState,
+  type ReactNode,
+} from "react";
+
+const FaqAccordionContext = createContext<{
+  openId: string | null;
+  setOpenId: (id: string | null) => void;
+} | null>(null);
+
+const FaqSectionContext = createContext<string>("");
 
 const sections = [
   { id: "overview", label: "Overview" },
@@ -16,23 +31,38 @@ const sections = [
 ] as const;
 
 function FaqItem({ question, children }: { question: string; children: ReactNode }) {
+  const accordion = useContext(FaqAccordionContext);
+  const sectionId = useContext(FaqSectionContext);
+  const itemId = useId();
+  const id = `${sectionId}${itemId}`;
+  const open = accordion?.openId === id;
+
   return (
-    <details className="group rounded-xl border border-border bg-bg-elevated/70 open:ring-1 open:ring-accent-purple/20">
-      <summary className="cursor-pointer list-none px-4 py-3.5 text-sm font-semibold text-foreground transition hover:text-accent-cyan [&::-webkit-details-marker]:hidden">
-        <span className="flex items-start justify-between gap-3">
-          <span>{question}</span>
-          <span
-            className="mt-0.5 shrink-0 text-muted transition group-open:rotate-180"
-            aria-hidden
-          >
-            ▾
-          </span>
+    <div
+      className={`rounded-xl border border-border bg-bg-elevated/70 ${
+        open ? "ring-1 ring-accent-purple/20" : ""
+      }`}
+    >
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => accordion?.setOpenId(open ? null : id)}
+        className="flex w-full cursor-pointer list-none items-start justify-between gap-3 px-4 py-3.5 text-left text-sm font-semibold text-foreground transition hover:text-accent-cyan"
+      >
+        <span>{question}</span>
+        <span
+          className={`mt-0.5 shrink-0 text-muted transition ${open ? "rotate-180" : ""}`}
+          aria-hidden
+        >
+          ▾
         </span>
-      </summary>
-      <div className="space-y-2 border-t border-border px-4 pb-4 pt-3 text-sm leading-relaxed text-muted">
-        {children}
-      </div>
-    </details>
+      </button>
+      {open ? (
+        <div className="space-y-2 border-t border-border px-4 pb-4 pt-3 text-sm leading-relaxed text-muted">
+          {children}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -46,12 +76,14 @@ function FaqSection({
   children: ReactNode;
 }) {
   return (
-    <section id={id} className="scroll-mt-24 space-y-3">
-      <h2 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
-        {title}
-      </h2>
-      <div className="space-y-2">{children}</div>
-    </section>
+    <FaqSectionContext.Provider value={`${id}:`}>
+      <section id={id} className="scroll-mt-24 space-y-3">
+        <h2 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
+          {title}
+        </h2>
+        <div className="space-y-2">{children}</div>
+      </section>
+    </FaqSectionContext.Provider>
   );
 }
 
@@ -240,7 +272,10 @@ function SplPoolFlow() {
 }
 
 export function FaqContent() {
+  const [openId, setOpenId] = useState<string | null>(null);
+
   return (
+    <FaqAccordionContext.Provider value={{ openId, setOpenId }}>
     <div className="space-y-10">
       <header className="space-y-3">
         <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
@@ -442,12 +477,12 @@ export function FaqContent() {
         </FaqItem>
         <FaqItem question="How does a project get featured in the lotto?">
           <p>
-            Projects apply via{" "}
+            Open a ticket in the Slotto Discord support server — use the link on our{" "}
             <Link href="/contact" className="font-medium text-accent-cyan hover:underline">
               Contact
-            </Link>
-            . Featured tokens can be added to a draw&apos;s SPL ticket list by the Slotto
-            team.
+            </Link>{" "}
+            page. Featured tokens can be added to a draw&apos;s SPL ticket list by the
+            Slotto team.
           </p>
         </FaqItem>
         <FaqItem question="What does it mean for a project to be in the SPL ticket list?">
@@ -494,11 +529,11 @@ export function FaqContent() {
         </FaqItem>
         <FaqItem question="How do I apply to list?">
           <p>
-            Use the{" "}
+            Join the Slotto Discord support server via our{" "}
             <Link href="/contact" className="font-medium text-accent-cyan hover:underline">
               Contact
             </Link>{" "}
-            page for listing applications and Jackpot Sunday guest spots.
+            page and open a ticket for listing applications or Jackpot Sunday guest spots.
           </p>
         </FaqItem>
       </FaqSection>
@@ -527,15 +562,16 @@ export function FaqContent() {
       <FaqSection id="support" title="Support">
         <FaqItem question="Where do I get help or report an issue?">
           <p>
-            Visit the{" "}
+            Join the Slotto Discord support server via our{" "}
             <Link href="/contact" className="font-medium text-accent-cyan hover:underline">
               Contact
             </Link>{" "}
-            page, or follow Slotto on X for draw updates and our weekly Jackpot Sunday
-            Space (Sundays @ 2pm EST).
+            page and open a support ticket. You can also follow Slotto on X for draw
+            updates and our weekly Jackpot Sunday Space (Sundays @ 2pm EST).
           </p>
         </FaqItem>
       </FaqSection>
     </div>
+    </FaqAccordionContext.Provider>
   );
 }
