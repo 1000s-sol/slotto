@@ -25,6 +25,15 @@ function errorStrings(error: unknown): string[] {
     if (o.code === 429 || o.status === 429 || o.statusCode === 429) {
       out.push("429 Too Many Requests");
     }
+    const headers = o.headers;
+    if (headers && typeof headers === "object") {
+      const h = headers as Record<string, unknown>;
+      const retryAfter =
+        h["retry-after"] ?? h["Retry-After"] ?? h.retryAfter;
+      if (retryAfter != null) {
+        out.push(`retry-after ${String(retryAfter)}`);
+      }
+    }
     if (Array.isArray(o.logs)) {
       for (const line of o.logs) {
         if (typeof line === "string") out.push(line);
@@ -49,7 +58,9 @@ function parseRetrySeconds(text: string): number | null {
   const patterns = [
     /try again in (\d+)\s*seconds?/i,
     /retry[- ]after[:\s]+(\d+)/i,
+    /retry after (\d+)/i,
     /wait (\d+)\s*seconds?/i,
+    /(\d+)\s*seconds?\s*(?:until|before)/i,
   ];
   for (const re of patterns) {
     const m = text.match(re);
@@ -60,6 +71,9 @@ function parseRetrySeconds(text: string): number | null {
   }
   return null;
 }
+
+/** When RPC does not say how long to wait, use a conservative default. */
+const RATE_LIMIT_DEFAULT_WAIT_SECONDS = 30;
 
 function isRateLimited(text: string): boolean {
   const lower = text.toLowerCase();
@@ -141,11 +155,9 @@ export function formatLotteryBuyError(
   }
 
   if (isRateLimited(text)) {
-    const seconds = parseRetrySeconds(text);
-    if (seconds !== null) {
-      return `Rate limit reached. Please wait ${seconds} seconds and try again.`;
-    }
-    return "Rate limit reached. Please wait a moment and try again.";
+    const seconds =
+      parseRetrySeconds(text) ?? RATE_LIMIT_DEFAULT_WAIT_SECONDS;
+    return `Rate limit reached. Please wait ${seconds} second${seconds === 1 ? "" : "s"} and try again.`;
   }
 
   const payingSpl = context.payWith && context.payWith !== "SOL";

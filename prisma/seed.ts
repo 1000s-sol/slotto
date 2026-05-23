@@ -2,10 +2,16 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
+/** Upserted on every `prisma db seed` in addition to env vars. */
+const SEED_ADMIN_WALLETS = [
+  "3UYmZg6kK4DfT5tHMxpkc63HZ9odDup9FDxMimEhowC7",
+] as const;
+
 function parseAdminWalletList(): string[] {
   const raw = [
     process.env.INITIAL_ADMIN_WALLET,
     process.env.ADDITIONAL_ADMIN_WALLETS,
+    ...SEED_ADMIN_WALLETS,
   ]
     .filter(Boolean)
     .join(",");

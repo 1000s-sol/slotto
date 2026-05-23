@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { LotteryWinnerPanel } from "@/components/lottery/lottery-winner-panel";
 import { SplPoolInfoButton } from "@/components/lottery/spl-pool-info-modal";
+import { TicketCountInput } from "@/components/lottery/ticket-count-input";
 import { SiteSelect } from "@/components/ui/site-select";
 import { fetchWalletSocialsClient } from "@/lib/fetch-wallet-social-client";
 import type { WalletSocialPublic } from "@/lib/social-profile-url";
@@ -518,21 +519,15 @@ export function HomeLotterySection() {
 
               <label className="flex flex-col gap-2 text-xs text-muted">
                 Tickets
-                <input
-                  type="number"
-                  min={1}
-                  max={maxTicketsForSelection}
+                <TicketCountInput
                   value={ticketCount}
+                  max={maxTicketsForSelection}
                   disabled={buySectionDisabled}
-                  onChange={(e) => {
-                    const n = parseInt(e.target.value, 10);
-                    if (Number.isFinite(n)) {
-                      setTicketCount(
-                        clampTicketCountForPayWith(n, payWith, splUiRows),
-                      );
-                    }
-                  }}
-                  className="rounded-xl border border-neutral-400/80 bg-neutral-200 px-3 py-2 text-sm text-neutral-900 outline-none focus:border-accent-purple focus:ring-2 focus:ring-accent-purple/30 disabled:cursor-not-allowed"
+                  onChange={(n) =>
+                    setTicketCount(
+                      clampTicketCountForPayWith(n, payWith, splUiRows),
+                    )
+                  }
                 />
               </label>
 
