@@ -1,7 +1,7 @@
 "use client";
 
 import { PublicKey } from "@solana/web3.js";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { adminLoadSplCatalogAction } from "@/app/admin/(dashboard)/lotteries/actions";
 import { splUiAmountToBaseUnits } from "@/lib/lottery/spl-price";
@@ -27,14 +27,18 @@ export type LotterySplMintEditorProps = {
   rows: SplMintDraft[];
   onChange: (rows: SplMintDraft[]) => void;
   disabled?: boolean;
+  /** Preload tokens from the last draw once on mount (create-draw flow only). */
+  autoLoadCatalog?: boolean;
 };
 
 export function LotterySplMintEditor({
   rows,
   onChange,
   disabled,
+  autoLoadCatalog = true,
 }: LotterySplMintEditorProps) {
   const [loading, setLoading] = useState(false);
+  const didAutoLoad = useRef(false);
 
   const loadCatalog = useCallback(async () => {
     setLoading(true);
@@ -47,10 +51,11 @@ export function LotterySplMintEditor({
   }, [onChange]);
 
   useEffect(() => {
-    if (rows.length === 0) {
-      void loadCatalog();
-    }
-  }, [loadCatalog, rows.length]);
+    if (!autoLoadCatalog || didAutoLoad.current) return;
+    didAutoLoad.current = true;
+    if (rows.length > 0) return;
+    void loadCatalog();
+  }, [autoLoadCatalog, loadCatalog, rows.length]);
 
   const updateRow = (index: number, patch: Partial<SplMintDraft>) => {
     const next = rows.map((r, i) => {
@@ -90,14 +95,16 @@ export function LotterySplMintEditor({
           SPL ticket tokens ({rows.length}/{SPL_MINT_MAX_ON_CHAIN} on-chain max)
         </p>
         <div className="flex gap-2">
-          <button
-            type="button"
-            disabled={disabled || loading}
-            onClick={() => loadCatalog()}
-            className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted hover:text-foreground disabled:opacity-50"
-          >
-            {loading ? "Loading…" : "Reload from last draw"}
-          </button>
+          {autoLoadCatalog ? (
+            <button
+              type="button"
+              disabled={disabled || loading}
+              onClick={() => loadCatalog()}
+              className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted hover:text-foreground disabled:opacity-50"
+            >
+              {loading ? "Loading…" : "Reload from last draw"}
+            </button>
+          ) : null}
           <button
             type="button"
             disabled={disabled || rows.length >= SPL_MINT_MAX_ON_CHAIN}
@@ -111,7 +118,9 @@ export function LotterySplMintEditor({
 
       {rows.length === 0 ? (
         <p className="text-xs text-muted">
-          No SPL rows. Add tokens or reload from the previous draw catalog.
+          {autoLoadCatalog
+            ? "No SPL rows. Add tokens or reload from the previous draw catalog."
+            : "No tokens added yet. Click Add token to configure one."}
         </p>
       ) : (
         <div className="space-y-3">

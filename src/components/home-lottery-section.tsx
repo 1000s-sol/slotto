@@ -6,6 +6,7 @@ import { PublicKey } from "@solana/web3.js";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { LotteryWinnerPanel } from "@/components/lottery/lottery-winner-panel";
+import { SplPoolInfoButton } from "@/components/lottery/spl-pool-info-modal";
 import { SiteSelect } from "@/components/ui/site-select";
 import { fetchWalletSocialsClient } from "@/lib/fetch-wallet-social-client";
 import type { WalletSocialPublic } from "@/lib/social-profile-url";
@@ -26,7 +27,12 @@ import {
   fetchWinnerPrizeLamports,
   formatSolFromLamports,
 } from "@/lib/lottery/draws";
-import { mergeSplMintsForBuyUi } from "@/lib/lottery/spl-mint-ui";
+import {
+  clampTicketCountForPayWith,
+  maxBuyableTicketsForPayWith,
+  mergeSplMintsForBuyUi,
+  splTicketsRemaining,
+} from "@/lib/lottery/spl-mint-ui";
 import type { SplMintUiRow } from "@/lib/lottery/spl-types";
 import { useAutoSettleDraw } from "@/lib/lottery/use-auto-settle-draw";
 
@@ -237,11 +243,22 @@ export function HomeLotterySection() {
     }
   }, [payWith, splBuyable]);
 
+  const maxTicketsForSelection = useMemo(
+    () => maxBuyableTicketsForPayWith(payWith, splUiRows),
+    [payWith, splUiRows],
+  );
+
+  useEffect(() => {
+    setTicketCount((c) =>
+      clampTicketCountForPayWith(c, payWith, splUiRows),
+    );
+  }, [payWith, splUiRows]);
+
   const splSubtitle = useMemo(() => {
     if (payWith === "SOL") return null;
     const opt = splUiRows.find((o) => o.mint === payWith);
     if (!opt) return "";
-    const left = Math.max(0, opt.displayCap - opt.sold);
+    const left = splTicketsRemaining(opt);
     return `SPL tickets remaining: ${left}/${opt.displayCap}`;
   }, [payWith, splUiRows]);
 
@@ -255,6 +272,14 @@ export function HomeLotterySection() {
 
   const onBuy = useCallback(async () => {
     if (!wallet || !activeDraw || !buyable) return;
+    const count = clampTicketCountForPayWith(
+      ticketCount,
+      payWith,
+      splUiRows,
+    );
+    if (count !== ticketCount) {
+      setTicketCount(count);
+    }
     setPhase({ kind: "busy", label: "Confirm in your wallet…" });
     try {
       const sig =
@@ -264,7 +289,7 @@ export function HomeLotterySection() {
               wallet,
               programId,
               activeDraw,
-              ticketCount,
+              count,
             )
           : await buySplTickets(
               connection,
@@ -272,16 +297,15 @@ export function HomeLotterySection() {
               programId,
               activeDraw,
               new PublicKey(payWith),
-              ticketCount,
+              count,
             );
       const firstId = activeDraw.totalTickets;
-      const lastId = activeDraw.totalTickets + ticketCount - 1;
-      const ids =
-        ticketCount === 1 ? `#${firstId}` : `#${firstId}–#${lastId}`;
+      const lastId = activeDraw.totalTickets + count - 1;
+      const ids = count === 1 ? `#${firstId}` : `#${firstId}–#${lastId}`;
       await refresh();
       setPhase({
         kind: "ok",
-        message: `Purchased ${ticketCount} ticket(s) (${ids}).`,
+        message: `Purchased ${count} ticket(s) (${ids}).`,
         signature: sig,
       });
     } catch (e) {
@@ -297,6 +321,7 @@ export function HomeLotterySection() {
     payWith,
     programId,
     refresh,
+    splUiRows,
     ticketCount,
     wallet,
   ]);
@@ -435,20 +460,46 @@ export function HomeLotterySection() {
                 splSubtitle
               )}
             </p>
+            <ul className="mt-3 space-y-1.5 text-xs text-muted/90">
+              <li className="flex items-start gap-2">
+                <span className="mt-0.5 shrink-0 text-accent-gold" aria-hidden>
+                  ◆
+                </span>
+                <span>Only SOL ticket sales increase the current jackpot</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="mt-0.5 shrink-0 text-accent-purple" aria-hidden>
+                  ◆
+                </span>
+                <span className="flex flex-1 flex-wrap items-center gap-x-2 gap-y-1">
+                  <span>
+                    SPL purchases receive a 5% discount and are dynamically priced at
+                    time of purchase
+                  </span>
+                  <SplPoolInfoButton />
+                </span>
+              </li>
+            </ul>
 
             <div className="mt-6 grid gap-4 sm:grid-cols-3">
               <label className="flex flex-col gap-2 text-xs text-muted">
                 Pay with
                 <SiteSelect
                   value={payWith}
-                  onChange={(e) => setPayWith(e.target.value)}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setPayWith(next);
+                    setTicketCount((c) =>
+                      clampTicketCountForPayWith(c, next, splUiRows),
+                    );
+                  }}
                   disabled={buySectionDisabled}
                 >
                   <option value="SOL">SOL</option>
                   {splUiRows
                     .filter((o) => o.published && !o.purchasesLocked)
                     .map((o) => {
-                      const left = Math.max(0, o.displayCap - o.sold);
+                      const left = splTicketsRemaining(o);
                       const label = `${o.symbol || o.mint.slice(0, 4)} (${left}/${o.displayCap})`;
                       return (
                         <option
@@ -469,14 +520,14 @@ export function HomeLotterySection() {
                 <input
                   type="number"
                   min={1}
-                  max={MAX_SOL_TICKETS_PER_BUY}
+                  max={maxTicketsForSelection}
                   value={ticketCount}
                   disabled={buySectionDisabled}
                   onChange={(e) => {
                     const n = parseInt(e.target.value, 10);
                     if (Number.isFinite(n)) {
                       setTicketCount(
-                        Math.min(MAX_SOL_TICKETS_PER_BUY, Math.max(1, n)),
+                        clampTicketCountForPayWith(n, payWith, splUiRows),
                       );
                     }
                   }}

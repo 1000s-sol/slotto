@@ -198,6 +198,7 @@ export function LotteryCurrentDrawSpl() {
             rows={newMint}
             onChange={setNewMint}
             disabled={busy}
+            autoLoadCatalog={false}
           />
           <button
             type="button"
