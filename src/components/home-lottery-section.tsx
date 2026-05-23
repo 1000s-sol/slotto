@@ -21,6 +21,7 @@ import {
 import { DrawState, MAX_SOL_TICKETS_PER_BUY } from "@/lib/lottery/constants";
 import { lotteryProgramId, solscanTxUrl } from "@/lib/lottery/config";
 import { drawNeedsSettlement } from "@/lib/lottery/draw-settlement";
+import { formatLotteryBuyError } from "@/lib/lottery/user-facing-error";
 import {
   fetchInProgressDraw,
   fetchLatestSettledDraw,
@@ -311,7 +312,7 @@ export function HomeLotterySection() {
     } catch (e) {
       setPhase({
         kind: "error",
-        message: e instanceof Error ? e.message : "Purchase failed.",
+        message: formatLotteryBuyError(e, { payWith }),
       });
     }
   }, [
