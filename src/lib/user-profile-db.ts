@@ -292,21 +292,30 @@ export async function resolveProfileForOAuth(
   providerUserId: string,
   sessionProfileId: string | null,
 ): Promise<string> {
+  const validSessionId =
+    sessionProfileId &&
+    (await prisma.userProfile.findUnique({
+      where: { id: sessionProfileId },
+      select: { id: true },
+    }))
+      ? sessionProfileId
+      : null;
+
   const existing =
     provider === "discord"
       ? await findProfileByDiscordId(providerUserId)
       : await findProfileByXId(providerUserId);
 
   if (existing) {
-    if (sessionProfileId && sessionProfileId !== existing.id) {
-      await mergeProfiles(existing.id, sessionProfileId);
+    if (validSessionId && validSessionId !== existing.id) {
+      await mergeProfiles(existing.id, validSessionId);
       return existing.id;
     }
     return existing.id;
   }
 
-  if (sessionProfileId) {
-    return sessionProfileId;
+  if (validSessionId) {
+    return validSessionId;
   }
 
   const created = await createUserProfile();
