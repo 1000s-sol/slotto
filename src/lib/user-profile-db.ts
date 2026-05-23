@@ -158,6 +158,44 @@ export async function createUserProfile(): Promise<UserProfile> {
   return prisma.userProfile.create({ data: {} });
 }
 
+export async function profileHasSocial(userProfileId: string): Promise<boolean> {
+  const row = await prisma.userProfile.findUnique({
+    where: { id: userProfileId },
+    select: { discordId: true, xId: true },
+  });
+  return !!(row?.discordId || row?.xId);
+}
+
+function socialMatchWhere(
+  profile: Pick<UserProfile, "discordId" | "xId">,
+): Prisma.UserProfileWhereInput[] {
+  const or: Prisma.UserProfileWhereInput[] = [];
+  if (profile.discordId) or.push({ discordId: profile.discordId });
+  if (profile.xId) or.push({ xId: profile.xId });
+  return or;
+}
+
+/** Like row for this project tied to the same Discord/X identity (any linked profile). */
+export async function findProjectLikeForSocialIdentity(
+  userProfileId: string,
+  projectId: string,
+) {
+  const profile = await prisma.userProfile.findUnique({
+    where: { id: userProfileId },
+    select: { discordId: true, xId: true },
+  });
+  if (!profile) return null;
+  const or = socialMatchWhere(profile);
+  if (or.length === 0) {
+    return prisma.projectLike.findUnique({
+      where: { projectId_userProfileId: { projectId, userProfileId } },
+    });
+  }
+  return prisma.projectLike.findFirst({
+    where: { projectId, userProfile: { OR: or } },
+  });
+}
+
 export async function findProfileByDiscordId(
   discordId: string,
 ): Promise<UserProfile | null> {
@@ -261,8 +299,8 @@ export async function resolveProfileForOAuth(
 
   if (existing) {
     if (sessionProfileId && sessionProfileId !== existing.id) {
-      await mergeProfiles(sessionProfileId, existing.id);
-      return sessionProfileId;
+      await mergeProfiles(existing.id, sessionProfileId);
+      return existing.id;
     }
     return existing.id;
   }
@@ -396,6 +434,11 @@ export async function linkWalletToProfile(
   userProfileId: string,
   wallet: string,
 ): Promise<{ profileId: string; merged: boolean }> {
+  const hasSocial = await profileHasSocial(userProfileId);
+  if (!hasSocial) {
+    throw new Error("Connect Discord or X on your profile before linking a wallet.");
+  }
+
   const existing = await prisma.linkedWallet.findUnique({
     where: { wallet },
     include: { userProfile: true },
@@ -409,13 +452,16 @@ export async function linkWalletToProfile(
       });
       return { profileId: userProfileId, merged: false };
     }
-    await mergeProfiles(userProfileId, existing.userProfileId);
+    const existingHasSocial = await profileHasSocial(existing.userProfileId);
+    const targetId = existingHasSocial ? existing.userProfileId : userProfileId;
+    const sourceId = targetId === userProfileId ? existing.userProfileId : userProfileId;
+    await mergeProfiles(targetId, sourceId);
     await prisma.linkedWallet.upsert({
       where: { wallet },
-      create: { wallet, userProfileId, verifiedAt: new Date() },
-      update: { userProfileId, verifiedAt: new Date() },
+      create: { wallet, userProfileId: targetId, verifiedAt: new Date() },
+      update: { userProfileId: targetId, verifiedAt: new Date() },
     });
-    return { profileId: userProfileId, merged: true };
+    return { profileId: targetId, merged: true };
   }
 
   await prisma.linkedWallet.create({
@@ -457,8 +503,6 @@ export async function userHasLikedProject(
   userProfileId: string,
   projectId: string,
 ): Promise<boolean> {
-  const row = await prisma.projectLike.findUnique({
-    where: { projectId_userProfileId: { projectId, userProfileId } },
-  });
+  const row = await findProjectLikeForSocialIdentity(userProfileId, projectId);
   return !!row;
 }

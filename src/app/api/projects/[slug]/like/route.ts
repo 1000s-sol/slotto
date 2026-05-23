@@ -3,7 +3,10 @@ import { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { readProfileSessionCookie } from "@/lib/profile-session";
-import { userHasLikedProject } from "@/lib/user-profile-db";
+import {
+  findProjectLikeForSocialIdentity,
+  profileHasSocial,
+} from "@/lib/user-profile-db";
 
 export async function GET(_req: Request, ctx: { params: Promise<{ slug: string }> }) {
   const { slug } = await ctx.params;
@@ -16,11 +19,18 @@ export async function GET(_req: Request, ctx: { params: Promise<{ slug: string }
   if (!project) return NextResponse.json({ error: "not_found" }, { status: 404 });
 
   if (!profileId) {
-    return NextResponse.json({ likes: project.likes, liked: false });
+    return NextResponse.json({ likes: project.likes, liked: false, canLike: false });
   }
 
-  const liked = await userHasLikedProject(profileId, project.id);
-  return NextResponse.json({ likes: project.likes, liked });
+  const hasSocial = await profileHasSocial(profileId);
+  const liked = hasSocial
+    ? !!(await findProjectLikeForSocialIdentity(profileId, project.id))
+    : false;
+  return NextResponse.json({
+    likes: project.likes,
+    liked,
+    canLike: hasSocial,
+  });
 }
 
 export async function POST(req: Request, ctx: { params: Promise<{ slug: string }> }) {
@@ -33,11 +43,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ slug: string }
     );
   }
 
-  const profile = await prisma.userProfile.findUnique({
-    where: { id: profileId },
-    select: { discordId: true, xId: true },
-  });
-  if (!profile?.discordId && !profile?.xId) {
+  const hasSocial = await profileHasSocial(profileId);
+  if (!hasSocial) {
     return NextResponse.json(
       { error: "social_required", message: "Connect Discord or X on your profile first." },
       { status: 403 },
@@ -50,9 +57,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ slug: string }
   });
   if (!project) return NextResponse.json({ error: "not_found" }, { status: 404 });
 
-  const existing = await prisma.projectLike.findUnique({
-    where: { projectId_userProfileId: { projectId: project.id, userProfileId: profileId } },
-  });
+  const existing = await findProjectLikeForSocialIdentity(profileId, project.id);
 
   let liked: boolean;
   try {
@@ -83,7 +88,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ slug: string }
         where: { id: project.id },
         select: { likes: true },
       });
-      return NextResponse.json({ likes: p?.likes ?? 0, liked: true });
+      return NextResponse.json({ likes: p?.likes ?? 0, liked: true, canLike: true });
     }
     throw e;
   }
@@ -93,5 +98,9 @@ export async function POST(req: Request, ctx: { params: Promise<{ slug: string }
     select: { likes: true },
   });
 
-  return NextResponse.json({ likes: updated?.likes ?? 0, liked });
+  return NextResponse.json({
+    likes: updated?.likes ?? 0,
+    liked,
+    canLike: true,
+  });
 }

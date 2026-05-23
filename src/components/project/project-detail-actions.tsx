@@ -28,19 +28,21 @@ export function ProjectLikePill({ slug, initialLikes, className = "", variant = 
       cache: "no-store",
     });
     if (!res.ok) return;
-    const json = (await res.json()) as { likes?: number; liked?: boolean };
+    const json = (await res.json()) as {
+      likes?: number;
+      liked?: boolean;
+      canLike?: boolean;
+    };
     if (typeof json.likes === "number") setLikes(json.likes);
     setLiked(!!json.liked);
+    if (typeof json.canLike === "boolean") {
+      setCanLike(json.canLike);
+      return;
+    }
     const me = await fetch("/api/profile/me", { cache: "no-store" });
     if (me.ok) {
-      const profile = (await me.json()) as {
-        loggedIn?: boolean;
-        profile?: { social?: { discord?: unknown; x?: unknown } };
-      };
-      const social = profile.profile?.social;
-      setCanLike(
-        !!profile.loggedIn && !!(social?.discord || social?.x),
-      );
+      const profile = (await me.json()) as { canLike?: boolean };
+      setCanLike(!!profile.canLike);
     } else {
       setCanLike(false);
     }
@@ -79,7 +81,7 @@ export function ProjectLikePill({ slug, initialLikes, className = "", variant = 
       <Link
         href="/profile"
         className={`${base} ${className}`.trim()}
-        aria-label="Connect Discord or X on profile to like"
+        aria-label="Connect Discord or X on your profile to like"
       >
         <StarIcon filled={false} compact={variant === "compact"} />
         <span className="min-w-[1ch] tabular-nums font-semibold text-accent-gold">{likes}</span>

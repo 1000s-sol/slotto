@@ -23,14 +23,17 @@ export function ProfileWalletsSection() {
   const address = publicKey?.toBase58();
 
   const [wallets, setWallets] = useState<string[]>([]);
+  const [hasSocial, setHasSocial] = useState(false);
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
 
   const refresh = useCallback(async () => {
     const res = await fetch("/api/profile/me", { cache: "no-store" });
     const json = (await res.json()) as {
-      profile?: { wallets?: string[] } | null;
+      canLike?: boolean;
+      profile?: { wallets?: string[]; social?: { discord?: unknown; x?: unknown } } | null;
     };
     setWallets(json.profile?.wallets ?? []);
+    setHasSocial(!!json.canLike);
   }, []);
 
   useEffect(() => {
@@ -38,6 +41,13 @@ export function ProfileWalletsSection() {
   }, [refresh]);
 
   const linkWallet = async (wallet: string) => {
+    if (!hasSocial) {
+      setPhase({
+        kind: "error",
+        message: "Connect Discord or X first — wallet linking requires a social login.",
+      });
+      return;
+    }
     if (!signMessage) return;
     setPhase({ kind: "loading" });
     try {
@@ -108,10 +118,16 @@ export function ProfileWalletsSection() {
         Linked wallets
       </h2>
       <p className="mt-2 text-sm text-muted">
-        Add Solana wallets to this profile. Tickets and lottery activity from every linked
-        wallet appear in My tickets. Linking the same wallet on Discord and X profiles
-        merges them into one.
+        After connecting Discord or X, add Solana wallets to this profile. Tickets from
+        every linked wallet appear in My tickets. Likes are tied to your social login —
+        extra wallets cannot add more likes.
       </p>
+
+      {!hasSocial ? (
+        <p className="mt-3 rounded-lg border border-amber-500/30 bg-amber-950/20 px-3 py-2 text-sm text-amber-100">
+          Connect Discord or X in Linked socials before linking a wallet.
+        </p>
+      ) : null}
 
       {wallets.length > 0 ? (
         <ul className="mt-4 space-y-2">
@@ -140,7 +156,7 @@ export function ProfileWalletsSection() {
 
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <WalletConnectButton />
-        {connected && address && !adapterLinked ? (
+        {connected && address && !adapterLinked && hasSocial ? (
           <button
             type="button"
             disabled={!signMessage || phase.kind === "loading"}
@@ -150,7 +166,7 @@ export function ProfileWalletsSection() {
             {phase.kind === "loading" ? "Signing…" : "Link this wallet"}
           </button>
         ) : null}
-        {!connected ? (
+        {!connected && hasSocial ? (
           <button
             type="button"
             onClick={() => setVisible(true)}

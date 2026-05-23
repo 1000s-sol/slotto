@@ -7,8 +7,8 @@ import {
   setProfileSessionCookie,
 } from "@/lib/profile-session";
 import {
-  createUserProfile,
   linkWalletToProfile,
+  profileHasSocial,
 } from "@/lib/user-profile-db";
 import {
   parseProfileWalletVerifyMessage,
@@ -78,10 +78,25 @@ export async function POST(request: Request) {
   }
 
   try {
-    let profileId = await readProfileSessionCookie();
+    const profileId = await readProfileSessionCookie();
     if (!profileId) {
-      const created = await createUserProfile();
-      profileId = created.id;
+      return NextResponse.json(
+        {
+          ok: false,
+          reason: "Connect Discord or X on your profile before linking a wallet.",
+        },
+        { status: 403 },
+      );
+    }
+    const hasSocial = await profileHasSocial(profileId);
+    if (!hasSocial) {
+      return NextResponse.json(
+        {
+          ok: false,
+          reason: "Connect Discord or X on your profile before linking a wallet.",
+        },
+        { status: 403 },
+      );
     }
     const { profileId: finalId, merged } = await linkWalletToProfile(
       profileId,
