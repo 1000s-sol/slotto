@@ -132,6 +132,30 @@ export async function updateDrawSplMintRow(
   });
 }
 
+export type DrawSplMintSettingsPatch = {
+  mint: string;
+  displayCap?: number;
+  published?: boolean;
+  purchasesLocked?: boolean;
+};
+
+export async function batchUpdateDrawSplMintRows(
+  onChainDrawId: number,
+  patches: DrawSplMintSettingsPatch[],
+): Promise<void> {
+  for (const patch of patches) {
+    const { mint, ...data } = patch;
+    if (
+      data.displayCap === undefined &&
+      data.published === undefined &&
+      data.purchasesLocked === undefined
+    ) {
+      continue;
+    }
+    await updateDrawSplMintRow(onChainDrawId, mint, data);
+  }
+}
+
 export async function appendDrawSplMintRow(
   onChainDrawId: number,
   row: SplMintDraft,

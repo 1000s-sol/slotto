@@ -96,12 +96,75 @@ export function estimatePotFromTicketsLamports(totalTickets: number): number {
   return totalTickets * LAMPORTS_SOL_TICKET_POT;
 }
 
-/** Best-effort prize paid to winner (settle tx inbound SOL, else ticket-pot estimate). */
+function balanceDeltaForKey(
+  keys: { staticAccountKeys: PublicKey[] },
+  meta: { preBalances: number[]; postBalances: number[] },
+  target: PublicKey,
+): number | null {
+  const idx = keys.staticAccountKeys.findIndex((k) => k.equals(target));
+  if (idx < 0) return null;
+  return meta.postBalances[idx] - meta.preBalances[idx];
+}
+
+/**
+ * Prize paid for a settled draw: parse the settle tx on this draw's prize vault
+ * (not the winner's wallet — repeat winners would otherwise show the latest payout).
+ */
+export async function fetchSettledDrawPrizeLamports(
+  connection: Connection,
+  draw: LotteryDrawView,
+): Promise<number> {
+  if (!draw.winner) {
+    return estimatePotFromTicketsLamports(draw.totalTickets);
+  }
+
+  const winnerPk = new PublicKey(draw.winner);
+  const sigs = await connection.getSignaturesForAddress(draw.prizeVault, {
+    limit: 40,
+  });
+
+  let bestPaid = 0;
+
+  for (const { signature } of sigs) {
+    const tx = await connection.getTransaction(signature, {
+      maxSupportedTransactionVersion: 0,
+    });
+    if (!tx?.meta) continue;
+
+    const keys = tx.transaction.message.getAccountKeys({
+      accountKeysFromLookups: tx.meta.loadedAddresses,
+    });
+    const vaultDelta = balanceDeltaForKey(keys, tx.meta, draw.prizeVault);
+    if (vaultDelta === null || vaultDelta >= 0) continue;
+
+    const paid = -vaultDelta;
+    if (paid < 500_000) continue;
+
+    const winnerDelta = balanceDeltaForKey(keys, tx.meta, winnerPk);
+    if (winnerDelta !== null && winnerDelta > 0) {
+      if (Math.abs(winnerDelta - paid) <= 50_000) {
+        return winnerDelta;
+      }
+      bestPaid = Math.max(bestPaid, winnerDelta);
+    } else {
+      bestPaid = Math.max(bestPaid, paid);
+    }
+  }
+
+  if (bestPaid > 0) return bestPaid;
+  return estimatePotFromTicketsLamports(draw.totalTickets);
+}
+
+/** Best-effort prize paid to winner for a settled draw. */
 export async function fetchWinnerPrizeLamports(
   connection: Connection,
   winner: string,
   draw: LotteryDrawView,
 ): Promise<number> {
+  if (draw.state === DrawState.Settled && draw.winner === winner) {
+    return fetchSettledDrawPrizeLamports(connection, draw);
+  }
+
   const pk = new PublicKey(winner);
   const min = Math.max(estimatePotFromTicketsLamports(draw.totalTickets), 500_000);
   const sigs = await connection.getSignaturesForAddress(pk, { limit: 30 });
@@ -110,11 +173,11 @@ export async function fetchWinnerPrizeLamports(
       maxSupportedTransactionVersion: 0,
     });
     if (!tx?.meta) continue;
-    const keys = tx.transaction.message.getAccountKeys();
-    const idx = keys.staticAccountKeys.findIndex((k) => k.equals(pk));
-    if (idx < 0) continue;
-    const delta = tx.meta.postBalances[idx] - tx.meta.preBalances[idx];
-    if (delta >= min) return delta;
+    const keys = tx.transaction.message.getAccountKeys({
+      accountKeysFromLookups: tx.meta.loadedAddresses,
+    });
+    const delta = balanceDeltaForKey(keys, tx.meta, pk);
+    if (delta !== null && delta >= min) return delta;
   }
   return estimatePotFromTicketsLamports(draw.totalTickets);
 }

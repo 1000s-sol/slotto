@@ -1,6 +1,7 @@
 "use client";
 
 import { useConnection } from "@solana/wallet-adapter-react";
+import { LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { chainUnixTs } from "@/lib/lottery/chain";
@@ -10,9 +11,8 @@ import { drawNeedsSettlement } from "@/lib/lottery/draw-settlement";
 import {
   fetchInProgressDraw,
   fetchPastSettledDraws,
-  fetchWinnerPrizeLamports,
+  fetchSettledDrawPrizeLamports,
   formatDrawDateLabel,
-  formatSolFromLamports,
 } from "@/lib/lottery/draws";
 import type { LotteryDrawView } from "@/lib/lottery/chain";
 import { fetchDrawEntrants } from "@/lib/lottery/ticket-holders";
@@ -181,18 +181,14 @@ export function HomeDrawsSection() {
         holders.map((h) => h.wallet),
       );
       const winnerSocial = socials[draw.winner];
-      const prizeLamports = await fetchWinnerPrizeLamports(
-        connection,
-        draw.winner,
-        draw,
-      );
+      const prizeLamports = await fetchSettledDrawPrizeLamports(connection, draw);
       rows.push({
         drawNumber: draw.drawId,
         date: formatDrawDateLabel(draw.salesCloseTs),
         winnerWallet: draw.winner,
         discord: winnerSocial?.discord ?? null,
         x: winnerSocial?.x ?? null,
-        prizeSol: parseFloat(formatSolFromLamports(prizeLamports)),
+        prizeSol: prizeLamports / LAMPORTS_PER_SOL,
         ticketsBought: winnerRow?.tickets ?? 0,
         totalTickets: draw.totalTickets,
       });

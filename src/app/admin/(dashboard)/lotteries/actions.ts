@@ -3,10 +3,12 @@
 import { currentAdminAddress } from "@/lib/admin-session";
 import {
   appendDrawSplMintRow,
+  batchUpdateDrawSplMintRows,
   fetchSplMintRowsForDraw,
   loadSplCatalogForNewDraw,
   saveSplRowsForDraw,
   updateDrawSplMintRow,
+  type DrawSplMintSettingsPatch,
 } from "@/lib/lottery/spl-catalog-db";
 import type { SplMintDraft } from "@/lib/lottery/spl-types";
 
@@ -49,6 +51,18 @@ export async function adminUpdateDrawSplMintAction(
 ) {
   await requireAdmin();
   return updateDrawSplMintRow(onChainDrawId, mint, data);
+}
+
+export async function adminBatchUpdateDrawSplSettingsAction(
+  onChainDrawId: number,
+  patches: DrawSplMintSettingsPatch[],
+): Promise<{ ok: true }> {
+  await requireAdmin();
+  if (!Number.isFinite(onChainDrawId) || onChainDrawId < 0) {
+    throw new Error("Invalid draw id");
+  }
+  await batchUpdateDrawSplMintRows(onChainDrawId, patches);
+  return { ok: true };
 }
 
 export async function adminAppendDrawSplMintDbAction(

@@ -19,6 +19,8 @@ import {
 } from "@/lib/lottery/recipients";
 import { createLotteryProgram } from "@/lib/lottery/program";
 import type { SplMintDraft } from "@/lib/lottery/spl-types";
+import type { LotteryDrawView } from "@/lib/lottery/chain";
+import { fetchInProgressDraw } from "@/lib/lottery/draws";
 import {
   LotterySplMintEditor,
   validateSplMintRows,
@@ -72,6 +74,7 @@ export function LotteryOpsPanel() {
   const [seedSol, setSeedSol] = useState("0.05");
   const [seedRefund, setSeedRefund] = useState("");
   const [splRows, setSplRows] = useState<SplMintDraft[]>([]);
+  const [liveDraw, setLiveDraw] = useState<LotteryDrawView | null>(null);
 
   const refreshConfig = useCallback(async () => {
     if (!wallet) return;
@@ -93,16 +96,30 @@ export function LotteryOpsPanel() {
     });
   }, [connection, globalConfig, wallet]);
 
+  const refreshLiveDraw = useCallback(async () => {
+    if (!wallet) {
+      setLiveDraw(null);
+      return;
+    }
+    try {
+      const draw = await fetchInProgressDraw(connection, programId);
+      setLiveDraw(draw);
+    } catch {
+      setLiveDraw(null);
+    }
+  }, [connection, programId, wallet]);
+
   useEffect(() => {
     if (!wallet) {
       setInitialized(null);
       setConfig(null);
+      setLiveDraw(null);
       return;
     }
     let cancelled = false;
     (async () => {
       try {
-        await refreshConfig();
+        await Promise.all([refreshConfig(), refreshLiveDraw()]);
       } catch (e) {
         if (cancelled) return;
         setPhase({
@@ -114,7 +131,7 @@ export function LotteryOpsPanel() {
     return () => {
       cancelled = true;
     };
-  }, [refreshConfig, wallet]);
+  }, [refreshConfig, refreshLiveDraw, wallet]);
 
   useEffect(() => {
     if (!publicKey) return;
@@ -147,6 +164,7 @@ export function LotteryOpsPanel() {
         })
         .rpc();
       await refreshConfig();
+      await refreshLiveDraw();
       setPhase({
         kind: "ok",
         message: "Global config initialized on-chain.",
@@ -163,6 +181,7 @@ export function LotteryOpsPanel() {
     globalConfig,
     publicKey,
     refreshConfig,
+    refreshLiveDraw,
     setupVault,
     teamVault,
     wallet,
@@ -170,6 +189,13 @@ export function LotteryOpsPanel() {
 
   const onCreateDraw = useCallback(async () => {
     if (!wallet || !publicKey || !config) return;
+    if (liveDraw) {
+      setPhase({
+        kind: "error",
+        message: `Draw #${liveDraw.drawId} is still active. Settle or finish it before creating a new draw.`,
+      });
+      return;
+    }
     setPhase({ kind: "busy", label: "Creating draw…" });
     try {
       const program = createLotteryProgram(connection, wallet);
@@ -231,6 +257,7 @@ export function LotteryOpsPanel() {
       }
 
       await refreshConfig();
+      await refreshLiveDraw();
       setPhase({
         kind: "ok",
         message: `Draw #${drawId} created${activeSpl.length ? ` with ${activeSpl.length} SPL mint(s)` : ""}.`,
@@ -247,9 +274,11 @@ export function LotteryOpsPanel() {
     config,
     connection,
     globalConfig,
+    liveDraw,
     programId,
     publicKey,
     refreshConfig,
+    refreshLiveDraw,
     salesClose,
     salesOpen,
     seedRefund,
@@ -363,6 +392,19 @@ export function LotteryOpsPanel() {
 
           <div className="space-y-4 rounded-2xl border border-border bg-bg-elevated/70 p-6">
             <h2 className="text-lg font-semibold">2. Create draw</h2>
+            {liveDraw ? (
+              <div className="rounded-xl border border-amber-500/40 bg-amber-950/20 px-4 py-3 text-sm text-amber-100">
+                <p>
+                  Draw #{liveDraw.drawId} is still active on-chain (state{" "}
+                  {liveDraw.state}). Finish or settle it before creating a new draw.
+                </p>
+                <p className="mt-2">
+                  <a href="#current-draw-spl" className="font-medium text-accent-cyan hover:underline">
+                    Edit SPL settings for the current draw
+                  </a>
+                </p>
+              </div>
+            ) : null}
             {initialized && config && !isOnChainAuthority ? (
               <p className="rounded-xl border border-amber-500/40 bg-amber-950/20 px-3 py-2 text-sm text-amber-100">
                 Connected wallet is not the on-chain authority. Switch to{" "}
@@ -370,7 +412,9 @@ export function LotteryOpsPanel() {
               </p>
             ) : null}
 
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div
+              className={`grid gap-3 sm:grid-cols-2 ${liveDraw ? "pointer-events-none opacity-50" : ""}`}
+            >
               <label className="flex flex-col gap-1 text-xs text-muted">
                 Sales open (local time)
                 <input
@@ -414,13 +458,16 @@ export function LotteryOpsPanel() {
             <LotterySplMintEditor
               rows={splRows}
               onChange={setSplRows}
-              disabled={phase.kind === "busy" || !isOnChainAuthority}
+              disabled={phase.kind === "busy" || !isOnChainAuthority || Boolean(liveDraw)}
             />
 
             <button
               type="button"
               disabled={
-                phase.kind === "busy" || !initialized || !isOnChainAuthority
+                phase.kind === "busy" ||
+                !initialized ||
+                !isOnChainAuthority ||
+                Boolean(liveDraw)
               }
               onClick={onCreateDraw}
               className="rounded-xl bg-gradient-to-r from-accent-purple to-accent-blue px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
