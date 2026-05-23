@@ -127,8 +127,8 @@ export function SplPoolInfoModal({
 
         <div className="space-y-2 px-5 py-4">
           <StepCard icon="🎟️" title="During this draw" accent="purple">
-            Every SPL ticket you buy sends <strong className="text-foreground">100%</strong> of
-            those tokens to the team pool for this draw. They accumulate until sales close.
+            Every SPL ticket purchased commits <strong className="text-foreground">100%</strong> of
+            those tokens to our SPL pool wallet. They accumulate until sales close.
           </StepCard>
 
           <FlowArrow />
