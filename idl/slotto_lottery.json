@@ -568,15 +568,6 @@
           {
             "name": "sold",
             "type": "u32"
-          },
-          {
-            "name": "_padding1",
-            "type": {
-              "array": [
-                "u8",
-                4
-              ]
-            }
           }
         ]
       }
@@ -658,7 +649,7 @@
                     "name": "splMintRow"
                   }
                 },
-                16
+                50
               ]
             }
           },

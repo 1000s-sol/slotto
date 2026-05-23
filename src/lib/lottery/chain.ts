@@ -5,7 +5,6 @@ import {
 } from "@solana/web3.js";
 
 import { DrawState } from "./constants";
-import { readDrawSettlementFields } from "./draw-account";
 import {
   drawPda,
   globalConfigPda,
@@ -99,21 +98,7 @@ export async function fetchDrawById(
   const drawKey = drawPda(programId, drawId);
   try {
     const acct = await program.account.draw.fetch(drawKey);
-    const view = toDrawView(programId, drawId, drawKey, acct);
-    if (view.state !== DrawState.Settled) return view;
-    const info = await connection.getAccountInfo(drawKey, "confirmed");
-    if (!info?.data) return view;
-    const expectedWinner = view.winner ? new PublicKey(view.winner) : null;
-    const raw = readDrawSettlementFields(
-      Buffer.from(info.data),
-      expectedWinner,
-    );
-    return {
-      ...view,
-      winningTicketId:
-        raw.winningTicketId > 0 ? raw.winningTicketId : view.winningTicketId,
-      winner: raw.winner?.toBase58() ?? view.winner,
-    };
+    return toDrawView(programId, drawId, drawKey, acct);
   } catch {
     return null;
   }

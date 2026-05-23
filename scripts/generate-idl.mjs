@@ -203,11 +203,10 @@ const idl = {
           { name: "mint", type: "pubkey" },
           { name: "price_per_ticket", type: "u64" },
           { name: "mint_decimals", type: "u8" },
-          // `#[repr(C)]` aligns `cap` / `sold` to 4 bytes (row size = 56).
+          // `#[repr(C)]` aligns `cap` / `sold` to 4 bytes (row size = 52).
           { name: "_padding0", type: { array: ["u8", 3] } },
           { name: "cap", type: "u32" },
           { name: "sold", type: "u32" },
-          { name: "_padding1", type: { array: ["u8", 4] } },
         ],
       },
     },
@@ -230,7 +229,7 @@ const idl = {
           { name: "_padding2", type: { array: ["u8", 7] } },
           {
             name: "spl_mint_rows",
-            type: { array: [{ defined: { name: "splMintRow" } }, 16] },
+            type: { array: [{ defined: { name: "splMintRow" } }, 50] },
           },
           { name: "vrf_request", type: "pubkey" },
           { name: "winning_ticket_id", type: "u32" },
