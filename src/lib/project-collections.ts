@@ -67,7 +67,7 @@ function migrateLegacy(
   }));
 
   if (cols.length === 0) {
-    return [{ name: "", links: [{ marketplace: "magicEden", href: "" }] }];
+    return [];
   }
 
   if (legacyMps.length) {
@@ -149,9 +149,10 @@ export function collectionsForEditor(
   meUrl: string | null | undefined,
   marketplaces: unknown,
 ): ProjectCollection[] {
-  const parsed = parseProjectCollections(collections, meUrls, meUrl, marketplaces);
-  if (parsed.length) return parsed.map((c) => ({ ...c, links: c.links.map((l) => ({ ...l })) }));
-  return [{ name: "", links: [{ marketplace: "magicEden", href: "" }] }];
+  return parseProjectCollections(collections, meUrls, meUrl, marketplaces).map((c) => ({
+    ...c,
+    links: c.links.map((l) => ({ ...l })),
+  }));
 }
 
 export function validateCollectionsJson(raw: string): {
@@ -176,8 +177,8 @@ export function validateCollectionsJson(raw: string): {
     const rec = row as Record<string, unknown>;
     const name = String(rec.name ?? "").trim();
     const linksRaw = rec.links;
-    if (!Array.isArray(linksRaw) || linksRaw.length === 0) {
-      throw new Error(`Collection ${i + 1} needs at least one marketplace link.`);
+    if (!Array.isArray(linksRaw)) {
+      throw new Error(`Collection ${i + 1}: links must be an array.`);
     }
     const links: CollectionLink[] = [];
     const seenMp = new Set<MarketplaceId>();
@@ -189,10 +190,10 @@ export function validateCollectionsJson(raw: string): {
       const lr = link as Record<string, unknown>;
       const marketplace = String(lr.marketplace ?? "").trim();
       const href = String(lr.href ?? "").trim();
+      if (!href) continue;
       if (!isMarketplaceId(marketplace)) {
         throw new Error(`Collection ${i + 1}, link ${j + 1}: unknown marketplace.`);
       }
-      if (!href) throw new Error(`Collection ${i + 1}, link ${j + 1}: URL is required.`);
       if (!/^https?:\/\//i.test(href)) {
         throw new Error(`Collection ${i + 1}, link ${j + 1}: URL must start with http:// or https://.`);
       }
@@ -202,14 +203,13 @@ export function validateCollectionsJson(raw: string): {
       seenMp.add(marketplace);
       links.push({ marketplace, href });
     }
-    if (i === 0 && !links.some((l) => l.marketplace === "magicEden")) {
-      throw new Error("Primary collection must include a Magic Eden link (used for live stats).");
+    if (links.length === 0) continue;
+    if (collections.length === 0 && !links.some((l) => l.marketplace === "magicEden")) {
+      throw new Error(
+        "Primary collection must include a Magic Eden link when using marketplace listings (live floor/volume stats).",
+      );
     }
     collections.push({ name, links });
-  }
-
-  if (!collections.length) {
-    throw new Error("Add at least one collection with marketplace links.");
   }
 
   const meUrls = allMagicEdenUrls(collections);

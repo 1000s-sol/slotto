@@ -22,7 +22,7 @@ export const emptyDefaults: ProjectFormDefaults = {
   name: "",
   published: false,
   reviewMd: "",
-  collectionsInitial: [{ name: "", links: [{ marketplace: "magicEden", href: "" }] }],
+  collectionsInitial: [],
   discordUrl: "",
   twitterUrl: "",
   websiteUrl: "",

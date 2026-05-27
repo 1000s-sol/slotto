@@ -14,20 +14,18 @@ function emptyCollection(): ProjectCollection {
   return { name: "", links: [{ marketplace: "magicEden", href: "" }] };
 }
 
-function emptyLink(): { marketplace: MarketplaceId; href: string } {
-  return { marketplace: "magicEden", href: "" };
-}
-
 export function CollectionsEditor({ initialCollections }: { initialCollections: ProjectCollection[] }) {
   const [collections, setCollections] = useState<ProjectCollection[]>(() =>
-    initialCollections.length ? initialCollections.map((c) => ({ ...c, links: c.links.map((l) => ({ ...l })) })) : [emptyCollection()],
+    initialCollections.length
+      ? initialCollections.map((c) => ({ ...c, links: c.links.map((l) => ({ ...l })) }))
+      : [],
   );
 
   useEffect(() => {
     const next =
       initialCollections.length > 0
         ? initialCollections.map((c) => ({ ...c, links: c.links.map((l) => ({ ...l })) }))
-        : [emptyCollection()];
+        : [];
     setCollections(next);
   }, [JSON.stringify(initialCollections)]);
 
@@ -70,10 +68,11 @@ export function CollectionsEditor({ initialCollections }: { initialCollections: 
 
   function removeLink(collIndex: number, linkIndex: number) {
     setCollections((prev) =>
-      prev.map((c, i) => {
-        if (i !== collIndex) return c;
+      prev.flatMap((c, i) => {
+        if (i !== collIndex) return [c];
         const next = c.links.filter((_, j) => j !== linkIndex);
-        return { ...c, links: next.length ? next : [emptyLink()] };
+        if (next.length === 0) return [];
+        return [{ ...c, links: next }];
       }),
     );
   }
@@ -82,14 +81,20 @@ export function CollectionsEditor({ initialCollections }: { initialCollections: 
     <div className="space-y-6">
       <input type="hidden" name="collectionsJson" value={collectionsJson} readOnly />
       <div>
-        <h3 className="text-sm font-semibold text-foreground">Marketplace URLs</h3>
+        <h3 className="text-sm font-semibold text-foreground">Marketplace URLs (optional)</h3>
         <p className="mt-1 text-[11px] leading-relaxed text-muted">
-          Each <strong className="text-muted">collection</strong> is a group of marketplace links visitors can switch
-          between. The <strong className="text-muted">primary collection</strong> (first) must include Magic Eden —
-          live floor and volume use that collection&apos;s Magic Eden URL. Add Tensor, Gravemarket, or Orbis links per
-          collection as needed.
+          Skip this section for projects with no NFT collection. When you add listings, each{" "}
+          <strong className="text-muted">collection</strong> is a group of marketplace links visitors
+          can switch between. The <strong className="text-muted">primary collection</strong> (first)
+          should include Magic Eden if you want live floor and volume stats.
         </p>
       </div>
+
+      {collections.length === 0 ? (
+        <p className="rounded-xl border border-dashed border-border bg-surface/20 px-4 py-3 text-xs text-muted">
+          No marketplace listings — fine for token-only or non-NFT projects.
+        </p>
+      ) : null}
 
       {collections.map((coll, collIndex) => (
         <div
@@ -100,15 +105,13 @@ export function CollectionsEditor({ initialCollections }: { initialCollections: 
             <h4 className="text-xs font-semibold uppercase tracking-wide text-muted">
               {collIndex === 0 ? "Primary collection" : `Collection ${collIndex + 1}`}
             </h4>
-            {collIndex > 0 ? (
-              <button
-                type="button"
-                className="text-xs font-medium text-red-300 hover:underline"
-                onClick={() => setCollections((prev) => prev.filter((_, i) => i !== collIndex))}
-              >
-                Remove collection
-              </button>
-            ) : null}
+            <button
+              type="button"
+              className="text-xs font-medium text-red-300 hover:underline"
+              onClick={() => setCollections((prev) => prev.filter((_, i) => i !== collIndex))}
+            >
+              Remove collection
+            </button>
           </div>
 
           <label className="flex flex-col gap-2 text-xs text-muted">
@@ -159,8 +162,7 @@ export function CollectionsEditor({ initialCollections }: { initialCollections: 
                 </label>
                 <button
                   type="button"
-                  className="rounded-xl border border-border px-3 py-2 text-xs font-medium text-muted transition hover:border-red-500/40 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-40"
-                  disabled={collIndex === 0 && link.marketplace === "magicEden" && coll.links.length <= 1}
+                  className="rounded-xl border border-border px-3 py-2 text-xs font-medium text-muted transition hover:border-red-500/40 hover:text-red-300"
                   onClick={() => removeLink(collIndex, linkIndex)}
                 >
                   Remove
@@ -184,7 +186,7 @@ export function CollectionsEditor({ initialCollections }: { initialCollections: 
         className="text-xs font-medium text-accent-cyan hover:underline"
         onClick={() => setCollections((p) => [...p, emptyCollection()])}
       >
-        + Add another collection
+        + Add marketplace collection
       </button>
     </div>
   );
