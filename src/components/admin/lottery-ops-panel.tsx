@@ -92,7 +92,6 @@ export function LotteryOpsPanel({
   const [seedSol, setSeedSol] = useState("0.05");
   const [seedRefund, setSeedRefund] = useState("");
   const [splRows, setSplRows] = useState<SplMintDraft[]>([]);
-  const [liveDraw, setLiveDraw] = useState<LotteryDrawView | null>(null);
 
   const refreshConfig = useCallback(async () => {
     if (!wallet) return;
