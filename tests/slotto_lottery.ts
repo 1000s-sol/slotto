@@ -131,14 +131,12 @@ describe("slotto_lottery", () => {
         new anchor.BN(opts.seedLamports),
         opts.splRows ?? []
       )
-      .accounts({
+      .accountsPartial({
         authority: authority.publicKey,
         globalConfig,
         draw,
         prizeVault,
         ticketChunk0,
-        systemProgram: SystemProgram.programId,
-        rent: SYSVAR_RENT_PUBKEY,
       })
       .rpc();
 

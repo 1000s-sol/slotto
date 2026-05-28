@@ -218,6 +218,8 @@ pub mod slotto_lottery {
             )?;
         }
 
+        let _chunk = ctx.accounts.ticket_chunk_0.load_init()?;
+
         ctx.accounts.global_config.next_draw_id = draw_id
             .checked_add(1)
             .ok_or(error!(ErrorCode::DrawIdOverflow))?;
@@ -261,6 +263,15 @@ pub mod slotto_lottery {
             .spl_count
             .checked_add(1)
             .ok_or(error!(ErrorCode::ArithmeticOverflow))?;
+        Ok(())
+    }
+
+    /// Authority: fund ticket-chunk PDA rent before sales cross chunk boundaries (chunk 0 is created in `create_draw`).
+    pub fn init_ticket_chunk(ctx: Context<InitTicketChunk>, chunk_index: u32) -> Result<()> {
+        require!(chunk_index > 0, ErrorCode::InvalidTicketCount);
+        let draw = ctx.accounts.draw.load()?;
+        require!(draw.state == DrawState::Selling as u8, ErrorCode::WrongDrawState);
+        let _chunk = ctx.accounts.ticket_chunk.load_init()?;
         Ok(())
     }
 
@@ -337,26 +348,7 @@ pub mod slotto_lottery {
 
         for (i, &chunk_idx) in chunk_indices.iter().enumerate() {
             let chunk_ai = &ctx.remaining_accounts[i];
-            let (expected_pda, bump) = Pubkey::find_program_address(
-                &[
-                    b"tickets",
-                    draw_key.as_ref(),
-                    &chunk_idx.to_le_bytes(),
-                ],
-                program_id,
-            );
-            require_keys_eq!(chunk_ai.key(), expected_pda);
-
-            super::ensure_ticket_chunk_initialized(
-                program_id,
-                ctx.accounts.buyer.to_account_info(),
-                ctx.remaining_accounts[i].clone(),
-                &draw_key,
-                chunk_idx,
-                bump,
-                ctx.accounts.system_program.to_account_info(),
-                ctx.accounts.rent.to_account_info(),
-            )?;
+            require_ticket_chunk_initialized(program_id, chunk_ai, &draw_key, chunk_idx)?;
 
             let chunk_start = chunk_idx
                 .checked_mul(TICKETS_PER_CHUNK as u32)
@@ -897,6 +889,28 @@ pub(crate) fn assign_ticket_range(
     Ok(())
 }
 
+pub(crate) fn require_ticket_chunk_initialized(
+    program_id: &Pubkey,
+    chunk_ai: &AccountInfo<'_>,
+    draw_key: &Pubkey,
+    chunk_idx: u32,
+) -> Result<()> {
+    let (expected_pda, _) = Pubkey::find_program_address(
+        &[
+            b"tickets",
+            draw_key.as_ref(),
+            &chunk_idx.to_le_bytes(),
+        ],
+        program_id,
+    );
+    require_keys_eq!(chunk_ai.key(), expected_pda);
+    require!(
+        chunk_ai.owner == program_id && chunk_ai.data_len() >= TicketChunk::ACCOUNT_LEN,
+        ErrorCode::TicketChunkNotInitialized
+    );
+    Ok(())
+}
+
 pub(crate) fn ensure_ticket_chunk_initialized(
     program_id: &Pubkey,
     buyer: AccountInfo<'_>,
@@ -1015,7 +1029,37 @@ pub struct CreateDraw<'info> {
         bump
     )]
     pub prize_vault: Account<'info, PrizeVault>,
+    #[account(
+        init,
+        payer = authority,
+        space = TicketChunk::ACCOUNT_LEN,
+        seeds = [b"tickets", draw.key().as_ref(), &0u32.to_le_bytes()],
+        bump
+    )]
+    pub ticket_chunk_0: AccountLoader<'info, TicketChunk>,
     pub system_program: Program<'info, System>,
+    pub rent: Sysvar<'info, Rent>,
+}
+
+#[derive(Accounts)]
+#[instruction(chunk_index: u32)]
+pub struct InitTicketChunk<'info> {
+    #[account(mut, constraint = authority.key() == global_config.authority @ ErrorCode::Unauthorized)]
+    pub authority: Signer<'info>,
+    #[account(seeds = [b"global_config"], bump = global_config.bump)]
+    pub global_config: Account<'info, GlobalConfig>,
+    #[account(mut)]
+    pub draw: AccountLoader<'info, Draw>,
+    #[account(
+        init,
+        payer = authority,
+        space = TicketChunk::ACCOUNT_LEN,
+        seeds = [b"tickets", draw.key().as_ref(), &chunk_index.to_le_bytes()],
+        bump
+    )]
+    pub ticket_chunk: AccountLoader<'info, TicketChunk>,
+    pub system_program: Program<'info, System>,
+    pub rent: Sysvar<'info, Rent>,
 }
 
 #[derive(Accounts)]
@@ -1204,6 +1248,8 @@ pub enum ErrorCode {
     InvalidChunkAccounts,
     #[msg("invalid ticket chunk PDA account")]
     InvalidChunkAccount,
+    #[msg("ticket chunk PDA not initialized — admin must create it before sales")]
+    TicketChunkNotInitialized,
     #[msg("ticket slot already occupied")]
     TicketSlotOccupied,
     #[msg("mint is not allowlisted for this draw")]

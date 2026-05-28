@@ -247,7 +247,7 @@ export function LotteryOpsPanel({
           new BN(seedLamports),
           splArgs,
         )
-        .accounts({
+        .accountsPartial({
           authority: publicKey,
           globalConfig,
           draw,

@@ -21,7 +21,7 @@ export async function initTicketChunk(
 
   return program.methods
     .initTicketChunk(chunkIndex)
-    .accounts({
+    .accountsPartial({
       authority: wallet.publicKey,
       globalConfig: globalConfigPda(programId),
       draw,
