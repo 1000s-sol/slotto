@@ -10,8 +10,12 @@ use anchor_lang::solana_program::system_instruction;
 use anchor_lang::system_program;
 use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token::{self, Mint, Token, TokenAccount};
-use switchboard_on_demand::on_demand::accounts::randomness::RandomnessAccountData;
-use switchboard_on_demand::{ON_DEMAND_DEVNET_PID, ON_DEMAND_MAINNET_PID};
+
+mod switchboard_randomness;
+use switchboard_randomness::{
+    is_switchboard_randomness_owner, read_switchboard_randomness_value,
+    winning_ticket_from_vrf_bytes,
+};
 
 declare_id!("6mYYxtJ4NPH1oNJoy2CpJGQq6XiWCsu8iB5y6ior6TMq");
 
@@ -631,8 +635,8 @@ pub mod slotto_lottery {
                 vrf_request,
                 ErrorCode::InvalidRandomnessAccount
             );
-            let vrf_bytes =
-                read_switchboard_randomness_value(&randomness_account, slot)?;
+            let vrf_data = randomness_account.try_borrow_data()?;
+            let vrf_bytes = read_switchboard_randomness_value(&vrf_data, slot)?;
             let winning_ticket_id = winning_ticket_from_vrf_bytes(&vrf_bytes, n)?;
             (chunk_account, winner_account, winning_ticket_id)
         };
@@ -1309,12 +1313,14 @@ mod tests {
 
     #[test]
     fn sol_ticket_lamports_splits_bulk() {
-        let (pot, team, bux, setup) = sol_ticket_lamports_splits(3).unwrap();
+        let (pot, team, setup) = sol_ticket_lamports_splits(3).unwrap();
         assert_eq!(pot, LAMPORTS_SOL_TICKET_POT * 3);
         assert_eq!(team, LAMPORTS_SOL_TICKET_TEAM * 3);
-        assert_eq!(bux, LAMPORTS_SOL_TICKET_BUX * 3);
         assert_eq!(setup, LAMPORTS_SOL_TICKET_SETUP * 3);
-        assert_eq!(pot + team + bux + setup, LAMPORTS_SOL_TICKET_TOTAL * 3);
+        assert_eq!(
+            pot + team + setup,
+            LAMPORTS_SOL_TICKET_TOTAL * 3 - LAMPORTS_SOL_TICKET_BUX * 3
+        );
     }
 
     #[test]
@@ -1393,7 +1399,8 @@ mod tests {
 
     #[test]
     fn vrf_bytes_maps_to_ticket_index() {
-        let bytes = [7u8; 32];
+        let mut bytes = [0u8; 32];
+        bytes[0] = 7;
         assert_eq!(winning_ticket_from_vrf_bytes(&bytes, 10).unwrap(), 7);
         assert_eq!(winning_ticket_from_vrf_bytes(&bytes, 1).unwrap(), 0);
     }
