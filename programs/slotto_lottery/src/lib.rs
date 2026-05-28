@@ -4,9 +4,7 @@
 use anchor_lang::prelude::*;
 use anchor_lang::Discriminator;
 use anchor_lang::solana_program::hash::hashv;
-use anchor_lang::solana_program::program::invoke_signed;
 use anchor_lang::solana_program::sysvar::rent::Rent;
-use anchor_lang::solana_program::system_instruction;
 use anchor_lang::system_program;
 use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token::{self, Mint, Token, TokenAccount};
@@ -908,62 +906,6 @@ pub(crate) fn require_ticket_chunk_initialized(
         chunk_ai.owner == program_id && chunk_ai.data_len() >= TicketChunk::ACCOUNT_LEN,
         ErrorCode::TicketChunkNotInitialized
     );
-    Ok(())
-}
-
-pub(crate) fn ensure_ticket_chunk_initialized(
-    program_id: &Pubkey,
-    buyer: AccountInfo<'_>,
-    chunk_ai: AccountInfo<'_>,
-    draw_key: &Pubkey,
-    chunk_idx: u32,
-    bump: u8,
-    system_program: AccountInfo<'_>,
-    rent: AccountInfo<'_>,
-) -> Result<()> {
-    // SAFETY: `AccountInfo` lifetimes from Anchor's `Context` are split across `accounts` vs
-    // `remaining_accounts` even though every handle points at the same instruction buffer for the
-    // duration of this CPI. Transmuting to `'static` matches common on-chain program practice.
-    let buyer: AccountInfo<'static> = unsafe { core::mem::transmute(buyer) };
-    let chunk_ai: AccountInfo<'static> = unsafe { core::mem::transmute(chunk_ai) };
-    let system_program: AccountInfo<'static> = unsafe { core::mem::transmute(system_program) };
-    let rent: AccountInfo<'static> = unsafe { core::mem::transmute(rent) };
-    require!(buyer.is_signer, ErrorCode::Unauthorized);
-    let space = TicketChunk::ACCOUNT_LEN;
-    let rent_struct = Rent::from_account_info(&rent)?;
-    let rent_lamports = rent_struct.minimum_balance(space);
-
-    if chunk_ai.owner == program_id && chunk_ai.data_len() >= space {
-        return Ok(());
-    }
-
-    require!(
-        chunk_ai.owner == &anchor_lang::solana_program::system_program::ID && chunk_ai.data_len() == 0,
-        ErrorCode::InvalidChunkAccount
-    );
-
-    let seeds: &[&[u8]] = &[
-        b"tickets",
-        draw_key.as_ref(),
-        &chunk_idx.to_le_bytes(),
-        &[bump],
-    ];
-
-    invoke_signed(
-        &system_instruction::create_account(
-            &buyer.key(),
-            &chunk_ai.key(),
-            rent_lamports,
-            space as u64,
-            program_id,
-        ),
-        &[buyer.clone(), chunk_ai.clone(), system_program.clone()],
-        &[seeds],
-    )?;
-
-    let mut data = chunk_ai.try_borrow_mut_data()?;
-    require!(data.len() >= TicketChunk::ACCOUNT_LEN, ErrorCode::InvalidChunkAccount);
-    data[..8].copy_from_slice(&TicketChunk::DISCRIMINATOR);
     Ok(())
 }
 
