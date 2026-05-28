@@ -12,6 +12,7 @@ import {
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   TOKEN_PROGRAM_ID,
+  TokenAccountNotFoundError,
   createMint,
   getAccount,
   getAssociatedTokenAddressSync,
@@ -44,6 +45,34 @@ const DrawState = {
   Settled: 3,
   Refunded: 4,
 } as const;
+
+async function rpcWithBlockhashRetry<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (!message.includes("Blockhash not found")) {
+      throw error;
+    }
+    await sleep(250);
+    return await fn();
+  }
+}
+
+async function tokenAmountOrZero(
+  connection: anchor.web3.Connection,
+  tokenAccount: PublicKey
+): Promise<bigint> {
+  try {
+    const acct = await getAccount(connection, tokenAccount);
+    return acct.amount;
+  } catch (error) {
+    if (error instanceof TokenAccountNotFoundError) {
+      return 0n;
+    }
+    throw error;
+  }
+}
 
 describe("slotto_lottery", () => {
   const provider = anchor.AnchorProvider.env();
@@ -115,7 +144,7 @@ describe("slotto_lottery", () => {
 
   async function waitUntilSalesClose(
     draw: PublicKey,
-    extraMs = 8_000
+    extraMs = 15_000
   ): Promise<void> {
     const drawAcct = await program.account.draw.fetch(draw);
     const closeTs = drawAcct.salesCloseTs.toNumber();
@@ -152,7 +181,7 @@ describe("slotto_lottery", () => {
     const seed = Math.floor(0.02 * LAMPORTS_PER_SOL);
     const { draw, prizeVault } = await createDraw({
       openOffsetSec: -60,
-      closeOffsetSec: 2,
+      closeOffsetSec: 5,
       seedLamports: seed,
     });
 
@@ -194,7 +223,7 @@ describe("slotto_lottery", () => {
     const seed = Math.floor(0.01 * LAMPORTS_PER_SOL);
     const { draw, prizeVault } = await createDraw({
       openOffsetSec: -60,
-      closeOffsetSec: 4,
+      closeOffsetSec: 7,
       seedLamports: seed,
     });
 
@@ -203,24 +232,26 @@ describe("slotto_lottery", () => {
       authority.publicKey
     );
 
-    await program.methods
-      .buySolTickets(1)
-      .accounts({
-        buyer: authority.publicKey,
-        draw,
-        prizeVault,
-        globalConfig,
-        teamVault,
-        buxVault,
-        setupVault,
-        systemProgram: SystemProgram.programId,
-        rent: SYSVAR_RENT_PUBKEY,
-        clock: SYSVAR_CLOCK_PUBKEY,
-      })
-      .remainingAccounts([
-        { pubkey: chunk0, isWritable: true, isSigner: false },
-      ])
-      .rpc();
+    await rpcWithBlockhashRetry(() =>
+      program.methods
+        .buySolTickets(1)
+        .accounts({
+          buyer: authority.publicKey,
+          draw,
+          prizeVault,
+          globalConfig,
+          teamVault,
+          buxVault,
+          setupVault,
+          systemProgram: SystemProgram.programId,
+          rent: SYSVAR_RENT_PUBKEY,
+          clock: SYSVAR_CLOCK_PUBKEY,
+        })
+        .remainingAccounts([
+          { pubkey: chunk0, isWritable: true, isSigner: false },
+        ])
+        .rpc()
+    );
 
     const drawAfterBuy = await program.account.draw.fetch(draw);
     expect(drawAfterBuy.totalTickets).to.equal(1);
@@ -283,6 +314,10 @@ describe("slotto_lottery", () => {
   });
 
   it("buys SPL tickets into team wallet ATA", async () => {
+    const splBuyer = Keypair.generate();
+    await provider.connection.requestAirdrop(splBuyer.publicKey, LAMPORTS_PER_SOL);
+    await sleep(500);
+
     const mint = await createMint(
       provider.connection,
       authority,
@@ -309,7 +344,7 @@ describe("slotto_lottery", () => {
       provider.connection,
       authority,
       mint,
-      authority.publicKey
+      splBuyer.publicKey
     );
     const buyerAta = buyerTokenAcct.address;
     const teamAta = getAssociatedTokenAddressSync(
@@ -331,41 +366,45 @@ describe("slotto_lottery", () => {
 
     const chunk0 = ticketChunkPda(program.programId, draw, 0);
     const buyerSolBefore = await provider.connection.getBalance(
-      authority.publicKey
+      splBuyer.publicKey
     );
     const buyerTokenBefore = await getAccount(
       provider.connection,
       buyerAta
     );
+    const teamTokenBefore = await tokenAmountOrZero(provider.connection, teamAta);
 
-    await program.methods
-      .buySplTickets(2)
-      .accounts({
-        buyer: authority.publicKey,
-        draw,
-        globalConfig,
-        mint,
-        teamVault,
-        buyerToken: buyerAta,
-        teamToken: teamAta,
-        setupVault,
-        tokenProgram: TOKEN_PROGRAM_ID,
-        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-        systemProgram: SystemProgram.programId,
-        rent: SYSVAR_RENT_PUBKEY,
-        clock: SYSVAR_CLOCK_PUBKEY,
-      })
-      .remainingAccounts([
-        { pubkey: chunk0, isWritable: true, isSigner: false },
-      ])
-      .rpc();
+    await rpcWithBlockhashRetry(() =>
+      program.methods
+        .buySplTickets(2)
+        .accounts({
+          buyer: splBuyer.publicKey,
+          draw,
+          globalConfig,
+          mint,
+          teamVault,
+          buyerToken: buyerAta,
+          teamToken: teamAta,
+          setupVault,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+          systemProgram: SystemProgram.programId,
+          rent: SYSVAR_RENT_PUBKEY,
+          clock: SYSVAR_CLOCK_PUBKEY,
+        })
+        .remainingAccounts([
+          { pubkey: chunk0, isWritable: true, isSigner: false },
+        ])
+        .signers([splBuyer])
+        .rpc()
+    );
 
     const drawAcct = await program.account.draw.fetch(draw);
     expect(drawAcct.totalTickets).to.equal(2);
     expect(drawAcct.splMintRows[0].sold).to.equal(2);
 
-    const teamToken = await getAccount(provider.connection, teamAta);
-    expect(Number(teamToken.amount)).to.equal(2_000_000);
+    const teamTokenAfter = await tokenAmountOrZero(provider.connection, teamAta);
+    expect(Number(teamTokenAfter - teamTokenBefore)).to.equal(2_000_000);
 
     const buyerTokenAfter = await getAccount(provider.connection, buyerAta);
     expect(Number(buyerTokenBefore.amount - buyerTokenAfter.amount)).to.equal(
@@ -373,7 +412,7 @@ describe("slotto_lottery", () => {
     );
 
     const buyerSolAfter = await provider.connection.getBalance(
-      authority.publicKey
+      splBuyer.publicKey
     );
     expect(buyerSolBefore - buyerSolAfter).to.be.gte(
       LAMPORTS_SPL_TICKET_FEE_TOTAL * 2

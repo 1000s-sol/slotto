@@ -177,5 +177,9 @@ anchor deploy --provider.cluster localnet --provider.wallet "${WALLET}" --progra
 export ANCHOR_PROVIDER_URL="${RPC}"
 export ANCHOR_WALLET="${WALLET}"
 
+# Anchor workspace loader expects target/idl/<program>.json during ts-mocha tests.
+mkdir -p target/idl
+cp idl/slotto_lottery.json target/idl/slotto_lottery.json
+
 echo "lottery-test-integration: running tests/slotto_lottery.ts…"
 exec npx ts-mocha -p ./tsconfig.anchor.json -t 1000000 tests/**/*.ts

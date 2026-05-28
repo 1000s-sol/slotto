@@ -58,7 +58,7 @@ export function sleep(ms: number): Promise<void> {
 
 /** Same clock the program uses (`Clock` sysvar), not host `Date.now()`. */
 export async function chainUnixTs(connection: Connection): Promise<number> {
-  const info = await connection.getAccountInfo(SYSVAR_CLOCK_PUBKEY, "confirmed");
+  const info = await connection.getAccountInfo(SYSVAR_CLOCK_PUBKEY, "processed");
   if (!info || info.data.length < 40) {
     throw new Error("could not read Clock sysvar");
   }
