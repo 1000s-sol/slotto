@@ -60,10 +60,34 @@ export async function createDrawRandomnessAccount(
     connection,
     switchboardWalletFromKeypair(payer),
   );
-  const rng = await Randomness.create(sbProgram, {
-    queue: queue,
-    authority: payer.publicKey,
+  const randomnessKp = Keypair.generate();
+  const [rng, createIx] = await Randomness.create(
+    sbProgram,
+    randomnessKp,
+    queue,
+    payer.publicKey,
+  );
+
+  const { blockhash, lastValidBlockHeight } =
+    await connection.getLatestBlockhash("confirmed");
+  const tx = new VersionedTransaction(
+    new TransactionMessage({
+      payerKey: payer.publicKey,
+      recentBlockhash: blockhash,
+      instructions: [createIx],
+    }).compileToV0Message(),
+  );
+  tx.sign([payer, randomnessKp]);
+
+  const sig = await connection.sendTransaction(tx, {
+    skipPreflight: false,
+    maxRetries: 3,
   });
+  await connection.confirmTransaction(
+    { signature: sig, blockhash, lastValidBlockHeight },
+    "confirmed",
+  );
+
   return rng.pubkey;
 }
 
