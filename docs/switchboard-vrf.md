@@ -33,6 +33,10 @@ The homepage / Vercel crank (`runTriggerLotteryCrank`) runs this automatically w
 
 Defined in `src/lib/lottery/switchboard-config.ts`.
 
+## On-chain parsing
+
+The Anchor program does **not** depend on the `switchboard-on-demand` Rust crate (it pulled Anchor 1.x and broke `cargo-build-sbf` on Solana toolchain 1.84). Randomness accounts are parsed in `programs/slotto_lottery/src/switchboard_randomness.rs` (layout aligned with Switchboard SDK **0.10.x**). The keeper still uses `@switchboard-xyz/on-demand` for commit/reveal transactions.
+
 ## After program change
 
 ```bash
