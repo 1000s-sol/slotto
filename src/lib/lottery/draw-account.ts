@@ -1,5 +1,7 @@
 import { PublicKey } from "@solana/web3.js";
 
+import { VRF_STUB_MARKER } from "./constants";
+
 /** Matches on-chain `SplMintRow` size (`#[repr(C)]` + 4-byte tail padding). */
 export const DRAW_SPL_MINT_ROW_BYTES = 56;
 /** Matches program `SPL_MINT_MAX`. */
@@ -19,6 +21,7 @@ export type RawDrawFields = {
   state: number;
   totalTickets: number;
   splCount: number;
+  vrfRequest: PublicKey;
   winningTicketId: number;
   winner: PublicKey | null;
 };
@@ -33,6 +36,9 @@ export function readDrawFromRaw(data: Buffer): RawDrawFields | null {
   const winnerPk = new PublicKey(
     data.subarray(base + DRAW_WINNER_OFFSET, base + DRAW_WINNER_OFFSET + 32),
   );
+  const vrfRequest = new PublicKey(
+    data.subarray(base + DRAW_VRF_OFFSET, base + DRAW_VRF_OFFSET + 32),
+  );
 
   return {
     drawId: Number(data.readBigUInt64LE(base)),
@@ -41,6 +47,7 @@ export function readDrawFromRaw(data: Buffer): RawDrawFields | null {
     state: data[base + 32] ?? 0,
     totalTickets: data.readUInt32LE(base + 36),
     splCount: data[base + 72] ?? 0,
+    vrfRequest,
     winningTicketId: data.readUInt32LE(base + DRAW_WINNING_TICKET_ID_OFFSET),
     winner: winnerPk.equals(empty) ? null : winnerPk,
   };
@@ -53,6 +60,10 @@ export type RawSplMintRow = {
   cap: number;
   sold: number;
 };
+
+export function isVrfStubMarker(vrfRequest: PublicKey): boolean {
+  return vrfRequest.equals(VRF_STUB_MARKER);
+}
 
 export function readSplMintRowFromRaw(
   data: Buffer,

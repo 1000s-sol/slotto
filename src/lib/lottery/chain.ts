@@ -32,6 +32,7 @@ export type LotteryDrawView = {
   salesCloseTs: number;
   state: number;
   totalTickets: number;
+  vrfRequest: PublicKey;
   splMints: SplMintRowView[];
   winningTicketId: number;
   winner: string | null;
@@ -91,6 +92,7 @@ function toDrawViewFromRaw(
     salesCloseTs: raw.salesCloseTs,
     state: raw.state,
     totalTickets: raw.totalTickets,
+    vrfRequest: raw.vrfRequest,
     splMints,
     winningTicketId: raw.winningTicketId,
     winner: raw.winner?.toBase58() ?? null,

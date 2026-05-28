@@ -56,6 +56,7 @@ const errors = [
   "InvalidSetupVault",
   "InvalidChunkAccounts",
   "InvalidChunkAccount",
+  "TicketChunkNotInitialized",
   "TicketSlotOccupied",
   "MintNotInDraw",
   "SplCapExceeded",
@@ -99,7 +100,9 @@ const idl = {
       acc("global_config", { writable: true }),
       acc("draw", { writable: true }),
       acc("prize_vault", { writable: true }),
+      acc("ticket_chunk_0", { writable: true }),
       acc("system_program", { address: "11111111111111111111111111111111" }),
+      acc("rent", { address: "SysvarRent111111111111111111111111111111111" }),
     ], [
       arg("sales_open_ts", "i64"),
       arg("sales_close_ts", "i64"),
@@ -112,6 +115,14 @@ const idl = {
       acc("global_config"),
       acc("draw", { writable: true }),
     ], [arg("spl_row", { defined: { name: "splMintArg" } })]),
+    ix("init_ticket_chunk", [
+      acc("authority", { writable: true, signer: true }),
+      acc("global_config"),
+      acc("draw", { writable: true }),
+      acc("ticket_chunk", { writable: true }),
+      acc("system_program", { address: "11111111111111111111111111111111" }),
+      acc("rent", { address: "SysvarRent111111111111111111111111111111111" }),
+    ], [arg("chunk_index", "u32")]),
     ix("buy_sol_tickets", [
       acc("buyer", { writable: true, signer: true }),
       acc("draw", { writable: true }),

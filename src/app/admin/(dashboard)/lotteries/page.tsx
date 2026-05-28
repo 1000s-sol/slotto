@@ -1,5 +1,4 @@
-import { LotteryCurrentDrawSpl } from "@/components/admin/lottery-current-draw-spl";
-import { LotteryOpsPanel } from "@/components/admin/lottery-ops-panel";
+import { LotteryManageSection } from "@/components/admin/lottery-manage-section";
 
 export default function AdminLotteriesPage() {
   return (
@@ -15,8 +14,7 @@ export default function AdminLotteriesPage() {
           Postgres admin login is separate from chain authority.
         </p>
       </div>
-      <LotteryOpsPanel />
-      <LotteryCurrentDrawSpl />
+      <LotteryManageSection />
     </div>
   );
 }

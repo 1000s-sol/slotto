@@ -120,6 +120,7 @@ describe("slotto_lottery", () => {
     const drawId = allocDrawId();
     const draw = drawPda(program.programId, drawId);
     const prizeVault = prizeVaultPda(program.programId, draw);
+    const ticketChunk0 = ticketChunkPda(program.programId, draw, 0);
     const now = await chainUnixTs(provider.connection);
 
     await program.methods
@@ -135,7 +136,9 @@ describe("slotto_lottery", () => {
         globalConfig,
         draw,
         prizeVault,
+        ticketChunk0,
         systemProgram: SystemProgram.programId,
+        rent: SYSVAR_RENT_PUBKEY,
       })
       .rpc();
 

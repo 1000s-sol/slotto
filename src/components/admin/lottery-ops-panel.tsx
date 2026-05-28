@@ -3,7 +3,11 @@
 import { BN } from "@coral-xyz/anchor";
 import { useAnchorWallet, useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
-import { LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
+import {
+  LAMPORTS_PER_SOL,
+  PublicKey,
+  SYSVAR_RENT_PUBKEY,
+} from "@solana/web3.js";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
@@ -11,7 +15,12 @@ import {
   solscanAccountUrl,
   solscanTxUrl,
 } from "@/lib/lottery/config";
-import { drawPda, globalConfigPda, prizeVaultPda } from "@/lib/lottery/pdas";
+import {
+  drawPda,
+  globalConfigPda,
+  prizeVaultPda,
+  ticketChunkPda,
+} from "@/lib/lottery/pdas";
 import {
   LOTTERY_BUX_VAULT,
   LOTTERY_SETUP_VAULT,
@@ -20,7 +29,6 @@ import {
 import { createLotteryProgram } from "@/lib/lottery/program";
 import type { SplMintDraft } from "@/lib/lottery/spl-types";
 import type { LotteryDrawView } from "@/lib/lottery/chain";
-import { fetchInProgressDraw } from "@/lib/lottery/draws";
 import {
   LotterySplMintEditor,
   validateSplMintRows,
@@ -28,6 +36,12 @@ import {
 import {
   adminSaveSplRowsForDrawAction,
 } from "@/app/admin/(dashboard)/lotteries/actions";
+
+type LotteryOpsPanelProps = {
+  liveDraw: LotteryDrawView | null;
+  drawLoading: boolean;
+  onLiveDrawChange: () => Promise<void>;
+};
 
 type GlobalConfigView = {
   authority: string;
@@ -52,7 +66,11 @@ function parseDatetimeLocal(value: string): number {
   return Math.floor(new Date(value).getTime() / 1000);
 }
 
-export function LotteryOpsPanel() {
+export function LotteryOpsPanel({
+  liveDraw,
+  drawLoading,
+  onLiveDrawChange,
+}: LotteryOpsPanelProps) {
   const { connection } = useConnection();
   const wallet = useAnchorWallet();
   const { connected, publicKey } = useWallet();
@@ -96,30 +114,16 @@ export function LotteryOpsPanel() {
     });
   }, [connection, globalConfig, wallet]);
 
-  const refreshLiveDraw = useCallback(async () => {
-    if (!wallet) {
-      setLiveDraw(null);
-      return;
-    }
-    try {
-      const draw = await fetchInProgressDraw(connection, programId);
-      setLiveDraw(draw);
-    } catch {
-      setLiveDraw(null);
-    }
-  }, [connection, programId, wallet]);
-
   useEffect(() => {
     if (!wallet) {
       setInitialized(null);
       setConfig(null);
-      setLiveDraw(null);
       return;
     }
     let cancelled = false;
     (async () => {
       try {
-        await Promise.all([refreshConfig(), refreshLiveDraw()]);
+        await refreshConfig();
       } catch (e) {
         if (cancelled) return;
         setPhase({
@@ -131,7 +135,7 @@ export function LotteryOpsPanel() {
     return () => {
       cancelled = true;
     };
-  }, [refreshConfig, refreshLiveDraw, wallet]);
+  }, [refreshConfig, wallet]);
 
   useEffect(() => {
     if (!publicKey) return;
@@ -164,7 +168,7 @@ export function LotteryOpsPanel() {
         })
         .rpc();
       await refreshConfig();
-      await refreshLiveDraw();
+      await onLiveDrawChange();
       setPhase({
         kind: "ok",
         message: "Global config initialized on-chain.",
@@ -181,7 +185,7 @@ export function LotteryOpsPanel() {
     globalConfig,
     publicKey,
     refreshConfig,
-    refreshLiveDraw,
+    onLiveDrawChange,
     setupVault,
     teamVault,
     wallet,
@@ -202,6 +206,7 @@ export function LotteryOpsPanel() {
       const drawId = Number(config.nextDrawId);
       const draw = drawPda(programId, drawId);
       const prizeVault = prizeVaultPda(programId, draw);
+      const ticketChunk0 = ticketChunkPda(programId, draw, 0);
 
       const openTs = parseDatetimeLocal(salesOpen);
       const closeTs = parseDatetimeLocal(salesClose);
@@ -249,6 +254,9 @@ export function LotteryOpsPanel() {
           globalConfig,
           draw,
           prizeVault,
+          ticketChunk0,
+          systemProgram: new PublicKey("11111111111111111111111111111111"),
+          rent: SYSVAR_RENT_PUBKEY,
         })
         .rpc();
 
@@ -257,7 +265,7 @@ export function LotteryOpsPanel() {
       }
 
       await refreshConfig();
-      await refreshLiveDraw();
+      await onLiveDrawChange();
       setPhase({
         kind: "ok",
         message: `Draw #${drawId} created${activeSpl.length ? ` with ${activeSpl.length} SPL mint(s)` : ""}.`,
@@ -278,7 +286,7 @@ export function LotteryOpsPanel() {
     programId,
     publicKey,
     refreshConfig,
-    refreshLiveDraw,
+    onLiveDrawChange,
     salesClose,
     salesOpen,
     seedRefund,
@@ -390,91 +398,79 @@ export function LotteryOpsPanel() {
             ) : null}
           </div>
 
-          <div className="space-y-4 rounded-2xl border border-border bg-bg-elevated/70 p-6">
-            <h2 className="text-lg font-semibold">2. Create draw</h2>
-            {liveDraw ? (
-              <div className="rounded-xl border border-amber-500/40 bg-amber-950/20 px-4 py-3 text-sm text-amber-100">
-                <p>
-                  Draw #{liveDraw.drawId} is still active on-chain (state{" "}
-                  {liveDraw.state}). Finish or settle it before creating a new draw.
+          {initialized && !drawLoading && !liveDraw ? (
+            <div className="space-y-4 rounded-2xl border border-border bg-bg-elevated/70 p-6">
+              <h2 className="text-lg font-semibold">Create draw</h2>
+              {!isOnChainAuthority ? (
+                <p className="rounded-xl border border-amber-500/40 bg-amber-950/20 px-3 py-2 text-sm text-amber-100">
+                  Connected wallet is not the on-chain authority. Switch to{" "}
+                  <span className="font-mono">{config?.authority}</span> to create draws.
                 </p>
-                <p className="mt-2">
-                  <a href="#current-draw-spl" className="font-medium text-accent-cyan hover:underline">
-                    Edit SPL settings for the current draw
-                  </a>
-                </p>
+              ) : null}
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="flex flex-col gap-1 text-xs text-muted">
+                  Sales open (local time)
+                  <input
+                    type="datetime-local"
+                    value={salesOpen}
+                    onChange={(e) => setSalesOpen(e.target.value)}
+                    className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground"
+                  />
+                </label>
+                <label className="flex flex-col gap-1 text-xs text-muted">
+                  Sales close (local time)
+                  <input
+                    type="datetime-local"
+                    value={salesClose}
+                    onChange={(e) => setSalesClose(e.target.value)}
+                    className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground"
+                  />
+                </label>
+                <label className="flex flex-col gap-1 text-xs text-muted">
+                  Seed jackpot (SOL)
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.001"
+                    value={seedSol}
+                    onChange={(e) => setSeedSol(e.target.value)}
+                    className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground"
+                  />
+                </label>
+                <label className="flex flex-col gap-1 text-xs text-muted">
+                  Seed refund pubkey (empty draw)
+                  <input
+                    value={seedRefund}
+                    onChange={(e) => setSeedRefund(e.target.value)}
+                    placeholder={publicKey?.toBase58()}
+                    className="rounded-lg border border-border bg-surface px-3 py-2 font-mono text-xs text-foreground"
+                  />
+                </label>
               </div>
-            ) : null}
-            {initialized && config && !isOnChainAuthority ? (
-              <p className="rounded-xl border border-amber-500/40 bg-amber-950/20 px-3 py-2 text-sm text-amber-100">
-                Connected wallet is not the on-chain authority. Switch to{" "}
-                <span className="font-mono">{config.authority}</span> to create draws.
+
+              <LotterySplMintEditor
+                rows={splRows}
+                onChange={setSplRows}
+                disabled={phase.kind === "busy" || !isOnChainAuthority}
+              />
+
+              <p className="text-xs text-muted/90">
+                Creating a draw also funds on-chain ticket storage (chunk 0, about 0.058 SOL
+                rent from your admin wallet). Buyers only pay ticket price. For more than 256
+                tickets, use init ticket chunk in ops before sales cross each chunk boundary.
               </p>
-            ) : null}
 
-            <div
-              className={`grid gap-3 sm:grid-cols-2 ${liveDraw ? "pointer-events-none opacity-50" : ""}`}
-            >
-              <label className="flex flex-col gap-1 text-xs text-muted">
-                Sales open (local time)
-                <input
-                  type="datetime-local"
-                  value={salesOpen}
-                  onChange={(e) => setSalesOpen(e.target.value)}
-                  className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground"
-                />
-              </label>
-              <label className="flex flex-col gap-1 text-xs text-muted">
-                Sales close (local time)
-                <input
-                  type="datetime-local"
-                  value={salesClose}
-                  onChange={(e) => setSalesClose(e.target.value)}
-                  className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground"
-                />
-              </label>
-              <label className="flex flex-col gap-1 text-xs text-muted">
-                Seed jackpot (SOL)
-                <input
-                  type="number"
-                  min="0"
-                  step="0.001"
-                  value={seedSol}
-                  onChange={(e) => setSeedSol(e.target.value)}
-                  className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground"
-                />
-              </label>
-              <label className="flex flex-col gap-1 text-xs text-muted">
-                Seed refund pubkey (empty draw)
-                <input
-                  value={seedRefund}
-                  onChange={(e) => setSeedRefund(e.target.value)}
-                  placeholder={publicKey?.toBase58()}
-                  className="rounded-lg border border-border bg-surface px-3 py-2 font-mono text-xs text-foreground"
-                />
-              </label>
+              <button
+                type="button"
+                disabled={phase.kind === "busy" || !isOnChainAuthority}
+                onClick={onCreateDraw}
+                className="rounded-xl bg-gradient-to-r from-accent-purple to-accent-blue px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Create draw on devnet
+              </button>
             </div>
-
-            <LotterySplMintEditor
-              rows={splRows}
-              onChange={setSplRows}
-              disabled={phase.kind === "busy" || !isOnChainAuthority || Boolean(liveDraw)}
-            />
-
-            <button
-              type="button"
-              disabled={
-                phase.kind === "busy" ||
-                !initialized ||
-                !isOnChainAuthority ||
-                Boolean(liveDraw)
-              }
-              onClick={onCreateDraw}
-              className="rounded-xl bg-gradient-to-r from-accent-purple to-accent-blue px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Create draw on devnet
-            </button>
-          </div>
+          ) : null}
         </>
       )}
 

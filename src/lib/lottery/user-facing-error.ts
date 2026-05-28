@@ -170,6 +170,13 @@ export function formatLotteryBuyError(
     return "Insufficient SOL balance for this purchase (including network fees).";
   }
 
+  if (
+    text.includes("TicketChunkNotInitialized") ||
+    text.includes("ticket chunk not initialized")
+  ) {
+    return "Ticket sales are not ready yet for this draw. Please try again shortly.";
+  }
+
   if (isInsufficientSplToken(text)) {
     return "Insufficient token balance for this purchase.";
   }

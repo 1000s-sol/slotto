@@ -6,7 +6,7 @@ import {
 } from "@solana/web3.js";
 
 import { fetchDrawById } from "./chain";
-import { DrawState } from "./constants";
+import { DrawState, VRF_STUB_MARKER } from "./constants";
 import { globalConfigPda, ticketChunkPda } from "./pdas";
 import { createLotteryReadOnlyProgram } from "./program";
 import type { SlottoLotteryProgram } from "./program";
@@ -43,6 +43,28 @@ export type CrankDrawResult = {
 
 function stateLabel(state: number): string {
   return STATE_NAMES[state] ?? `unknown(${state})`;
+}
+
+/** Switchboard randomness pubkey for reveal/settle (session → on-chain draw → env override). */
+function resolveSwitchboardRandomnessAccount(
+  draw: { vrfRequest: PublicKey },
+  sessionRandomness: PublicKey | null,
+): PublicKey | null {
+  const envOverride = process.env.LOTTERY_RANDOMNESS_ACCOUNT?.trim();
+  if (envOverride) {
+    return new PublicKey(envOverride);
+  }
+  if (sessionRandomness) {
+    return sessionRandomness;
+  }
+  const onChain = draw.vrfRequest;
+  if (
+    !onChain.equals(PublicKey.default) &&
+    !onChain.equals(VRF_STUB_MARKER)
+  ) {
+    return onChain;
+  }
+  return null;
 }
 
 /** Draws that still need permissionless lifecycle txs after sales end. */
@@ -170,14 +192,13 @@ export async function crankDraw(
           "Switchboard VRF crank requires keeper Keypair (pass to crankDraw).",
         );
       }
-      const randomnessAccount =
-        switchboardRandomness ??
-        (process.env.LOTTERY_RANDOMNESS_ACCOUNT?.trim()
-          ? new PublicKey(process.env.LOTTERY_RANDOMNESS_ACCOUNT.trim())
-          : null);
+      const randomnessAccount = resolveSwitchboardRandomnessAccount(
+        draw,
+        switchboardRandomness,
+      );
       if (!randomnessAccount) {
         throw new Error(
-          "Missing randomness account for Switchboard settle. Re-run crank from SalesClosed or set LOTTERY_RANDOMNESS_ACCOUNT.",
+          "Missing randomness account for Switchboard settle. Draw has no Switchboard vrf_request on-chain; re-run from SalesClosed or set LOTTERY_RANDOMNESS_ACCOUNT.",
         );
       }
       actions.push("reveal_vrf");

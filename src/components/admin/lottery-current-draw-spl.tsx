@@ -11,9 +11,8 @@ import {
   adminSaveSplRowsForDrawAction,
 } from "@/app/admin/(dashboard)/lotteries/actions";
 import { DrawState } from "@/lib/lottery/constants";
-import type { SplMintRowView } from "@/lib/lottery/chain";
+import type { LotteryDrawView, SplMintRowView } from "@/lib/lottery/chain";
 import { lotteryProgramId } from "@/lib/lottery/config";
-import { fetchInProgressDraw } from "@/lib/lottery/draws";
 import { addSplMintToDraw } from "@/lib/lottery/add-spl-mint-to-draw";
 import type { SplMintDraft } from "@/lib/lottery/spl-types";
 import {
@@ -63,23 +62,29 @@ function chainRowsToDrafts(
   });
 }
 
-export function LotteryCurrentDrawSpl() {
+export function LotteryCurrentDrawSpl({
+  draw,
+  onDrawChange,
+}: {
+  draw: LotteryDrawView;
+  onDrawChange?: () => Promise<void>;
+}) {
   const { connection } = useConnection();
   const wallet = useAnchorWallet();
   const programId = useMemo(() => lotteryProgramId(), []);
 
-  const [drawId, setDrawId] = useState<number | null>(null);
-  const [drawPk, setDrawPk] = useState<string | null>(null);
-  const [drawState, setDrawState] = useState<number | null>(null);
-  const [chainMints, setChainMints] = useState<SplMintRowView[]>([]);
+  const drawId = draw.drawId;
+  const drawPk = draw.draw.toBase58();
+  const drawState = draw.state;
+  const chainMints = draw.splMints;
+  const selling = drawState === DrawState.Selling;
+
   const [rows, setRows] = useState<DbRow[]>([]);
   const [edits, setEdits] = useState<Record<string, MintEdit>>({});
   const [newMint, setNewMint] = useState<SplMintDraft[]>([]);
   const [msg, setMsg] = useState<string | null>(null);
   const [msgTone, setMsgTone] = useState<"ok" | "error">("ok");
   const [busy, setBusy] = useState(false);
-
-  const selling = drawState === DrawState.Selling;
 
   const hasEdits = useMemo(() => {
     return rows.some((r) => {
@@ -93,22 +98,7 @@ export function LotteryCurrentDrawSpl() {
     });
   }, [edits, rows]);
 
-  const refresh = useCallback(async () => {
-    const draw = await fetchInProgressDraw(connection, programId);
-    if (!draw) {
-      setDrawId(null);
-      setDrawPk(null);
-      setDrawState(null);
-      setChainMints([]);
-      setRows([]);
-      setEdits({});
-      return;
-    }
-    setDrawId(draw.drawId);
-    setDrawPk(draw.draw.toBase58());
-    setDrawState(draw.state);
-    setChainMints(draw.splMints);
-
+  const loadRows = useCallback(async () => {
     let db = await adminFetchDrawSplRowsAction(draw.drawId);
 
     if (db.length === 0 && draw.splMints.length > 0) {
@@ -119,11 +109,16 @@ export function LotteryCurrentDrawSpl() {
 
     setRows(db);
     setEdits(editsFromRows(db));
-  }, [connection, programId]);
+  }, [draw.drawId, draw.splMints]);
 
   useEffect(() => {
-    void refresh();
-  }, [refresh]);
+    void loadRows();
+  }, [loadRows]);
+
+  const refresh = useCallback(async () => {
+    await loadRows();
+    await onDrawChange?.();
+  }, [loadRows, onDrawChange]);
 
   const setEdit = (mint: string, patch: Partial<MintEdit>) => {
     setEdits((prev) => {
@@ -134,7 +129,7 @@ export function LotteryCurrentDrawSpl() {
   };
 
   const onSaveAll = async () => {
-    if (drawId === null || !hasEdits) return;
+    if (!hasEdits) return;
     setBusy(true);
     setMsg(null);
     try {
@@ -177,7 +172,7 @@ export function LotteryCurrentDrawSpl() {
   };
 
   const onAddMintOnChain = async () => {
-    if (drawId === null || !drawPk || !wallet || newMint.length === 0) return;
+    if (!wallet || newMint.length === 0) return;
     const draft = newMint[0];
     const err = validateSplMintRows([draft]);
     if (err) {
@@ -214,21 +209,13 @@ export function LotteryCurrentDrawSpl() {
     return m;
   }, [chainMints]);
 
-  if (drawId === null) {
-    return (
-      <p className="text-sm text-muted">
-        No in-progress draw. Create a draw or wait for an active selling round.
-      </p>
-    );
-  }
-
   return (
     <div
       id="current-draw-spl"
       className="space-y-4 rounded-2xl border border-border bg-bg-elevated/70 p-6"
     >
       <h2 className="text-lg font-semibold">
-        Current draw #{drawId} — SPL settings
+        Edit draw #{drawId} — SPL settings
       </h2>
       {!selling ? (
         <p className="text-sm text-amber-100">

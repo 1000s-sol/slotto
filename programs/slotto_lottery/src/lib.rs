@@ -152,7 +152,6 @@ pub mod slotto_lottery {
     ) -> Result<()> {
         require!(sales_close_ts > sales_open_ts, ErrorCode::InvalidSchedule);
         require!(spl_rows.len() <= SPL_MINT_MAX, ErrorCode::TooManySplMints);
-        require!(ctx.remaining_accounts.is_empty(), ErrorCode::UnexpectedRemainingAccounts);
 
         let refund = if seed_refund == Pubkey::default() {
             ctx.accounts.authority.key()
@@ -455,26 +454,7 @@ pub mod slotto_lottery {
 
         for (i, &chunk_idx) in chunk_indices.iter().enumerate() {
             let chunk_ai = &ctx.remaining_accounts[i];
-            let (expected_pda, bump) = Pubkey::find_program_address(
-                &[
-                    b"tickets",
-                    draw_key.as_ref(),
-                    &chunk_idx.to_le_bytes(),
-                ],
-                program_id,
-            );
-            require_keys_eq!(chunk_ai.key(), expected_pda);
-
-            super::ensure_ticket_chunk_initialized(
-                program_id,
-                ctx.accounts.buyer.to_account_info(),
-                ctx.remaining_accounts[i].clone(),
-                &draw_key,
-                chunk_idx,
-                bump,
-                ctx.accounts.system_program.to_account_info(),
-                ctx.accounts.rent.to_account_info(),
-            )?;
+            require_ticket_chunk_initialized(program_id, chunk_ai, &draw_key, chunk_idx)?;
 
             let chunk_start = chunk_idx
                 .checked_mul(TICKETS_PER_CHUNK as u32)
@@ -485,7 +465,7 @@ pub mod slotto_lottery {
             let from = base.max(chunk_start);
             let to = new_total.min(chunk_end);
 
-            assign_ticket_range(&ctx.remaining_accounts[i], chunk_start, from, to, buyer_key)?;
+            assign_ticket_range(chunk_ai, chunk_start, from, to, buyer_key)?;
         }
 
         let mut draw = ctx.accounts.draw.load_mut()?;

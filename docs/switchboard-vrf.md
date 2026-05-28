@@ -54,7 +54,7 @@ anchor idl build -o idl/slotto_lottery.json
 
 ## Resume failed crank
 
-If the draw is already `VrfRequested` and you have the randomness pubkey:
+If the draw is already `VrfRequested`, the keeper reads the randomness pubkey from **`draw.vrf_request`** on-chain (no env needed). To override:
 
 ```bash
 LOTTERY_RANDOMNESS_ACCOUNT=<pubkey> LOTTERY_VRF_MODE=switchboard npm run lottery:settle -- <drawId>
