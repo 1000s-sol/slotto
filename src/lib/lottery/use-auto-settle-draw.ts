@@ -5,6 +5,7 @@ import { useEffect, useRef } from "react";
 import type { LotteryDrawView } from "./chain";
 import { drawNeedsSettlement } from "./draw-settlement";
 import { triggerLotteryCrank } from "./trigger-crank-action";
+import { formatLotterySettlementError } from "./user-facing-error";
 
 const CRANK_INTERVAL_MS = 4_000;
 
@@ -34,7 +35,7 @@ export function useAutoSettleDraw(
         const result = await triggerLotteryCrank(draw.drawId);
         await refreshRef.current();
         if (!result.ok && result.error) {
-          onCrankError?.(result.error);
+          onCrankError?.(formatLotterySettlementError(result.error));
         }
       } finally {
         cranking = false;

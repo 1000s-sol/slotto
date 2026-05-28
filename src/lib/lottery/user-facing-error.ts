@@ -187,3 +187,24 @@ export function formatLotteryBuyError(
 
   return text;
 }
+
+/** Crank / auto-settle errors shown on the homepage. */
+export function formatLotterySettlementError(error: unknown): string {
+  const text = combinedErrorText(error);
+  if (
+    text.includes("invalid api key") ||
+    text.includes("-32401") ||
+    text.includes("401 Unauthorized")
+  ) {
+    return "RPC API key rejected (check HELIUS_API_KEY and NEXT_PUBLIC_SOLANA_RPC_URL on Vercel).";
+  }
+  if (isRateLimited(text)) {
+    const seconds =
+      parseRetrySeconds(text) ?? RATE_LIMIT_DEFAULT_WAIT_SECONDS;
+    return `RPC rate limit — wait ${seconds}s and refresh.`;
+  }
+  if (text.length > 200) {
+    return `${text.slice(0, 200)}…`;
+  }
+  return text.trim() || "Settlement failed. Try again or run lottery:settle locally.";
+}

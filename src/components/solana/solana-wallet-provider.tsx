@@ -1,13 +1,14 @@
 "use client";
 
 import { Buffer } from "buffer";
-import { clusterApiUrl } from "@solana/web3.js";
 import {
   ConnectionProvider,
   WalletProvider,
 } from "@solana/wallet-adapter-react";
 import { WalletModalProvider } from "@solana/wallet-adapter-react-ui";
 import { useMemo, type ReactNode } from "react";
+
+import { resolvePublicSolanaRpcUrl } from "@/lib/lottery/rpc-url";
 
 import "@solana/wallet-adapter-react-ui/styles.css";
 
@@ -16,12 +17,7 @@ if (typeof globalThis !== "undefined" && !(globalThis as unknown as { Buffer?: u
 }
 
 function rpcEndpoint() {
-  const fromEnv = process.env.NEXT_PUBLIC_SOLANA_RPC_URL?.trim();
-  if (fromEnv) return fromEnv;
-  if (process.env.NEXT_PUBLIC_SLOTTO_LOTTERY_PROGRAM_ID?.trim()) {
-    return clusterApiUrl("devnet");
-  }
-  return clusterApiUrl("mainnet-beta");
+  return resolvePublicSolanaRpcUrl();
 }
 
 type Props = { children: ReactNode };
