@@ -128,6 +128,43 @@ export type SlottoLottery = {
       ]
     },
     {
+      "name": "addSplMintToDraw",
+      "discriminator": [
+        158,
+        82,
+        68,
+        38,
+        174,
+        100,
+        173,
+        217
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "globalConfig"
+        },
+        {
+          "name": "draw",
+          "writable": true
+        }
+      ],
+      "args": [
+        {
+          "name": "splRow",
+          "type": {
+            "defined": {
+              "name": "splMintArg"
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "initTicketChunk",
       "discriminator": [
         193,
@@ -169,43 +206,6 @@ export type SlottoLottery = {
         {
           "name": "chunkIndex",
           "type": "u32"
-        }
-      ]
-    },
-    {
-      "name": "addSplMintToDraw",
-      "discriminator": [
-        158,
-        82,
-        68,
-        38,
-        174,
-        100,
-        173,
-        217
-      ],
-      "accounts": [
-        {
-          "name": "authority",
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "globalConfig"
-        },
-        {
-          "name": "draw",
-          "writable": true
-        }
-      ],
-      "args": [
-        {
-          "name": "splRow",
-          "type": {
-            "defined": {
-              "name": "splMintArg"
-            }
-          }
         }
       ]
     },
@@ -657,91 +657,96 @@ export type SlottoLottery = {
     },
     {
       "code": 6017,
+      "name": "ticketChunkNotInitialized",
+      "msg": "ticketChunkNotInitialized"
+    },
+    {
+      "code": 6018,
       "name": "ticketSlotOccupied",
       "msg": "ticketSlotOccupied"
     },
     {
-      "code": 6018,
+      "code": 6019,
       "name": "mintNotInDraw",
       "msg": "mintNotInDraw"
     },
     {
-      "code": 6019,
+      "code": 6020,
       "name": "splCapExceeded",
       "msg": "splCapExceeded"
     },
     {
-      "code": 6020,
+      "code": 6021,
       "name": "splMintDecimalsMismatch",
       "msg": "splMintDecimalsMismatch"
     },
     {
-      "code": 6021,
+      "code": 6022,
       "name": "invalidDrawStateForCloseSales",
       "msg": "invalidDrawStateForCloseSales"
     },
     {
-      "code": 6022,
+      "code": 6023,
       "name": "salesPeriodNotEnded",
       "msg": "salesPeriodNotEnded"
     },
     {
-      "code": 6023,
+      "code": 6024,
       "name": "invalidDrawStateForRefund",
       "msg": "invalidDrawStateForRefund"
     },
     {
-      "code": 6024,
+      "code": 6025,
       "name": "refundDrawHasTickets",
       "msg": "refundDrawHasTickets"
     },
     {
-      "code": 6025,
+      "code": 6026,
       "name": "invalidSeedRefund",
       "msg": "invalidSeedRefund"
     },
     {
-      "code": 6026,
+      "code": 6027,
       "name": "invalidDrawStateForVrf",
       "msg": "invalidDrawStateForVrf"
     },
     {
-      "code": 6027,
+      "code": 6028,
       "name": "vrfNeedsTickets",
       "msg": "vrfNeedsTickets"
     },
     {
-      "code": 6028,
+      "code": 6029,
       "name": "vrfAlreadyRequested",
       "msg": "vrfAlreadyRequested"
     },
     {
-      "code": 6029,
+      "code": 6030,
       "name": "invalidDrawStateForSettle",
       "msg": "invalidDrawStateForSettle"
     },
     {
-      "code": 6030,
+      "code": 6031,
       "name": "vrfNotStubMode",
       "msg": "vrfNotStubMode"
     },
     {
-      "code": 6031,
+      "code": 6032,
       "name": "settleAccountsWrongLen",
       "msg": "settleAccountsWrongLen"
     },
     {
-      "code": 6032,
+      "code": 6033,
       "name": "emptyTicketOwner",
       "msg": "emptyTicketOwner"
     },
     {
-      "code": 6033,
+      "code": 6034,
       "name": "winnerMismatch",
       "msg": "winnerMismatch"
     },
     {
-      "code": 6034,
+      "code": 6035,
       "name": "invalidDrawStateForWithdrawSpl",
       "msg": "invalidDrawStateForWithdrawSpl"
     }

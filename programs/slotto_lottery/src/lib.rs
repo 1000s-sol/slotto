@@ -2,7 +2,6 @@
 //! Spec: `docs/onchain-lottery-v1-spec.md`. Run `anchor keys sync` so `declare_id!` matches deploy keys.
 
 use anchor_lang::prelude::*;
-use anchor_lang::Discriminator;
 use anchor_lang::solana_program::hash::hashv;
 use anchor_lang::solana_program::sysvar::rent::Rent;
 use anchor_lang::system_program;

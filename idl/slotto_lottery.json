@@ -122,6 +122,43 @@
       ]
     },
     {
+      "name": "add_spl_mint_to_draw",
+      "discriminator": [
+        158,
+        82,
+        68,
+        38,
+        174,
+        100,
+        173,
+        217
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "global_config"
+        },
+        {
+          "name": "draw",
+          "writable": true
+        }
+      ],
+      "args": [
+        {
+          "name": "spl_row",
+          "type": {
+            "defined": {
+              "name": "splMintArg"
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "init_ticket_chunk",
       "discriminator": [
         193,
@@ -163,43 +200,6 @@
         {
           "name": "chunk_index",
           "type": "u32"
-        }
-      ]
-    },
-    {
-      "name": "add_spl_mint_to_draw",
-      "discriminator": [
-        158,
-        82,
-        68,
-        38,
-        174,
-        100,
-        173,
-        217
-      ],
-      "accounts": [
-        {
-          "name": "authority",
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "global_config"
-        },
-        {
-          "name": "draw",
-          "writable": true
-        }
-      ],
-      "args": [
-        {
-          "name": "spl_row",
-          "type": {
-            "defined": {
-              "name": "splMintArg"
-            }
-          }
         }
       ]
     },
@@ -949,41 +949,26 @@
     },
     {
       "code": 6031,
-      "name": "RequestVrfAccountsWrongLen",
-      "msg": "RequestVrfAccountsWrongLen"
+      "name": "VrfNotStubMode",
+      "msg": "VrfNotStubMode"
     },
     {
       "code": 6032,
-      "name": "InvalidRandomnessAccount",
-      "msg": "InvalidRandomnessAccount"
-    },
-    {
-      "code": 6033,
-      "name": "RandomnessNotResolved",
-      "msg": "RandomnessNotResolved"
-    },
-    {
-      "code": 6034,
       "name": "SettleAccountsWrongLen",
       "msg": "SettleAccountsWrongLen"
     },
     {
-      "code": 6035,
-      "name": "SettleSwitchboardAccountsWrongLen",
-      "msg": "SettleSwitchboardAccountsWrongLen"
-    },
-    {
-      "code": 6036,
+      "code": 6033,
       "name": "EmptyTicketOwner",
       "msg": "EmptyTicketOwner"
     },
     {
-      "code": 6037,
+      "code": 6034,
       "name": "WinnerMismatch",
       "msg": "WinnerMismatch"
     },
     {
-      "code": 6038,
+      "code": 6035,
       "name": "InvalidDrawStateForWithdrawSpl",
       "msg": "InvalidDrawStateForWithdrawSpl"
     }
