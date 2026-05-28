@@ -86,8 +86,16 @@ export type SlottoLottery = {
           "writable": true
         },
         {
+          "name": "ticketChunk0",
+          "writable": true
+        },
+        {
           "name": "systemProgram",
           "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
         }
       ],
       "args": [
@@ -116,6 +124,51 @@ export type SlottoLottery = {
               }
             }
           }
+        }
+      ]
+    },
+    {
+      "name": "initTicketChunk",
+      "discriminator": [
+        193,
+        105,
+        20,
+        68,
+        108,
+        172,
+        114,
+        121
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "globalConfig"
+        },
+        {
+          "name": "draw",
+          "writable": true
+        },
+        {
+          "name": "ticketChunk",
+          "writable": true
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "chunkIndex",
+          "type": "u32"
         }
       ]
     },
