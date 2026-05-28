@@ -23,6 +23,7 @@ type RandomnessSdk = typeof import("@switchboard-xyz/on-demand");
 
 function switchboardWalletFromKeypair(payer: Keypair) {
   return {
+    payer,
     publicKey: payer.publicKey,
     signTransaction: async <T extends Transaction | Web3VersionedTransaction>(tx: T) => {
       if ("version" in tx) {
