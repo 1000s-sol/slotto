@@ -1,5 +1,7 @@
 # Slotto on-chain lottery — v1 product spec (devnet → mainnet)
 
+**Mainnet checklist:** [mainnet-rollout.md](./mainnet-rollout.md)
+
 Reference for implementing the Solana program (Anchor) + frontend integration. Decisions below are locked unless explicitly revised in this doc.
 
 ## Goals

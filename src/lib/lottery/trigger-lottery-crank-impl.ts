@@ -8,15 +8,8 @@ import {
 } from "./keeper-wallet";
 import { createLotteryProgram } from "./program";
 
+import { resolveLotteryRpcUrl } from "@/lib/lottery/rpc-url";
 import type { CrankTriggerResult } from "./trigger-crank-action";
-
-function rpcUrl(): string {
-  return (
-    process.env.LOTTERY_DEVNET_RPC?.trim() ||
-    process.env.NEXT_PUBLIC_SOLANA_RPC_URL?.trim() ||
-    "https://api.devnet.solana.com"
-  );
-}
 
 /** Server-only: close_sales → request_vrf → settle for one draw. */
 export async function runTriggerLotteryCrank(
@@ -36,13 +29,19 @@ export async function runTriggerLotteryCrank(
   }
 
   try {
-    const connection = new Connection(rpcUrl(), "confirmed");
+    const connection = new Connection(resolveLotteryRpcUrl(), "confirmed");
     const programId = lotteryProgramId();
     const program = createLotteryProgram(
       connection,
       keypairToAnchorWallet(payer),
     );
-    const result = await crankDraw(connection, program, programId, drawId);
+    const result = await crankDraw(
+      connection,
+      program,
+      programId,
+      drawId,
+      payer,
+    );
     const terminal =
       result.finalState === "Settled" || result.finalState === "Refunded";
     return {

@@ -1,4 +1,9 @@
-import { Connection, PublicKey, SYSVAR_CLOCK_PUBKEY } from "@solana/web3.js";
+import {
+  Connection,
+  Keypair,
+  PublicKey,
+  SYSVAR_CLOCK_PUBKEY,
+} from "@solana/web3.js";
 
 import { fetchDrawById } from "./chain";
 import { DrawState } from "./constants";
@@ -6,10 +11,17 @@ import { globalConfigPda, ticketChunkPda } from "./pdas";
 import { createLotteryReadOnlyProgram } from "./program";
 import type { SlottoLotteryProgram } from "./program";
 import {
+  createDrawRandomnessAccount,
+  requestSwitchboardVrf,
+  revealSwitchboardVrf,
+  settleDrawWithSwitchboard,
+} from "./switchboard-crank";
+import {
   stubWinningTicketId,
   ticketChunkIndex,
   ticketSlotInChunk,
 } from "./stub-settle";
+import { lotteryVrfMode } from "./vrf-mode";
 
 const STATE_NAMES = [
   "Selling",
@@ -73,6 +85,7 @@ export async function crankDraw(
   program: SlottoLotteryProgram,
   programId: PublicKey,
   drawId: number,
+  keeper?: Keypair,
 ): Promise<CrankDrawResult> {
   let draw = await fetchDrawById(connection, programId, drawId);
   if (!draw) {
@@ -82,6 +95,7 @@ export async function crankDraw(
   const actions: string[] = [];
   const signatures: string[] = [];
   const initialState = stateLabel(draw.state);
+  let switchboardRandomness: PublicKey | null = null;
 
   if (draw.state === DrawState.Settled || draw.state === DrawState.Refunded) {
     return {
@@ -118,8 +132,28 @@ export async function crankDraw(
         })
         .rpc();
       signatures.push(sig);
+    } else if (lotteryVrfMode() === "switchboard") {
+      if (!keeper) {
+        throw new Error(
+          "Switchboard VRF crank requires keeper Keypair (pass to crankDraw).",
+        );
+      }
+      actions.push("create_switchboard_randomness");
+      switchboardRandomness = await createDrawRandomnessAccount(
+        connection,
+        keeper,
+      );
+      actions.push("commit_vrf + request_vrf");
+      const reqSig = await requestSwitchboardVrf(
+        connection,
+        program,
+        keeper,
+        draw.draw,
+        switchboardRandomness,
+      );
+      signatures.push(reqSig);
     } else {
-      actions.push("request_vrf");
+      actions.push("request_vrf (stub)");
       const sig = await program.methods
         .requestVrf()
         .accounts({ draw: draw.draw })
@@ -130,38 +164,73 @@ export async function crankDraw(
   }
 
   if (draw.state === DrawState.VrfRequested) {
-    const clockInfo = await connection.getAccountInfo(SYSVAR_CLOCK_PUBKEY);
-    if (!clockInfo || clockInfo.data.length < 40) {
-      throw new Error("Could not read clock sysvar");
+    if (lotteryVrfMode() === "switchboard") {
+      if (!keeper) {
+        throw new Error(
+          "Switchboard VRF crank requires keeper Keypair (pass to crankDraw).",
+        );
+      }
+      const randomnessAccount =
+        switchboardRandomness ??
+        (process.env.LOTTERY_RANDOMNESS_ACCOUNT?.trim()
+          ? new PublicKey(process.env.LOTTERY_RANDOMNESS_ACCOUNT.trim())
+          : null);
+      if (!randomnessAccount) {
+        throw new Error(
+          "Missing randomness account for Switchboard settle. Re-run crank from SalesClosed or set LOTTERY_RANDOMNESS_ACCOUNT.",
+        );
+      }
+      actions.push("reveal_vrf");
+      const revealSig = await revealSwitchboardVrf(
+        connection,
+        keeper,
+        randomnessAccount,
+      );
+      signatures.push(revealSig);
+      actions.push("settle (switchboard)");
+      const { signature, winningTicketId } = await settleDrawWithSwitchboard(
+        connection,
+        program,
+        programId,
+        drawId,
+        randomnessAccount,
+      );
+      signatures.push(signature);
+      actions.push(`winning ticket #${winningTicketId}`);
+    } else {
+      const clockInfo = await connection.getAccountInfo(SYSVAR_CLOCK_PUBKEY);
+      if (!clockInfo || clockInfo.data.length < 40) {
+        throw new Error("Could not read clock sysvar");
+      }
+      const slot = clockInfo.data.readBigUInt64LE(0);
+      const unixTs = clockInfo.data.readBigInt64LE(32);
+
+      const winningId = stubWinningTicketId(
+        draw.draw,
+        slot,
+        unixTs,
+        draw.totalTickets,
+      );
+      const chunkIdx = ticketChunkIndex(winningId);
+      const slotInChunk = ticketSlotInChunk(winningId);
+      const chunkPk = ticketChunkPda(programId, draw.draw, chunkIdx);
+      const chunk = await program.account.ticketChunk.fetch(chunkPk);
+      const winnerPk = chunk.owners[slotInChunk];
+
+      actions.push(`settle (stub ticket #${winningId})`);
+      const sig = await program.methods
+        .settle()
+        .accounts({
+          draw: draw.draw,
+          prizeVault: draw.prizeVault,
+        })
+        .remainingAccounts([
+          { pubkey: chunkPk, isWritable: true, isSigner: false },
+          { pubkey: winnerPk, isWritable: true, isSigner: false },
+        ])
+        .rpc();
+      signatures.push(sig);
     }
-    const slot = clockInfo.data.readBigUInt64LE(0);
-    const unixTs = clockInfo.data.readBigInt64LE(32);
-
-    const winningId = stubWinningTicketId(
-      draw.draw,
-      slot,
-      unixTs,
-      draw.totalTickets,
-    );
-    const chunkIdx = ticketChunkIndex(winningId);
-    const slotInChunk = ticketSlotInChunk(winningId);
-    const chunkPk = ticketChunkPda(programId, draw.draw, chunkIdx);
-    const chunk = await program.account.ticketChunk.fetch(chunkPk);
-    const winnerPk = chunk.owners[slotInChunk];
-
-    actions.push(`settle (ticket #${winningId})`);
-    const sig = await program.methods
-      .settle()
-      .accounts({
-        draw: draw.draw,
-        prizeVault: draw.prizeVault,
-      })
-      .remainingAccounts([
-        { pubkey: chunkPk, isWritable: true, isSigner: false },
-        { pubkey: winnerPk, isWritable: true, isSigner: false },
-      ])
-      .rpc();
-    signatures.push(sig);
     draw = (await fetchDrawById(connection, programId, drawId))!;
   }
 
@@ -180,11 +249,14 @@ export async function crankAllPendingDraws(
   connection: Connection,
   program: SlottoLotteryProgram,
   programId: PublicKey,
+  keeper?: Keypair,
 ): Promise<CrankDrawResult[]> {
   const ids = await fetchDrawIdsNeedingCrank(connection, programId);
   const results: CrankDrawResult[] = [];
   for (const drawId of ids) {
-    results.push(await crankDraw(connection, program, programId, drawId));
+    results.push(
+      await crankDraw(connection, program, programId, drawId, keeper),
+    );
   }
   return results;
 }

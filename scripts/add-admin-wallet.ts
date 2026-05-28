@@ -1,8 +1,6 @@
-import "dotenv/config";
+import { createScriptPrismaClient } from "./script-prisma";
 
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+const prisma = createScriptPrismaClient();
 
 async function main() {
   const address = process.argv[2]?.trim();
@@ -13,8 +11,10 @@ async function main() {
     process.exit(1);
   }
 
-  if (!process.env.DATABASE_URL?.trim()) {
-    console.error("DATABASE_URL is not set.");
+  if (!process.env.DATABASE_URL?.trim() && !process.env.DIRECT_URL?.trim()) {
+    console.error(
+      "DATABASE_URL is not set. For local scripts, also set DIRECT_URL (Neon → Connection → Direct).",
+    );
     process.exit(1);
   }
 
@@ -29,6 +29,27 @@ async function main() {
 
 main()
   .catch((e) => {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (msg.includes("Can't reach database server")) {
+      console.error(msg);
+      console.error(
+        "\nNeon may be asleep or the pooler URL may be unreachable from your network.",
+      );
+      console.error(
+        "1. Open the Neon dashboard and wake the project if it is suspended.",
+      );
+      console.error(
+        "2. Copy the Direct connection string into .env as DIRECT_URL (not the pooler URL).",
+      );
+      console.error("3. Re-run: npm run db:add-admin -- <pubkey>");
+      console.error(
+        "\nOr run this in Neon → SQL Editor:\n",
+        `INSERT INTO "AdminWallet" (id, address, "isActive", "createdAt")
+VALUES ('admin-${Date.now()}', '<PUBKEY>', true, NOW())
+ON CONFLICT (address) DO UPDATE SET "isActive" = true;`,
+      );
+      process.exit(1);
+    }
     console.error(e);
     process.exit(1);
   })

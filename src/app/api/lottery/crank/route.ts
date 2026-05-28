@@ -11,6 +11,7 @@ import {
   loadLotteryKeeperKeypair,
 } from "@/lib/lottery/keeper-wallet";
 import { createLotteryProgram } from "@/lib/lottery/program";
+import { resolveLotteryRpcUrl } from "@/lib/lottery/rpc-url";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -31,14 +32,6 @@ function authorized(request: Request): boolean {
   return auth === `Bearer ${secret}`;
 }
 
-function rpcUrl(): string {
-  return (
-    process.env.LOTTERY_DEVNET_RPC?.trim() ||
-    process.env.NEXT_PUBLIC_SOLANA_RPC_URL?.trim() ||
-    "https://api.devnet.solana.com"
-  );
-}
-
 async function handleCrank(request: Request) {
   if (!authorized(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -57,7 +50,7 @@ async function handleCrank(request: Request) {
 
   const url = new URL(request.url);
   const drawIdParam = url.searchParams.get("drawId");
-  const connection = new Connection(rpcUrl(), "confirmed");
+  const connection = new Connection(resolveLotteryRpcUrl(), "confirmed");
   const programId = lotteryProgramId();
   const program = createLotteryProgram(
     connection,

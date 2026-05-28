@@ -11,6 +11,9 @@ slotto_lottery = "6mYYxtJ4NPH1oNJoy2CpJGQq6XiWCsu8iB5y6ior6TMq"
 [programs.localnet]
 slotto_lottery = "6mYYxtJ4NPH1oNJoy2CpJGQq6XiWCsu8iB5y6ior6TMq"
 
+[programs.mainnet]
+slotto_lottery = "6mYYxtJ4NPH1oNJoy2CpJGQq6XiWCsu8iB5y6ior6TMq"
+
 [registry]
 url = "https://api.apr.dev"
 

@@ -1,5 +1,7 @@
 import { PublicKey } from "@solana/web3.js";
 
+import { lotteryCluster } from "@/lib/lottery/cluster";
+
 const DEFAULT_PROGRAM_ID = "6mYYxtJ4NPH1oNJoy2CpJGQq6XiWCsu8iB5y6ior6TMq";
 
 export function lotteryProgramId(): PublicKey {
@@ -19,10 +21,7 @@ export function lotteryRpcUrl(): string | undefined {
 }
 
 export function solscanClusterParam(): string {
-  const rpc = lotteryRpcUrl() ?? "";
-  if (rpc.includes("devnet")) return "?cluster=devnet";
-  if (rpc.includes("mainnet")) return "";
-  return "?cluster=devnet";
+  return lotteryCluster() === "devnet" ? "?cluster=devnet" : "";
 }
 
 export function solscanTxUrl(signature: string): string {

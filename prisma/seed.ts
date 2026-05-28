@@ -4,7 +4,7 @@ const prisma = new PrismaClient();
 
 /** Upserted on every `prisma db seed` in addition to env vars. */
 const SEED_ADMIN_WALLETS = [
-  "3UYmZg6kK4DfT5tHMxpkc63HZ9odDup9FDxMimEhowC7",
+  "F2qMgvRwPTNRAmkdqbT5BS6i7U6yWmd1nGEFyppfch3g",
 ] as const;
 
 function parseAdminWalletList(): string[] {

@@ -10,6 +10,8 @@ use anchor_lang::solana_program::system_instruction;
 use anchor_lang::system_program;
 use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token::{self, Mint, Token, TokenAccount};
+use switchboard_on_demand::on_demand::accounts::randomness::RandomnessAccountData;
+use switchboard_on_demand::{ON_DEMAND_DEVNET_PID, ON_DEMAND_MAINNET_PID};
 
 declare_id!("6mYYxtJ4NPH1oNJoy2CpJGQq6XiWCsu8iB5y6ior6TMq");
 
@@ -542,8 +544,8 @@ pub mod slotto_lottery {
         Ok(())
     }
 
-    /// Records that randomness was requested. **v1 devnet:** sets `vrf_request` to [`VRF_STUB_MARKER`].
-    /// **Production:** replace with Switchboard CPI and store the real VRF / randomness account pubkey.
+    /// Records VRF request. **Stub (devnet):** no remaining accounts → [`VRF_STUB_MARKER`].
+    /// **Switchboard:** one remaining account — randomness account (commit must land same slot; see keeper).
     pub fn request_vrf(ctx: Context<RequestVrf>) -> Result<()> {
         let mut draw = ctx.accounts.draw.load_mut()?;
         require!(
@@ -553,7 +555,22 @@ pub mod slotto_lottery {
         require!(draw.total_tickets >= 1, ErrorCode::VrfNeedsTickets);
         require_keys_eq!(draw.vrf_request, Pubkey::default(), ErrorCode::VrfAlreadyRequested);
 
-        draw.vrf_request = VRF_STUB_MARKER;
+        if ctx.remaining_accounts.is_empty() {
+            draw.vrf_request = VRF_STUB_MARKER;
+        } else {
+            require_eq!(
+                ctx.remaining_accounts.len(),
+                1,
+                ErrorCode::RequestVrfAccountsWrongLen
+            );
+            let randomness = &ctx.remaining_accounts[0];
+            require!(
+                is_switchboard_randomness_owner(randomness.owner),
+                ErrorCode::InvalidRandomnessAccount
+            );
+            draw.vrf_request = randomness.key();
+        }
+
         draw.state = DrawState::VrfRequested as u8;
         Ok(())
     }
@@ -576,30 +593,54 @@ pub mod slotto_lottery {
             state == DrawState::VrfRequested as u8,
             ErrorCode::InvalidDrawStateForSettle
         );
-        require_keys_eq!(vrf_request, VRF_STUB_MARKER, ErrorCode::VrfNotStubMode);
         require!(n >= 1, ErrorCode::VrfNeedsTickets);
 
-        require_eq!(
-            ctx.remaining_accounts.len(),
-            2,
-            ErrorCode::SettleAccountsWrongLen
-        );
+        let slot = ctx.accounts.clock.slot;
+        let ts = ctx.accounts.clock.unix_timestamp;
 
-        let (chunk_account, winner_account): (AccountInfo<'static>, AccountInfo<'static>) = unsafe {
-            // SAFETY: same as `ensure_ticket_chunk_initialized` — all accounts live for the instruction.
-            (
-                core::mem::transmute(ctx.remaining_accounts[0].clone()),
-                core::mem::transmute(ctx.remaining_accounts[1].clone()),
-            )
+        let (chunk_account, winner_account, winning_ticket_id): (
+            AccountInfo<'static>,
+            AccountInfo<'static>,
+            u32,
+        ) = if vrf_request == VRF_STUB_MARKER {
+            require_eq!(
+                ctx.remaining_accounts.len(),
+                2,
+                ErrorCode::SettleAccountsWrongLen
+            );
+            let chunk_account: AccountInfo<'static> =
+                unsafe { core::mem::transmute(ctx.remaining_accounts[0].clone()) };
+            let winner_account: AccountInfo<'static> =
+                unsafe { core::mem::transmute(ctx.remaining_accounts[1].clone()) };
+            let winning_ticket_id = stub_settle_winning_ticket_id(&draw_key, slot, ts, n)?;
+            (chunk_account, winner_account, winning_ticket_id)
+        } else {
+            require_eq!(
+                ctx.remaining_accounts.len(),
+                3,
+                ErrorCode::SettleSwitchboardAccountsWrongLen
+            );
+            let randomness_account: AccountInfo<'static> =
+                unsafe { core::mem::transmute(ctx.remaining_accounts[0].clone()) };
+            let chunk_account: AccountInfo<'static> =
+                unsafe { core::mem::transmute(ctx.remaining_accounts[1].clone()) };
+            let winner_account: AccountInfo<'static> =
+                unsafe { core::mem::transmute(ctx.remaining_accounts[2].clone()) };
+            require_keys_eq!(
+                randomness_account.key(),
+                vrf_request,
+                ErrorCode::InvalidRandomnessAccount
+            );
+            let vrf_bytes =
+                read_switchboard_randomness_value(&randomness_account, slot)?;
+            let winning_ticket_id = winning_ticket_from_vrf_bytes(&vrf_bytes, n)?;
+            (chunk_account, winner_account, winning_ticket_id)
         };
+
         let vault_info: AccountInfo<'static> =
             unsafe { core::mem::transmute(ctx.accounts.prize_vault.to_account_info()) };
         let rent_ai: AccountInfo<'static> =
             unsafe { core::mem::transmute(ctx.accounts.rent.to_account_info()) };
-
-        let slot = ctx.accounts.clock.slot;
-        let ts = ctx.accounts.clock.unix_timestamp;
-        let winning_ticket_id = stub_settle_winning_ticket_id(&draw_key, slot, ts, n)?;
         let chunk_idx = ticket_chunk_index(winning_ticket_id);
         let slot_in_chunk = ticket_slot_in_chunk(winning_ticket_id);
 
@@ -1205,10 +1246,16 @@ pub enum ErrorCode {
     VrfAlreadyRequested,
     #[msg("draw must be VrfRequested to settle")]
     InvalidDrawStateForSettle,
-    #[msg("settle stub only supports VRF_STUB_MARKER; wire Switchboard for production")]
-    VrfNotStubMode,
-    #[msg("settle requires [ticket_chunk, winner] remaining accounts")]
+    #[msg("request_vrf Switchboard mode requires [randomness_account] remaining account")]
+    RequestVrfAccountsWrongLen,
+    #[msg("randomness account owner is not Switchboard On-Demand")]
+    InvalidRandomnessAccount,
+    #[msg("Switchboard randomness not resolved yet — run reveal before settle")]
+    RandomnessNotResolved,
+    #[msg("settle stub requires [ticket_chunk, winner] remaining accounts")]
     SettleAccountsWrongLen,
+    #[msg("settle Switchboard requires [randomness, ticket_chunk, winner] remaining accounts")]
+    SettleSwitchboardAccountsWrongLen,
     #[msg("winning ticket owner is missing on-chain")]
     EmptyTicketOwner,
     #[msg("winner account does not match ticket owner")]
@@ -1342,6 +1389,13 @@ mod tests {
             let w = stub_settle_winning_ticket_id(&k, 9_999, 1_700_000_000, n).unwrap();
             assert!(w < n);
         }
+    }
+
+    #[test]
+    fn vrf_bytes_maps_to_ticket_index() {
+        let bytes = [7u8; 32];
+        assert_eq!(winning_ticket_from_vrf_bytes(&bytes, 10).unwrap(), 7);
+        assert_eq!(winning_ticket_from_vrf_bytes(&bytes, 1).unwrap(), 0);
     }
 
     #[test]

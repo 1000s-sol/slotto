@@ -11,6 +11,7 @@ import { crankDraw } from "../src/lib/lottery/crank-draw";
 import { lotteryProgramId } from "../src/lib/lottery/config";
 import { loadLotteryKeeperKeypair } from "../src/lib/lottery/keeper-wallet";
 import { createLotteryProgram } from "../src/lib/lottery/program";
+import { resolveLotteryRpcUrl } from "../src/lib/lottery/rpc-url";
 
 async function main() {
   const drawId = parseInt(process.argv[2] ?? "0", 10);
@@ -27,16 +28,19 @@ async function main() {
     process.exit(1);
   }
 
-  const rpc =
-    process.env.LOTTERY_DEVNET_RPC?.trim() ||
-    process.env.NEXT_PUBLIC_SOLANA_RPC_URL?.trim() ||
-    "https://api.devnet.solana.com";
+  const rpc = resolveLotteryRpcUrl();
   const connection = new Connection(rpc, "confirmed");
   const programId = lotteryProgramId();
   const wallet = new anchor.Wallet(payer);
   const program = createLotteryProgram(connection, wallet);
 
-  const result = await crankDraw(connection, program, programId, drawId);
+  const result = await crankDraw(
+    connection,
+    program,
+    programId,
+    drawId,
+    payer,
+  );
   console.info(
     `Draw #${drawId}: ${result.initialState} → ${result.finalState}`,
   );
