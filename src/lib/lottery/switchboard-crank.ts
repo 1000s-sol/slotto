@@ -2,7 +2,9 @@ import {
   Connection,
   Keypair,
   PublicKey,
+  type Transaction,
   TransactionMessage,
+  type VersionedTransaction as Web3VersionedTransaction,
   VersionedTransaction,
 } from "@solana/web3.js";
 
@@ -19,6 +21,32 @@ import { winningTicketFromVrfBytes } from "./winning-ticket-from-vrf";
 
 type RandomnessSdk = typeof import("@switchboard-xyz/on-demand");
 
+function switchboardWalletFromKeypair(payer: Keypair) {
+  return {
+    publicKey: payer.publicKey,
+    signTransaction: async <T extends Transaction | Web3VersionedTransaction>(tx: T) => {
+      if ("version" in tx) {
+        tx.sign([payer]);
+      } else {
+        tx.partialSign(payer);
+      }
+      return tx;
+    },
+    signAllTransactions: async <
+      T extends Transaction | Web3VersionedTransaction,
+    >(txs: T[]) => {
+      for (const tx of txs) {
+        if ("version" in tx) {
+          tx.sign([payer]);
+        } else {
+          tx.partialSign(payer);
+        }
+      }
+      return txs;
+    },
+  };
+}
+
 /** Create a Switchboard randomness account for one draw (fund payer with ~0.01 SOL). */
 export async function createDrawRandomnessAccount(
   connection: Connection,
@@ -27,11 +55,10 @@ export async function createDrawRandomnessAccount(
   const sb = await loadSwitchboardSdk();
   const queue = switchboardQueueForCluster();
   const { AnchorUtils, Randomness } = sb;
-
-  const provider = AnchorUtils.getProvider(connection, payer, {
-    commitment: "confirmed",
-  });
-  const sbProgram = await AnchorUtils.loadProgramFromProvider(provider);
+  const sbProgram = await AnchorUtils.loadProgramFromConnection(
+    connection,
+    switchboardWalletFromKeypair(payer),
+  );
   const rng = await Randomness.create(sbProgram, {
     queue: queue,
     authority: payer.publicKey,
@@ -63,11 +90,10 @@ export async function requestSwitchboardVrf(
   const sb = await loadSwitchboardSdk();
   const queue = switchboardQueueForCluster();
   const { AnchorUtils, Randomness } = sb;
-
-  const provider = AnchorUtils.getProvider(connection, payer, {
-    commitment: "confirmed",
-  });
-  const sbProgram = await AnchorUtils.loadProgramFromProvider(provider);
+  const sbProgram = await AnchorUtils.loadProgramFromConnection(
+    connection,
+    switchboardWalletFromKeypair(payer),
+  );
 
   const randomness = new Randomness(sbProgram, randomnessAccount);
 
@@ -115,11 +141,10 @@ export async function revealSwitchboardVrf(
 ): Promise<string> {
   const sb = await loadSwitchboardSdk();
   const { AnchorUtils, Randomness } = sb;
-
-  const provider = AnchorUtils.getProvider(connection, payer, {
-    commitment: "confirmed",
-  });
-  const sbProgram = await AnchorUtils.loadProgramFromProvider(provider);
+  const sbProgram = await AnchorUtils.loadProgramFromConnection(
+    connection,
+    switchboardWalletFromKeypair(payer),
+  );
   const randomness = new Randomness(sbProgram, randomnessAccount);
 
   const revealIx = await randomness.revealIx();
