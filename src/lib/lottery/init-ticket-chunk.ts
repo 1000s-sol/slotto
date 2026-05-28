@@ -1,5 +1,5 @@
 import type { AnchorWallet } from "@solana/wallet-adapter-react";
-import { Connection, PublicKey, SYSVAR_RENT_PUBKEY } from "@solana/web3.js";
+import { Connection, PublicKey } from "@solana/web3.js";
 
 import { globalConfigPda, ticketChunkPda } from "./pdas";
 import { createLotteryProgram } from "./program";
@@ -26,8 +26,6 @@ export async function initTicketChunk(
       globalConfig: globalConfigPda(programId),
       draw,
       ticketChunk,
-      systemProgram: new PublicKey("11111111111111111111111111111111"),
-      rent: SYSVAR_RENT_PUBKEY,
     })
     .rpc();
 }

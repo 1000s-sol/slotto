@@ -6,7 +6,6 @@ import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import {
   LAMPORTS_PER_SOL,
   PublicKey,
-  SYSVAR_RENT_PUBKEY,
 } from "@solana/web3.js";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -254,8 +253,6 @@ export function LotteryOpsPanel({
           draw,
           prizeVault,
           ticketChunk0,
-          systemProgram: new PublicKey("11111111111111111111111111111111"),
-          rent: SYSVAR_RENT_PUBKEY,
         })
         .rpc();
 
