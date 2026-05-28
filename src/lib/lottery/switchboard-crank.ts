@@ -20,6 +20,10 @@ import {
 import { winningTicketFromVrfBytes } from "./winning-ticket-from-vrf";
 
 type RandomnessSdk = typeof import("@switchboard-xyz/on-demand");
+const RANDOMNESS_ACCOUNT_MIN_LEN = 184;
+const REVEAL_SLOT_OFFSET = 144;
+const VALUE_OFFSET = 152;
+const VALUE_LEN = 32;
 
 function switchboardWalletFromKeypair(payer: Keypair) {
   return {
@@ -206,11 +210,23 @@ export async function previewSwitchboardWinningTicket(
   if (!account?.data) {
     throw new Error("Randomness account not found");
   }
-  const sb = await loadSwitchboardSdk();
-  const parsed = sb.RandomnessAccountData.parse(account.data);
   const slot = await connection.getSlot("confirmed");
-  const value = parsed.getValue(slot);
-  return winningTicketFromVrfBytes(Buffer.from(value), totalTickets);
+  const data = account.data;
+  if (data.length < RANDOMNESS_ACCOUNT_MIN_LEN) {
+    throw new Error("Randomness account too small");
+  }
+
+  const revealSlot = Number(data.readBigUInt64LE(REVEAL_SLOT_OFFSET));
+  if (!Number.isFinite(revealSlot) || revealSlot <= 0 || slot < revealSlot) {
+    throw new Error("Randomness not resolved yet");
+  }
+
+  const value = data.subarray(VALUE_OFFSET, VALUE_OFFSET + VALUE_LEN);
+  if (value.length !== VALUE_LEN || value.every((b) => b === 0)) {
+    throw new Error("Randomness value missing");
+  }
+
+  return winningTicketFromVrfBytes(value, totalTickets);
 }
 
 export async function settleDrawWithSwitchboard(
