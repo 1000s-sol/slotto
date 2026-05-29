@@ -35,22 +35,28 @@ export async function crankEmptyDrawWithWallet(
   }
 
   if (draw.state === DrawState.Selling) {
+    const drawPk = draw.draw;
     const sig = await sendTransactionViaWallet(connection, sendTransaction, () =>
-      program.methods.closeSales().accounts({ draw: draw.draw }).transaction(),
+      program.methods.closeSales().accounts({ draw: drawPk }).transaction(),
     );
     signatures.push(sig);
-    draw = (await fetchDrawById(connection, programId, drawId))!;
+    const refreshed = await fetchDrawById(connection, programId, drawId);
+    if (!refreshed) throw new Error(`Draw #${drawId} not found after close_sales`);
+    draw = refreshed;
   }
 
   if (draw.state === DrawState.SalesClosed && draw.totalTickets === 0) {
-    const acct = await program.account.draw.fetch(draw.draw);
+    const drawPk = draw.draw;
+    const prizeVault = draw.prizeVault;
+    const acct = await program.account.draw.fetch(drawPk);
+    const seedRefund = acct.seedRefund;
     const sig = await sendTransactionViaWallet(connection, sendTransaction, () =>
       program.methods
         .refundEmptyDraw()
         .accounts({
-          draw: draw.draw,
-          prizeVault: draw.prizeVault,
-          seedRefund: acct.seedRefund,
+          draw: drawPk,
+          prizeVault,
+          seedRefund,
         })
         .transaction(),
     );
