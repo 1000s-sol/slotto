@@ -170,7 +170,10 @@ export function formatLotteryBuyError(
     text.toLowerCase().includes("no signers") ||
     text.toLowerCase().includes("no signer")
   ) {
-    return "Phantom could not sign this transaction. Disconnect the site in Phantom (Settings → Connected Apps), hard refresh, reconnect on mainnet, then try again.";
+    const detail = text.trim().slice(0, 120);
+    return detail.length > 20
+      ? `Wallet signing failed (${detail}). Hard refresh, reconnect Phantom on mainnet, then try again.`
+      : "Wallet signing failed. Hard refresh, reconnect Phantom on mainnet, then try again.";
   }
 
   if (isRateLimited(text)) {

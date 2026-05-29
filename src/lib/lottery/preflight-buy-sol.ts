@@ -11,8 +11,6 @@ import {
 import { globalConfigPda, ticketChunkPda } from "./pdas";
 import { createLotteryProgram } from "./program";
 import { ticketChunkIndicesForRange } from "./ticket-chunks";
-import { formatLotteryBuyError } from "./user-facing-error";
-
 export class BuyPreflightError extends Error {
   constructor(message: string) {
     super(message);
@@ -102,23 +100,6 @@ export async function preflightBuySolTickets(
     );
   }
 
-  const tx = await buildBuySolTicketsTransaction(
-    connection,
-    wallet,
-    programId,
-    draw,
-    count,
-  );
-
-  // Do not pass `[]` as signers — empty array is truthy and triggers tx.sign() → "No signers".
-  const sim = await connection.simulateTransaction(tx, undefined, false);
-
-  if (sim.value.err) {
-    const logs = sim.value.logs?.join("\n") ?? "";
-    const msg = formatLotteryBuyError(
-      { message: logs || JSON.stringify(sim.value.err), logs: sim.value.logs },
-      { payWith: "SOL" },
-    );
-    throw new BuyPreflightError(msg);
-  }
+  // RPC simulation of unsigned legacy txs is unreliable (false InsufficientFundsForRent
+  // while logs show success). Balance + draw window checks are enough before Phantom opens.
 }
