@@ -73,7 +73,7 @@ function buyDisabledReason(
 export function HomeLotterySection() {
   const { connection } = useConnection();
   const wallet = useLotteryWallet();
-  const { connected } = useWallet();
+  const { connected, sendTransaction, wallet: walletContext } = useWallet();
   const { setVisible } = useWalletModal();
   const programId = useMemo(() => lotteryProgramId(), []);
 
@@ -371,6 +371,10 @@ export function HomeLotterySection() {
       setTicketCount(count);
     }
     setPhase({ kind: "busy", label: "Confirm in your wallet…" });
+    const sendOpts = {
+      sendTransaction,
+      adapter: walletContext?.adapter ?? null,
+    };
     try {
       const sig =
         payWith === "SOL"
@@ -380,6 +384,8 @@ export function HomeLotterySection() {
               programId,
               activeDraw,
               count,
+              sendOpts,
+              nowSec ?? undefined,
             )
           : await (async () => {
               const mint = new PublicKey(payWith);
@@ -398,6 +404,7 @@ export function HomeLotterySection() {
                 mint,
                 count,
                 quoted,
+                sendOpts,
               );
             })();
       const firstId = activeDraw.totalTickets;
@@ -425,7 +432,10 @@ export function HomeLotterySection() {
     splUiRows,
     ticketCount,
     tickerPrices,
+    nowSec,
+    sendTransaction,
     wallet,
+    walletContext,
   ]);
 
   const countdownCells = countdown?.parts

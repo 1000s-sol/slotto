@@ -67,6 +67,7 @@ export async function preflightBuySolTickets(
   programId: PublicKey,
   draw: LotteryDrawView,
   count: number,
+  nowSecFromUi?: number,
 ): Promise<void> {
   if (!Number.isInteger(count) || count < 1 || count > MAX_SOL_TICKETS_PER_BUY) {
     throw new BuyPreflightError(
@@ -80,7 +81,8 @@ export async function preflightBuySolTickets(
     );
   }
 
-  const nowSec = await chainUnixTs(connection);
+  const nowSec =
+    nowSecFromUi ?? (await chainUnixTs(connection));
   if (!isDrawBuyable(draw, nowSec)) {
     if (nowSec < draw.salesOpenTs) {
       throw new BuyPreflightError(

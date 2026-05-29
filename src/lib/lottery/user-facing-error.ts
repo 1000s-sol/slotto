@@ -166,8 +166,11 @@ export function formatLotteryBuyError(
     return "Transaction cancelled in your wallet.";
   }
 
-  if (text.toLowerCase().includes("no signers")) {
-    return "Wallet could not sign this purchase. Refresh the page, reconnect Phantom on mainnet, and try again.";
+  if (
+    text.toLowerCase().includes("no signers") ||
+    text.toLowerCase().includes("no signer")
+  ) {
+    return "Phantom could not sign this transaction. Disconnect the site in Phantom (Settings → Connected Apps), hard refresh, reconnect on mainnet, then try again.";
   }
 
   if (isRateLimited(text)) {
