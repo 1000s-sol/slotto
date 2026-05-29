@@ -16,7 +16,7 @@ const CRANK_BACKOFF_MS = 45_000;
 
 /**
  * After sales end, crank via the server keeper only (no wallet popups).
- * Empty-draw refunds use the same path; users can also close manually once.
+ * Empty-draw refunds use the same keeper path (no visitor wallet txs).
  */
 export function useAutoSettleDraw(
   draw: LotteryDrawView | null,

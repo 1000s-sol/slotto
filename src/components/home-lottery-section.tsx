@@ -14,7 +14,6 @@ import { fetchWalletSocialsClient } from "@/lib/fetch-wallet-social-client";
 import type { WalletSocialPublic } from "@/lib/social-profile-url";
 import { buySolTickets } from "@/lib/lottery/buy-sol-tickets";
 import { buySplTickets } from "@/lib/lottery/buy-spl-tickets";
-import { crankEmptyDrawWithWallet } from "@/lib/lottery/crank-empty-draw";
 import { fetchTickerPricesClient } from "@/lib/lottery/fetch-ticker-prices-client";
 import { resolveSplQuotedPricePerTicket } from "@/lib/lottery/resolve-spl-quoted-price";
 import type { TickerPriceItem } from "@/lib/token-usd-prices";
@@ -445,32 +444,6 @@ export function HomeLotterySection() {
     walletContext,
   ]);
 
-  const onCloseEmptyDraw = useCallback(async () => {
-    if (!activeDraw || activeDraw.totalTickets !== 0 || !wallet) return;
-    setPhase({ kind: "busy", label: "Confirm close draw in Phantom…" });
-    try {
-      const sigs = await crankEmptyDrawWithWallet(
-        connection,
-        wallet,
-        programId,
-        activeDraw.drawId,
-      );
-      await refresh();
-      const sig = sigs[sigs.length - 1];
-      setPhase({
-        kind: "ok",
-        message: "Empty draw closed; seed SOL refunded to the draw creator.",
-        signature: sig ?? "",
-      });
-    } catch (e) {
-      setPhase({
-        kind: "error",
-        message:
-          e instanceof Error ? e.message : "Could not close empty draw.",
-      });
-    }
-  }, [activeDraw, connection, programId, refresh, wallet]);
-
   const countdownCells = countdown?.parts
     ? [
         [pad2(countdown.parts[0]), "days"],
@@ -709,26 +682,10 @@ export function HomeLotterySection() {
               </div>
             ) : null}
             {needsSettlement && activeDraw?.totalTickets === 0 ? (
-              <div className="mt-4 space-y-2 text-sm text-amber-100/90">
-                <p>
-                  No tickets were sold. The draw should auto-close via the server
-                  keeper; if it stays stuck, close it once below (small tx fee only).
-                </p>
-                {connected && wallet ? (
-                  <button
-                    type="button"
-                    onClick={onCloseEmptyDraw}
-                    disabled={phase.kind === "busy"}
-                    className="rounded-xl border border-amber-400/50 bg-amber-950/40 px-4 py-2 text-sm font-semibold text-amber-50 hover:bg-amber-900/50 disabled:opacity-50"
-                  >
-                    {phase.kind === "busy"
-                      ? "Confirm in wallet…"
-                      : "Close empty draw (refund seed)"}
-                  </button>
-                ) : (
-                  <p>Connect a wallet to close manually if auto-settlement fails.</p>
-                )}
-              </div>
+              <p className="mt-4 text-sm text-amber-100/90">
+                No tickets were sold. The server keeper is closing this draw and
+                refunding the seed SOL — no wallet action needed.
+              </p>
             ) : null}
             {settleError ? (
               <div className="mt-4 rounded-xl border border-red-500/40 bg-red-950/30 px-4 py-3 text-sm text-red-200">
