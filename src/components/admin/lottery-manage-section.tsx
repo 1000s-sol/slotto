@@ -1,19 +1,17 @@
 "use client";
 
-import { useAnchorWallet, useConnection } from "@solana/wallet-adapter-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useAnchorWallet } from "@solana/wallet-adapter-react";
+import { useCallback, useEffect, useState } from "react";
 
+import { adminFetchInProgressDrawAction } from "@/app/admin/(dashboard)/lotteries/actions";
 import { LotteryCurrentDrawSpl } from "@/components/admin/lottery-current-draw-spl";
 import { LotteryOpsPanel } from "@/components/admin/lottery-ops-panel";
 import type { LotteryDrawView } from "@/lib/lottery/chain";
-import { lotteryProgramId } from "@/lib/lottery/config";
-import { fetchInProgressDraw } from "@/lib/lottery/draws";
+import { lotteryDrawViewFromJson } from "@/lib/lottery/draws";
 
 /** Shows create-draw OR edit-current-draw — never both at once. */
 export function LotteryManageSection() {
-  const { connection } = useConnection();
   const wallet = useAnchorWallet();
-  const programId = useMemo(() => lotteryProgramId(), []);
 
   const [liveDraw, setLiveDraw] = useState<LotteryDrawView | null>(null);
   const [drawLoading, setDrawLoading] = useState(true);
@@ -26,14 +24,14 @@ export function LotteryManageSection() {
     }
     setDrawLoading(true);
     try {
-      const draw = await fetchInProgressDraw(connection, programId);
-      setLiveDraw(draw);
+      const json = await adminFetchInProgressDrawAction();
+      setLiveDraw(json ? lotteryDrawViewFromJson(json) : null);
     } catch {
       setLiveDraw(null);
     } finally {
       setDrawLoading(false);
     }
-  }, [connection, programId, wallet]);
+  }, [wallet]);
 
   useEffect(() => {
     void refreshLiveDraw();

@@ -6,6 +6,53 @@ import { DrawState, LAMPORTS_SOL_TICKET_POT } from "./constants";
 import { globalConfigPda } from "./pdas";
 import { createLotteryReadOnlyProgram } from "./program";
 
+/** JSON-safe draw for server actions → client. */
+export type LotteryDrawViewJson = {
+  drawId: number;
+  draw: string;
+  prizeVault: string;
+  salesOpenTs: number;
+  salesCloseTs: number;
+  state: number;
+  totalTickets: number;
+  vrfRequest: string;
+  splMints: LotteryDrawView["splMints"];
+  winningTicketId: number;
+  winner: string | null;
+};
+
+export function lotteryDrawViewToJson(d: LotteryDrawView): LotteryDrawViewJson {
+  return {
+    drawId: d.drawId,
+    draw: d.draw.toBase58(),
+    prizeVault: d.prizeVault.toBase58(),
+    salesOpenTs: d.salesOpenTs,
+    salesCloseTs: d.salesCloseTs,
+    state: d.state,
+    totalTickets: d.totalTickets,
+    vrfRequest: d.vrfRequest.toBase58(),
+    splMints: d.splMints,
+    winningTicketId: d.winningTicketId,
+    winner: d.winner,
+  };
+}
+
+export function lotteryDrawViewFromJson(j: LotteryDrawViewJson): LotteryDrawView {
+  return {
+    drawId: j.drawId,
+    draw: new PublicKey(j.draw),
+    prizeVault: new PublicKey(j.prizeVault),
+    salesOpenTs: j.salesOpenTs,
+    salesCloseTs: j.salesCloseTs,
+    state: j.state,
+    totalTickets: j.totalTickets,
+    vrfRequest: new PublicKey(j.vrfRequest),
+    splMints: j.splMints,
+    winningTicketId: j.winningTicketId,
+    winner: j.winner,
+  };
+}
+
 export async function fetchDrawCount(
   connection: Connection,
   programId: PublicKey,

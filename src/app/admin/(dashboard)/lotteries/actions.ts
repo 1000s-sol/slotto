@@ -16,6 +16,11 @@ import {
   updateDrawSplMintRow,
   type DrawSplMintSettingsPatch,
 } from "@/lib/lottery/spl-catalog-db";
+import {
+  fetchInProgressDraw,
+  lotteryDrawViewToJson,
+  type LotteryDrawViewJson,
+} from "@/lib/lottery/draws";
 import { mintsExistOnCluster } from "@/lib/lottery/mints-on-cluster";
 import {
   buildSplMintDraftsForCreateDraw,
@@ -58,6 +63,14 @@ export async function adminFetchGlobalConfigAction(): Promise<AdminGlobalConfigV
     setupVault: cfg.setupVault.toBase58(),
     nextDrawId: cfg.nextDrawId.toString(),
   };
+}
+
+/** Active draw using server RPC (matches `LOTTERY_CLUSTER`, not browser wallet RPC). */
+export async function adminFetchInProgressDrawAction(): Promise<LotteryDrawViewJson | null> {
+  await requireAdmin();
+  const connection = new Connection(resolveLotteryRpcUrl(), "confirmed");
+  const draw = await fetchInProgressDraw(connection, lotteryProgramId());
+  return draw ? lotteryDrawViewToJson(draw) : null;
 }
 
 export async function adminLoadSplCatalogAction(): Promise<SplMintDraft[]> {

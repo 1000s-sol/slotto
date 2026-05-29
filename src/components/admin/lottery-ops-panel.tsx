@@ -206,7 +206,28 @@ export function LotteryOpsPanel({
   ]);
 
   const onCreateDraw = useCallback(async () => {
-    if (!wallet || !publicKey || !config) return;
+    if (!wallet || !publicKey) {
+      setPhase({
+        kind: "error",
+        message: "Connect your authority wallet first.",
+      });
+      return;
+    }
+    if (!config) {
+      setPhase({
+        kind: "error",
+        message:
+          "Global config not loaded. Refresh the page or check LOTTERY_CLUSTER / Helius on Vercel.",
+      });
+      return;
+    }
+    if (!isOnChainAuthority) {
+      setPhase({
+        kind: "error",
+        message: `Connected wallet is not the on-chain authority (${config.authority}).`,
+      });
+      return;
+    }
     if (liveDraw) {
       setPhase({
         kind: "error",
@@ -214,16 +235,45 @@ export function LotteryOpsPanel({
       });
       return;
     }
-    setPhase({ kind: "busy", label: "Creating draw…" });
+    if (!salesOpen.trim() || !salesClose.trim()) {
+      setPhase({
+        kind: "error",
+        message: "Set sales open and close times.",
+      });
+      return;
+    }
+
+    setPhase({ kind: "busy", label: "Preparing draw (server)…" });
     try {
+      const freshCfg = await adminFetchGlobalConfigAction();
+      if (!freshCfg) {
+        setPhase({
+          kind: "error",
+          message:
+            "Server could not read global config on this cluster. Check LOTTERY_CLUSTER and HELIUS_API_KEY on Vercel.",
+        });
+        return;
+      }
+      setConfig({
+        authority: freshCfg.authority,
+        teamVault: freshCfg.teamVault,
+        buxVault: freshCfg.buxVault,
+        setupVault: freshCfg.setupVault,
+        nextDrawId: freshCfg.nextDrawId,
+      });
+
       const program = createLotteryProgram(connection, wallet);
-      const drawId = Number(config.nextDrawId);
+      const drawId = Number(freshCfg.nextDrawId);
       const draw = drawPda(programId, drawId);
       const prizeVault = prizeVaultPda(programId, draw);
       const ticketChunk0 = ticketChunkPda(programId, draw, 0);
 
       const openTs = parseDatetimeLocal(salesOpen);
       const closeTs = parseDatetimeLocal(salesClose);
+      if (!Number.isFinite(openTs) || !Number.isFinite(closeTs)) {
+        setPhase({ kind: "error", message: "Invalid sales open/close times." });
+        return;
+      }
       if (closeTs <= openTs) {
         setPhase({ kind: "error", message: "Sales close must be after sales open." });
         return;
@@ -241,6 +291,7 @@ export function LotteryOpsPanel({
         ? new PublicKey(seedRefund.trim())
         : publicKey;
 
+      setPhase({ kind: "busy", label: "Loading project tokens…" });
       const tokens = await adminFetchProjectTokensForDrawAction();
       const splErr = validateProjectTokenDrawSettings(
         tokens,
@@ -252,10 +303,12 @@ export function LotteryOpsPanel({
         return;
       }
 
+      setPhase({ kind: "busy", label: "Building SPL ticket rows…" });
       const activeSpl = await adminBuildSplMintDraftsForCreateDrawAction(
         tokenEnabled,
         tokenSettings,
       );
+      setPhase({ kind: "busy", label: "Checking mints on cluster…" });
       const mintsOnCluster = await adminMintsExistOnClusterAction(
         activeSpl.map((r) => r.mint),
       );
@@ -270,6 +323,10 @@ export function LotteryOpsPanel({
         };
       });
 
+      setPhase({
+        kind: "busy",
+        label: "Confirm create_draw in Phantom…",
+      });
       const sig = await program.methods
         .createDraw(
           new BN(openTs),
@@ -318,15 +375,25 @@ export function LotteryOpsPanel({
         draw: draw.toBase58(),
       });
     } catch (e) {
+      const raw = e instanceof Error ? e.message : "Create draw failed.";
+      const lower = raw.toLowerCase();
+      const hint =
+        lower.includes("user rejected") || lower.includes("user declined")
+          ? "Transaction cancelled in wallet."
+          : lower.includes("disconnected port") ||
+              lower.includes("service worker")
+            ? "Phantom lost connection — refresh the page, reconnect the wallet, and try again."
+            : null;
       setPhase({
         kind: "error",
-        message: e instanceof Error ? e.message : "Create draw failed.",
+        message: hint ? `${raw} ${hint}` : raw,
       });
     }
   }, [
     config,
     connection,
     globalConfig,
+    isOnChainAuthority,
     liveDraw,
     programId,
     publicKey,
