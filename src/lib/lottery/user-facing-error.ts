@@ -206,10 +206,9 @@ export function formatLotteryBuyError(
 
   if (isInsufficientSol(text) || (!payingSpl && isInsufficientSplToken(text))) {
     return (
-      "Insufficient SOL for this purchase. If your wallet has enough SOL on mainnet, " +
-      "Phantom is likely on Devnet — switch to Mainnet Beta (Settings → Developer → Change Network), " +
-      "disconnect this site, reconnect, then try again. The malicious / new-domain notices on " +
-      "*.vercel.app are Phantom flags on preview URLs, not Slotto blocking the tx."
+      "Phantom rejected this purchase (often a false insufficient-SOL warning on ticket buys). " +
+      "Confirm Phantom is on Mainnet Beta, refresh, and try again. Create-draw worked because " +
+      "that tx shape differs from buy (one program call vs several SOL transfers)."
     );
   }
 

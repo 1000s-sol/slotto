@@ -64,7 +64,7 @@ export async function sendTransactionViaWallet(
 
   try {
     const signature = await opts.sendTransaction(tx, connection, {
-      skipPreflight: true,
+      skipPreflight: false,
     });
     await connection.confirmTransaction(
       { signature, blockhash, lastValidBlockHeight },

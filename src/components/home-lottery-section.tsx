@@ -1,13 +1,15 @@
 "use client";
 
-import { useConnection, useWallet } from "@solana/wallet-adapter-react";
-import { useLotteryWallet } from "@/lib/lottery/use-lottery-wallet";
+import {
+  useAnchorWallet,
+  useConnection,
+  useWallet,
+} from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { PublicKey } from "@solana/web3.js";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { LotteryWinnerPanel } from "@/components/lottery/lottery-winner-panel";
-import { VercelPhantomBuyNotice } from "@/components/lottery/vercel-phantom-buy-notice";
 import { SplPoolInfoButton } from "@/components/lottery/spl-pool-info-modal";
 import { TicketCountInput } from "@/components/lottery/ticket-count-input";
 import { SiteSelect } from "@/components/ui/site-select";
@@ -78,8 +80,8 @@ function buyDisabledReason(
 
 export function HomeLotterySection() {
   const { connection } = useConnection();
-  const wallet = useLotteryWallet();
-  const { connected, sendTransaction, wallet: walletContext } = useWallet();
+  const wallet = useAnchorWallet();
+  const { connected, sendTransaction } = useWallet();
   const { setVisible } = useWalletModal();
   const programId = useMemo(() => lotteryProgramId(), []);
 
@@ -411,10 +413,7 @@ export function HomeLotterySection() {
       setTicketCount(count);
     }
     setPhase({ kind: "busy", label: "Confirm in your wallet…" });
-    const sendOpts = {
-      sendTransaction,
-      adapter: walletContext?.adapter ?? null,
-    };
+    const sendOpts = { sendTransaction };
     try {
       const sig =
         payWith === "SOL"
@@ -475,7 +474,6 @@ export function HomeLotterySection() {
     nowSec,
     sendTransaction,
     wallet,
-    walletContext,
   ]);
 
   const countdownCells = countdown?.parts
@@ -605,7 +603,6 @@ export function HomeLotterySection() {
             }`}
           >
             <h3 className="text-lg font-semibold">Buy tickets</h3>
-            <VercelPhantomBuyNotice />
             <p className="mt-2 text-sm text-muted">
               {payWith === "SOL" ? (
                 <>
