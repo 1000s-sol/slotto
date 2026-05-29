@@ -1,7 +1,11 @@
 "use client";
 
 import { BN } from "@coral-xyz/anchor";
-import { useAnchorWallet, useConnection, useWallet } from "@solana/wallet-adapter-react";
+import {
+  useAnchorWallet,
+  useConnection,
+  useWallet,
+} from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import {
   LAMPORTS_PER_SOL,
@@ -38,6 +42,8 @@ import {
   type ProjectTokenDrawSettings,
 } from "@/components/admin/project-token-draw-allocator";
 import { ensureTeamTokenAta } from "@/lib/lottery/ensure-team-token-ata";
+import { sendTransactionViaWallet } from "@/lib/lottery/wallet-send-transaction";
+import { ProductionDomainBanner } from "@/components/lottery/production-domain-banner";
 import { splMintDraftToOnChainArg } from "@/lib/lottery/project-tokens-for-draw";
 import {
   adminBuildSplMintDraftsForCreateDrawAction,
@@ -83,7 +89,7 @@ export function LotteryOpsPanel({
 }: LotteryOpsPanelProps) {
   const { connection } = useConnection();
   const wallet = useAnchorWallet();
-  const { connected, publicKey } = useWallet();
+  const { connected, publicKey, sendTransaction } = useWallet();
   const { setVisible } = useWalletModal();
 
   const programId = useMemo(() => lotteryProgramId(), []);
@@ -167,20 +173,22 @@ export function LotteryOpsPanel({
   }, [config, publicKey]);
 
   const onInitialize = useCallback(async () => {
-    if (!wallet || !publicKey) return;
-    setPhase({ kind: "busy", label: "Initializing program…" });
+    if (!wallet || !publicKey || !sendTransaction) return;
+    setPhase({ kind: "busy", label: "Confirm initialize in Phantom…" });
     try {
       const program = createLotteryProgram(connection, wallet);
       const team = new PublicKey(teamVault.trim());
       const bux = new PublicKey(buxVault.trim());
       const setup = new PublicKey(setupVault.trim());
-      const sig = await program.methods
-        .initialize(team, bux, setup)
-        .accounts({
-          authority: publicKey,
-          globalConfig,
-        })
-        .rpc();
+      const sig = await sendTransactionViaWallet(connection, sendTransaction, () =>
+        program.methods
+          .initialize(team, bux, setup)
+          .accounts({
+            authority: publicKey,
+            globalConfig,
+          })
+          .transaction(),
+      );
       await refreshConfig();
       await onLiveDrawChange();
       setPhase({
@@ -200,13 +208,14 @@ export function LotteryOpsPanel({
     publicKey,
     refreshConfig,
     onLiveDrawChange,
+    sendTransaction,
     setupVault,
     teamVault,
     wallet,
   ]);
 
   const onCreateDraw = useCallback(async () => {
-    if (!wallet || !publicKey) {
+    if (!wallet || !publicKey || !sendTransaction) {
       setPhase({
         kind: "error",
         message: "Connect your authority wallet first.",
@@ -327,22 +336,24 @@ export function LotteryOpsPanel({
         kind: "busy",
         label: "Confirm create_draw in Phantom…",
       });
-      const sig = await program.methods
-        .createDraw(
-          new BN(openTs),
-          new BN(closeTs),
-          refundKey,
-          new BN(seedLamports),
-          splArgs,
-        )
-        .accountsPartial({
-          authority: publicKey,
-          globalConfig,
-          draw,
-          prizeVault,
-          ticketChunk0,
-        })
-        .rpc();
+      const sig = await sendTransactionViaWallet(connection, sendTransaction, () =>
+        program.methods
+          .createDraw(
+            new BN(openTs),
+            new BN(closeTs),
+            refundKey,
+            new BN(seedLamports),
+            splArgs,
+          )
+          .accountsPartial({
+            authority: publicKey,
+            globalConfig,
+            draw,
+            prizeVault,
+            ticketChunk0,
+          })
+          .transaction(),
+      );
 
       const skippedTeamAta: string[] = [];
       for (const row of activeSpl) {
@@ -355,7 +366,13 @@ export function LotteryOpsPanel({
           kind: "busy",
           label: `Ensuring team ATA for ${row.symbol}…`,
         });
-        await ensureTeamTokenAta(connection, wallet, programId, mintPk);
+        await ensureTeamTokenAta(
+          connection,
+          wallet,
+          programId,
+          mintPk,
+          sendTransaction,
+        );
       }
 
       if (activeSpl.length > 0) {
@@ -404,12 +421,14 @@ export function LotteryOpsPanel({
     seedRefund,
     seedSol,
     tokenEnabled,
+    sendTransaction,
     tokenSettings,
     wallet,
   ]);
 
   return (
     <div className="space-y-8">
+      <ProductionDomainBanner />
       <div className="rounded-2xl border border-border bg-bg-elevated/70 p-6 text-sm">
         <p className="text-muted">
           Program{" "}

@@ -12,6 +12,10 @@ import { MAX_SOL_TICKETS_PER_BUY } from "./constants";
 import { globalConfigPda, ticketChunkPda } from "./pdas";
 import { createLotteryProgram } from "./program";
 import { ticketChunkIndicesForRange } from "./ticket-chunks";
+import {
+  sendTransactionViaWallet,
+  type WalletSendTransaction,
+} from "./wallet-send-transaction";
 
 export async function buySplTickets(
   connection: Connection,
@@ -21,6 +25,7 @@ export async function buySplTickets(
   mint: PublicKey,
   count: number,
   quotedPricePerTicket: bigint,
+  sendTransaction: WalletSendTransaction,
 ): Promise<string> {
   if (!Number.isInteger(count) || count < 1 || count > MAX_SOL_TICKETS_PER_BUY) {
     throw new Error(`Buy 1–${MAX_SOL_TICKETS_PER_BUY} tickets per transaction.`);
@@ -55,18 +60,20 @@ export async function buySplTickets(
     isSigner: false,
   }));
 
-  return program.methods
-    .buySplTickets(count, new BN(quotedPricePerTicket.toString()))
-    .accounts({
-      buyer: wallet.publicKey,
-      draw: draw.draw,
-      globalConfig,
-      mint,
-      teamVault,
-      buyerToken,
-      teamToken,
-      setupVault: cfg.setupVault,
-    })
-    .remainingAccounts(remainingAccounts)
-    .rpc();
+  return sendTransactionViaWallet(connection, sendTransaction, () =>
+    program.methods
+      .buySplTickets(count, new BN(quotedPricePerTicket.toString()))
+      .accounts({
+        buyer: wallet.publicKey,
+        draw: draw.draw,
+        globalConfig,
+        mint,
+        teamVault,
+        buyerToken,
+        teamToken,
+        setupVault: cfg.setupVault,
+      })
+      .remainingAccounts(remainingAccounts)
+      .transaction(),
+  );
 }

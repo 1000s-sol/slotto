@@ -5,6 +5,10 @@ import type { LotteryDrawView } from "./chain";
 import { DrawState } from "./constants";
 import { fetchDrawById } from "./chain";
 import { createLotteryProgram } from "./program";
+import {
+  sendTransactionViaWallet,
+  type WalletSendTransaction,
+} from "./wallet-send-transaction";
 
 /**
  * Permissionless close + refund for a draw with zero tickets.
@@ -15,6 +19,7 @@ export async function crankEmptyDrawWithWallet(
   wallet: AnchorWallet,
   programId: PublicKey,
   drawId: number,
+  sendTransaction: WalletSendTransaction,
 ): Promise<string[]> {
   const signatures: string[] = [];
   const program = createLotteryProgram(connection, wallet);
@@ -30,24 +35,25 @@ export async function crankEmptyDrawWithWallet(
   }
 
   if (draw.state === DrawState.Selling) {
-    const sig = await program.methods
-      .closeSales()
-      .accounts({ draw: draw.draw })
-      .rpc();
+    const sig = await sendTransactionViaWallet(connection, sendTransaction, () =>
+      program.methods.closeSales().accounts({ draw: draw.draw }).transaction(),
+    );
     signatures.push(sig);
     draw = (await fetchDrawById(connection, programId, drawId))!;
   }
 
   if (draw.state === DrawState.SalesClosed && draw.totalTickets === 0) {
     const acct = await program.account.draw.fetch(draw.draw);
-    const sig = await program.methods
-      .refundEmptyDraw()
-      .accounts({
-        draw: draw.draw,
-        prizeVault: draw.prizeVault,
-        seedRefund: acct.seedRefund,
-      })
-      .rpc();
+    const sig = await sendTransactionViaWallet(connection, sendTransaction, () =>
+      program.methods
+        .refundEmptyDraw()
+        .accounts({
+          draw: draw.draw,
+          prizeVault: draw.prizeVault,
+          seedRefund: acct.seedRefund,
+        })
+        .transaction(),
+    );
     signatures.push(sig);
   }
 

@@ -7,6 +7,10 @@ import { createLotteryProgram } from "./program";
 import { ticketChunkIndicesForRange } from "./ticket-chunks";
 import type { LotteryDrawView } from "./chain";
 import { preflightBuySolTickets } from "./preflight-buy-sol";
+import {
+  sendTransactionViaWallet,
+  type WalletSendTransaction,
+} from "./wallet-send-transaction";
 
 export async function buySolTickets(
   connection: Connection,
@@ -14,6 +18,7 @@ export async function buySolTickets(
   programId: PublicKey,
   draw: LotteryDrawView,
   count: number,
+  sendTransaction: WalletSendTransaction,
 ): Promise<string> {
   if (!Number.isInteger(count) || count < 1 || count > MAX_SOL_TICKETS_PER_BUY) {
     throw new Error(`Buy 1–${MAX_SOL_TICKETS_PER_BUY} tickets per transaction.`);
@@ -33,17 +38,19 @@ export async function buySolTickets(
     isSigner: false,
   }));
 
-  return program.methods
-    .buySolTickets(count)
-    .accounts({
-      buyer: wallet.publicKey,
-      draw: draw.draw,
-      prizeVault: draw.prizeVault,
-      globalConfig,
-      teamVault: cfg.teamVault,
-      buxVault: cfg.buxVault,
-      setupVault: cfg.setupVault,
-    })
-    .remainingAccounts(remainingAccounts)
-    .rpc();
+  return sendTransactionViaWallet(connection, sendTransaction, () =>
+    program.methods
+      .buySolTickets(count)
+      .accounts({
+        buyer: wallet.publicKey,
+        draw: draw.draw,
+        prizeVault: draw.prizeVault,
+        globalConfig,
+        teamVault: cfg.teamVault,
+        buxVault: cfg.buxVault,
+        setupVault: cfg.setupVault,
+      })
+      .remainingAccounts(remainingAccounts)
+      .transaction(),
+  );
 }

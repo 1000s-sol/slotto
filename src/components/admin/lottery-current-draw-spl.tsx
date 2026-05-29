@@ -1,6 +1,10 @@
 "use client";
 
-import { useAnchorWallet, useConnection } from "@solana/wallet-adapter-react";
+import {
+  useAnchorWallet,
+  useConnection,
+  useWallet,
+} from "@solana/wallet-adapter-react";
 import { PublicKey } from "@solana/web3.js";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -75,6 +79,7 @@ export function LotteryCurrentDrawSpl({
 }) {
   const { connection } = useConnection();
   const wallet = useAnchorWallet();
+  const { sendTransaction } = useWallet();
   const programId = useMemo(() => lotteryProgramId(), []);
 
   const drawId = draw.drawId;
@@ -176,7 +181,7 @@ export function LotteryCurrentDrawSpl({
   };
 
   const onEnsureTeamAtas = async () => {
-    if (!wallet) return;
+    if (!wallet || !sendTransaction) return;
     const mints = chainMints.map((m) => m.mint);
     if (mints.length === 0) return;
     setBusy(true);
@@ -198,6 +203,7 @@ export function LotteryCurrentDrawSpl({
           wallet,
           programId,
           new PublicKey(m.mint),
+          sendTransaction,
         );
         created.push(label);
       }
@@ -219,7 +225,7 @@ export function LotteryCurrentDrawSpl({
   };
 
   const onAddMintOnChain = async () => {
-    if (!wallet || newMint.length === 0) return;
+    if (!wallet || !sendTransaction || newMint.length === 0) return;
     const draft = newMint[0];
     const err = validateSplMintRows([draft]);
     if (err) {
@@ -236,6 +242,7 @@ export function LotteryCurrentDrawSpl({
         programId,
         new PublicKey(drawPk),
         draft,
+        sendTransaction,
       );
       await adminAppendDrawSplMintDbAction(drawId, draft);
       setNewMint([]);

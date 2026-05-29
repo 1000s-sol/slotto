@@ -1,6 +1,10 @@
 "use client";
 
-import { useAnchorWallet, useConnection } from "@solana/wallet-adapter-react";
+import {
+  useAnchorWallet,
+  useConnection,
+  useWallet,
+} from "@solana/wallet-adapter-react";
 import { useEffect, useRef } from "react";
 
 import type { LotteryDrawView } from "./chain";
@@ -27,6 +31,7 @@ export function useAutoSettleDraw(
 ): void {
   const { connection } = useConnection();
   const wallet = useAnchorWallet();
+  const { sendTransaction } = useWallet();
   const refreshRef = useRef(refresh);
   refreshRef.current = refresh;
 
@@ -40,12 +45,13 @@ export function useAutoSettleDraw(
       if (cancelled || cranking) return;
       cranking = true;
       try {
-        if (draw.totalTickets === 0 && wallet) {
+        if (draw.totalTickets === 0 && wallet && sendTransaction) {
           await crankEmptyDrawWithWallet(
             connection,
             wallet,
             lotteryProgramId(),
             draw.drawId,
+            sendTransaction,
           );
           await refreshRef.current();
           onCrankResult?.({ ok: true });
@@ -88,6 +94,7 @@ export function useAutoSettleDraw(
     draw?.totalTickets,
     nowSec,
     onCrankResult,
+    sendTransaction,
     wallet,
   ]);
 }

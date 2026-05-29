@@ -6,6 +6,7 @@ import { PublicKey } from "@solana/web3.js";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { LotteryWinnerPanel } from "@/components/lottery/lottery-winner-panel";
+import { ProductionDomainBanner } from "@/components/lottery/production-domain-banner";
 import { WalletClusterBanner } from "@/components/lottery/wallet-cluster-banner";
 import { SplPoolInfoButton } from "@/components/lottery/spl-pool-info-modal";
 import { TicketCountInput } from "@/components/lottery/ticket-count-input";
@@ -78,7 +79,7 @@ function buyDisabledReason(
 export function HomeLotterySection() {
   const { connection } = useConnection();
   const wallet = useAnchorWallet();
-  const { connected } = useWallet();
+  const { connected, sendTransaction } = useWallet();
   const { setVisible } = useWalletModal();
   const programId = useMemo(() => lotteryProgramId(), []);
 
@@ -353,7 +354,7 @@ export function HomeLotterySection() {
     (payWith === "SOL" || Boolean(selectedSpl?.buyable));
 
   const onBuy = useCallback(async () => {
-    if (!wallet || !activeDraw || !buyable) return;
+    if (!wallet || !sendTransaction || !activeDraw || !buyable) return;
     const count = clampTicketCountForPayWith(
       ticketCount,
       payWith,
@@ -372,6 +373,7 @@ export function HomeLotterySection() {
               programId,
               activeDraw,
               count,
+              sendTransaction,
             )
           : await (async () => {
               const mint = new PublicKey(payWith);
@@ -390,6 +392,7 @@ export function HomeLotterySection() {
                 mint,
                 count,
                 quoted,
+                sendTransaction,
               );
             })();
       const firstId = activeDraw.totalTickets;
@@ -417,6 +420,7 @@ export function HomeLotterySection() {
     splUiRows,
     ticketCount,
     tickerPrices,
+    sendTransaction,
     wallet,
   ]);
 
@@ -542,7 +546,8 @@ export function HomeLotterySection() {
             }`}
           >
             <h3 className="text-lg font-semibold">Buy tickets</h3>
-            <div className="mt-3">
+            <div className="mt-3 space-y-3">
+              <ProductionDomainBanner />
               <WalletClusterBanner />
             </div>
             <p className="mt-2 text-sm text-muted">
