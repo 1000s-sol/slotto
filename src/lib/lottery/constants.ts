@@ -15,6 +15,8 @@ export const LAMPORTS_SOL_TICKET_TOTAL =
   LAMPORTS_SOL_TICKET_TEAM +
   LAMPORTS_SOL_TICKET_SETUP_FEE;
 export const LAMPORTS_PER_SOL_TICKET = LAMPORTS_SOL_TICKET_TOTAL;
+/** Extra lamports reserved for the Solana tx fee in preflight checks. */
+export const LAMPORTS_SOL_BUY_FEE_BUFFER = 10_000;
 /** @deprecated Use LAMPORTS_SOL_TICKET_SETUP_FEE */
 export const LAMPORTS_SOL_TICKET_FEE = LAMPORTS_SOL_TICKET_SETUP_FEE;
 export const TICKETS_PER_CHUNK = 256;

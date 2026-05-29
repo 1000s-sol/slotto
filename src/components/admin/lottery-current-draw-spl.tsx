@@ -1,6 +1,10 @@
 "use client";
 
-import { useAnchorWallet, useConnection } from "@solana/wallet-adapter-react";
+import {
+  useAnchorWallet,
+  useConnection,
+  useWallet,
+} from "@solana/wallet-adapter-react";
 import { PublicKey } from "@solana/web3.js";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -75,7 +79,12 @@ export function LotteryCurrentDrawSpl({
 }) {
   const { connection } = useConnection();
   const wallet = useAnchorWallet();
+  const { sendTransaction } = useWallet();
   const programId = useMemo(() => lotteryProgramId(), []);
+  const walletSendOpts = useMemo(
+    () => ({ sendTransaction }),
+    [sendTransaction],
+  );
 
   const drawId = draw.drawId;
   const drawPk = draw.draw.toBase58();
@@ -198,6 +207,7 @@ export function LotteryCurrentDrawSpl({
           wallet,
           programId,
           new PublicKey(m.mint),
+          walletSendOpts,
         );
         created.push(label);
       }
@@ -236,6 +246,7 @@ export function LotteryCurrentDrawSpl({
         programId,
         new PublicKey(drawPk),
         draft,
+        walletSendOpts,
       );
       await adminAppendDrawSplMintDbAction(drawId, draft);
       setNewMint([]);

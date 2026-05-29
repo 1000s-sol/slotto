@@ -205,7 +205,12 @@ export function formatLotteryBuyError(
   }
 
   if (isInsufficientSol(text) || (!payingSpl && isInsufficientSplToken(text))) {
-    return "Insufficient SOL balance for this purchase (including network fees).";
+    return (
+      "Insufficient SOL for this purchase. If your wallet has enough SOL on mainnet, " +
+      "Phantom is likely on Devnet — switch to Mainnet Beta (Settings → Developer → Change Network), " +
+      "disconnect this site, reconnect, then try again. The malicious / new-domain notices on " +
+      "*.vercel.app are Phantom flags on preview URLs, not Slotto blocking the tx."
+    );
   }
 
   if (

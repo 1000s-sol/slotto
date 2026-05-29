@@ -6,6 +6,7 @@ import { chainUnixTs, isDrawBuyable } from "./chain";
 import {
   DrawState,
   LAMPORTS_PER_SOL_TICKET,
+  LAMPORTS_SOL_BUY_FEE_BUFFER,
   MAX_SOL_TICKETS_PER_BUY,
 } from "./constants";
 import { globalConfigPda, ticketChunkPda } from "./pdas";
@@ -93,10 +94,11 @@ export async function preflightBuySolTickets(
   }
 
   const balance = await connection.getBalance(wallet.publicKey, "confirmed");
-  const required = count * LAMPORTS_PER_SOL_TICKET;
+  const required =
+    count * LAMPORTS_PER_SOL_TICKET + LAMPORTS_SOL_BUY_FEE_BUFFER;
   if (balance < required) {
     throw new BuyPreflightError(
-      `Need ~${(required / 1e9).toFixed(4)} SOL for ${count} ticket(s) (wallet has ${(balance / 1e9).toFixed(4)} SOL on this RPC).`,
+      `Need ~${(required / 1e9).toFixed(4)} SOL for ${count} ticket(s) + network fee (connected wallet has ${(balance / 1e9).toFixed(4)} SOL on Slotto mainnet RPC). If Phantom still says insufficient SOL, switch Phantom to Mainnet Beta and reconnect.`,
     );
   }
 

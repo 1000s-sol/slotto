@@ -13,7 +13,6 @@ export type WalletSendTransaction = (
 ) => Promise<TransactionSignature>;
 
 export type LotteryWalletSendOpts = {
-  /** Phantom / wallet-adapter sign-and-send (same path as create_draw — no Blowfish warning). */
   sendTransaction?: WalletSendTransaction;
   adapter?: WalletAdapter | null;
 };
@@ -41,9 +40,8 @@ function isWalletRejectedMessage(msg: string): boolean {
 }
 
 /**
- * Build, sign, and send a legacy transaction.
- * Prefers wallet-adapter `sendTransaction` (Phantom signAndSend); falls back to
- * signTransaction + sendRaw only when the adapter cannot send.
+ * Build and send via wallet-adapter `sendTransaction` (Phantom sign-and-send).
+ * Does not fall back to signTransaction + sendRaw (that path triggers Blowfish warnings).
  */
 export async function sendTransactionViaWallet(
   connection: Connection,
@@ -58,41 +56,25 @@ export async function sendTransactionViaWallet(
   tx.recentBlockhash = blockhash;
   tx.feePayer = wallet.publicKey;
 
-  if (opts?.sendTransaction) {
-    try {
-      const signature = await opts.sendTransaction(tx, connection, {
-        skipPreflight: false,
-      });
-      await connection.confirmTransaction(
-        { signature, blockhash, lastValidBlockHeight },
-        "confirmed",
-      );
-      return signature;
-    } catch (e) {
-      const msg = errorText(e);
-      if (isWalletRejectedMessage(msg)) {
-        throw e;
-      }
-      // Fall through to sign + sendRaw only for adapter signing failures.
-      const lower = msg.toLowerCase();
-      if (
-        !lower.includes("no signers") &&
-        !lower.includes("no signer") &&
-        !lower.includes("not connected")
-      ) {
-        throw e;
-      }
-    }
+  if (!opts?.sendTransaction) {
+    throw new Error(
+      "Wallet send is unavailable. Refresh the page and reconnect Phantom on Mainnet Beta.",
+    );
   }
 
-  const signed = await wallet.signTransaction(tx);
-  const signature = await connection.sendRawTransaction(signed.serialize(), {
-    // Unsigned-tx RPC preflight often false-flags InsufficientFundsForRent on vaults.
-    skipPreflight: true,
-  });
-  await connection.confirmTransaction(
-    { signature, blockhash, lastValidBlockHeight },
-    "confirmed",
-  );
-  return signature;
+  try {
+    const signature = await opts.sendTransaction(tx, connection, {
+      skipPreflight: true,
+    });
+    await connection.confirmTransaction(
+      { signature, blockhash, lastValidBlockHeight },
+      "confirmed",
+    );
+    return signature;
+  } catch (e) {
+    if (isWalletRejectedMessage(errorText(e))) {
+      throw e;
+    }
+    throw e;
+  }
 }

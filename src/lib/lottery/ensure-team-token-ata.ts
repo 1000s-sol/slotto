@@ -7,7 +7,10 @@ import { Connection, PublicKey } from "@solana/web3.js";
 
 import { globalConfigPda } from "./pdas";
 import { createLotteryProgram } from "./program";
-import { sendTransactionViaWallet } from "./wallet-send-transaction";
+import {
+  sendTransactionViaWallet,
+  type LotteryWalletSendOpts,
+} from "./wallet-send-transaction";
 
 /** Authority pays team-wallet ATA rent for one SPL mint before sales. */
 export async function ensureTeamTokenAta(
@@ -15,6 +18,7 @@ export async function ensureTeamTokenAta(
   wallet: AnchorWallet,
   programId: PublicKey,
   mint: PublicKey,
+  sendOpts?: LotteryWalletSendOpts,
 ): Promise<string> {
   const program = createLotteryProgram(connection, wallet);
   const globalConfig = globalConfigPda(programId);
@@ -38,5 +42,6 @@ export async function ensureTeamTokenAta(
         teamToken,
       })
       .transaction(),
+    sendOpts,
   );
 }

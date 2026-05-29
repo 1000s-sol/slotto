@@ -20,7 +20,12 @@ import type { TickerPriceItem } from "@/lib/token-usd-prices";
 import { SPL_PRICING_LIQUID_DYNAMIC } from "@/lib/lottery/spl-pricing";
 import { splBaseUnitsToUi } from "@/lib/lottery/spl-price";
 import { isDrawBuyable, type LotteryDrawView } from "@/lib/lottery/chain";
-import { DrawState, MAX_SOL_TICKETS_PER_BUY } from "@/lib/lottery/constants";
+import {
+  DrawState,
+  LAMPORTS_PER_SOL_TICKET,
+  LAMPORTS_SOL_BUY_FEE_BUFFER,
+  MAX_SOL_TICKETS_PER_BUY,
+} from "@/lib/lottery/constants";
 import { lotteryProgramId, solscanTxUrl } from "@/lib/lottery/config";
 import { drawNeedsSettlement } from "@/lib/lottery/draw-settlement";
 import { formatLotteryBuyError } from "@/lib/lottery/user-facing-error";
@@ -97,6 +102,7 @@ export function HomeLotterySection() {
   const [liquidQuoteLoading, setLiquidQuoteLoading] = useState(false);
   const [settleError, setSettleError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [walletLamports, setWalletLamports] = useState<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -245,6 +251,25 @@ export function HomeLotterySection() {
   }, [buyable, phase.kind]);
 
   useEffect(() => {
+    if (!connected || !wallet?.publicKey) {
+      setWalletLamports(null);
+      return;
+    }
+    let cancelled = false;
+    void connection
+      .getBalance(wallet.publicKey, "confirmed")
+      .then((lamports) => {
+        if (!cancelled) setWalletLamports(lamports);
+      })
+      .catch(() => {
+        if (!cancelled) setWalletLamports(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [connection, connected, wallet?.publicKey, phase.kind]);
+
+  useEffect(() => {
     if (!activeDraw) {
       setSplUiRows([]);
       return;
@@ -352,10 +377,18 @@ export function HomeLotterySection() {
 
   const disabledReason = buyDisabledReason(buyable, connected);
   const selectedSpl = splUiRows.find((o) => o.mint === payWith);
+  const solRequiredLamports =
+    ticketCount * LAMPORTS_PER_SOL_TICKET + LAMPORTS_SOL_BUY_FEE_BUFFER;
+  const hasEnoughSolForBuy =
+    payWith !== "SOL" ||
+    walletLamports === null ||
+    walletLamports >= solRequiredLamports;
+
   const canSubmit =
     buyable &&
     Boolean(wallet) &&
     phase.kind !== "busy" &&
+    hasEnoughSolForBuy &&
     (payWith === "SOL" || Boolean(selectedSpl?.buyable));
 
   const onBuy = useCallback(async () => {
@@ -661,6 +694,24 @@ export function HomeLotterySection() {
                 onBuy={onBuy}
               />
             </div>
+
+            {connected && wallet?.publicKey && payWith === "SOL" ? (
+              <p className="mt-3 text-xs text-muted">
+                Connected wallet balance (mainnet RPC):{" "}
+                <span className="font-mono text-foreground">
+                  {walletLamports !== null
+                    ? `${(walletLamports / 1e9).toFixed(4)} SOL`
+                    : "…"}
+                </span>
+                {walletLamports !== null && !hasEnoughSolForBuy ? (
+                  <span className="text-amber-200/90">
+                    {" "}
+                    — need ~{(solRequiredLamports / 1e9).toFixed(4)} SOL for this
+                    purchase.
+                  </span>
+                ) : null}
+              </p>
+            ) : null}
 
             {disabledReason ? (
               <p className="mt-3 text-sm text-amber-100/90">{disabledReason}</p>
