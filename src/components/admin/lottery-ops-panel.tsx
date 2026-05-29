@@ -32,15 +32,12 @@ import {
   validateProjectTokenDrawSettings,
   type ProjectTokenDrawSettings,
 } from "@/components/admin/project-token-draw-allocator";
-import { fetchTickerPricesClient } from "@/lib/lottery/fetch-ticker-prices-client";
 import { ensureTeamTokenAta } from "@/lib/lottery/ensure-team-token-ata";
-import { mintExistsOnCluster } from "@/lib/lottery/mint-on-cluster";
+import { splMintDraftToOnChainArg } from "@/lib/lottery/project-tokens-for-draw";
 import {
-  projectTokensToSplMintDrafts,
-  splMintDraftToOnChainArg,
-} from "@/lib/lottery/project-tokens-for-draw";
-import {
+  adminBuildSplMintDraftsForCreateDrawAction,
   adminFetchProjectTokensForDrawAction,
+  adminMintsExistOnClusterAction,
   adminSaveSplRowsForDrawAction,
 } from "@/app/admin/(dashboard)/lotteries/actions";
 
@@ -247,13 +244,12 @@ export function LotteryOpsPanel({
         return;
       }
 
-      const tickerPrices = await fetchTickerPricesClient();
-      const activeSpl = await projectTokensToSplMintDrafts(
-        connection,
-        tokens,
+      const activeSpl = await adminBuildSplMintDraftsForCreateDrawAction(
         tokenEnabled,
         tokenSettings,
-        tickerPrices,
+      );
+      const mintsOnCluster = await adminMintsExistOnClusterAction(
+        activeSpl.map((r) => r.mint),
       );
       const splArgs = activeSpl.map((r) => {
         const arg = splMintDraftToOnChainArg(r);
@@ -286,7 +282,7 @@ export function LotteryOpsPanel({
       const skippedTeamAta: string[] = [];
       for (const row of activeSpl) {
         const mintPk = new PublicKey(row.mint);
-        if (!(await mintExistsOnCluster(connection, mintPk))) {
+        if (!mintsOnCluster[row.mint]) {
           skippedTeamAta.push(row.symbol || row.mint.slice(0, 8));
           continue;
         }

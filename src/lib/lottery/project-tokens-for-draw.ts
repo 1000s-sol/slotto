@@ -1,11 +1,11 @@
-import { Connection, PublicKey } from "@solana/web3.js";
-
 import { prisma } from "@/lib/prisma";
+import { fetchMintDecimals } from "./fetch-mint-decimals";
+import { liquidSplMaxPriceFromTickerItems } from "./liquid-ticket-price";
 import {
-  fetchLiquidSplMaxPricePerTicket,
-  liquidSplMaxPriceFromTickerItems,
-} from "./liquid-ticket-price";
-import type { TickerPriceItem } from "@/lib/token-usd-prices";
+  fetchTokenUsdPrices,
+  WRAPPED_SOL_MINT,
+  type TickerPriceItem,
+} from "@/lib/token-usd-prices";
 import { SPL_PRICING_FIXED, SPL_PRICING_LIQUID_DYNAMIC } from "./spl-pricing";
 import type { SplMintDraft } from "./spl-types";
 import { splBaseUnitsToUi, splUiAmountToBaseUnits } from "./spl-price";
@@ -51,47 +51,44 @@ export async function fetchPublishedProjectTokens(): Promise<
   return out;
 }
 
-/** Build on-chain + DB rows for enabled project tokens (mint decimals from chain). */
-export async function projectTokensToSplMintDrafts(
-  connection: Connection,
+export type ProjectTokenDrawSettings = {
+  onChainCap: number;
+  displayCap: number;
+  published: boolean;
+  priceUi: string;
+};
+
+/** Build SPL rows for create_draw (server RPC — avoids browser Helius 403). */
+export async function buildSplMintDraftsForCreateDraw(
   tokens: ProjectTokenForDraw[],
   enabled: Record<string, boolean>,
-  settings: Record<
-    string,
-    {
-      onChainCap: number;
-      displayCap: number;
-      published: boolean;
-      priceUi: string;
-    }
-  >,
-  tickerPrices?: TickerPriceItem[],
+  settings: Record<string, ProjectTokenDrawSettings>,
 ): Promise<SplMintDraft[]> {
+  const enabledTokens = tokens.filter((t) => enabled[t.mint]);
+  const mints = [
+    WRAPPED_SOL_MINT,
+    ...enabledTokens.map((t) => t.mint),
+  ];
+  const usdMap = await fetchTokenUsdPrices(mints);
+  const tickerItems: TickerPriceItem[] = mints.map((mint) => ({
+    mint,
+    priceUsd: usdMap.get(mint) ?? null,
+  }));
+
   const drafts: SplMintDraft[] = [];
 
-  for (const t of tokens) {
-    if (!enabled[t.mint]) continue;
+  for (const t of enabledTokens) {
     const s = settings[t.mint];
     if (!s) continue;
 
-    const mintPk = new PublicKey(t.mint);
-    const mintInfo = await connection.getParsedAccountInfo(mintPk);
-    const decimals =
-      mintInfo.value?.data &&
-      typeof mintInfo.value.data === "object" &&
-      "parsed" in mintInfo.value.data
-        ? (mintInfo.value.data.parsed as { info?: { decimals?: number } }).info
-            ?.decimals ?? 9
-        : 9;
+    const decimals = await fetchMintDecimals(t.mint);
+    const pricingMode = t.liquid ? "liquidDynamic" : "fixed";
 
     let pricePerTicket: string;
     let priceUi: string;
-    const pricingMode = t.liquid ? "liquidDynamic" : "fixed";
 
     if (t.liquid) {
-      const max = tickerPrices?.length
-        ? liquidSplMaxPriceFromTickerItems(tickerPrices, t.mint, decimals)
-        : await fetchLiquidSplMaxPricePerTicket(t.mint, decimals);
+      const max = liquidSplMaxPriceFromTickerItems(tickerItems, t.mint, decimals);
       pricePerTicket = max.toString();
       const spot = (max * BigInt(100)) / BigInt(110);
       priceUi = splBaseUnitsToUi(spot.toString(), decimals);

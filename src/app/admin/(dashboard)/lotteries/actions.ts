@@ -10,7 +10,12 @@ import {
   updateDrawSplMintRow,
   type DrawSplMintSettingsPatch,
 } from "@/lib/lottery/spl-catalog-db";
-import { fetchPublishedProjectTokens } from "@/lib/lottery/project-tokens-for-draw";
+import { mintsExistOnCluster } from "@/lib/lottery/mints-on-cluster";
+import {
+  buildSplMintDraftsForCreateDraw,
+  fetchPublishedProjectTokens,
+  type ProjectTokenDrawSettings,
+} from "@/lib/lottery/project-tokens-for-draw";
 import type { SplMintDraft } from "@/lib/lottery/spl-types";
 
 async function requireAdmin() {
@@ -36,6 +41,22 @@ export async function adminPreviewLiquidTicketPricesAction(mints: string[]) {
     "@/lib/lottery/preview-liquid-ticket-prices"
   );
   return previewLiquidTicketPrices(unique);
+}
+
+export async function adminBuildSplMintDraftsForCreateDrawAction(
+  enabled: Record<string, boolean>,
+  settings: Record<string, ProjectTokenDrawSettings>,
+): Promise<SplMintDraft[]> {
+  await requireAdmin();
+  const tokens = await fetchPublishedProjectTokens();
+  return buildSplMintDraftsForCreateDraw(tokens, enabled, settings);
+}
+
+export async function adminMintsExistOnClusterAction(
+  mints: string[],
+): Promise<Record<string, boolean>> {
+  await requireAdmin();
+  return mintsExistOnCluster(mints);
 }
 
 export async function adminSaveSplRowsForDrawAction(
