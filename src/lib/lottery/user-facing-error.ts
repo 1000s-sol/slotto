@@ -196,7 +196,7 @@ export function formatLotterySettlementError(error: unknown): string {
     text.includes("-32401") ||
     text.includes("401 Unauthorized")
   ) {
-    return "RPC API key rejected (check HELIUS_API_KEY and NEXT_PUBLIC_SOLANA_RPC_URL on Vercel).";
+    return "Vercel RPC misconfigured: fix or remove HELIUS_API_KEY, set LOTTERY_CLUSTER=devnet, or set LOTTERY_RPC_URL to https://api.devnet.solana.com.";
   }
   if (isRateLimited(text)) {
     const seconds =
