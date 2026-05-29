@@ -6,10 +6,7 @@ import { globalConfigPda } from "./pdas";
 import { createLotteryProgram } from "./program";
 import { splMintDraftToOnChainArg } from "./project-tokens-for-draw";
 import type { SplMintDraft } from "./spl-types";
-import {
-  sendTransactionViaWallet,
-  type WalletSendTransaction,
-} from "./wallet-send-transaction";
+import { sendTransactionViaWallet } from "./wallet-send-transaction";
 
 export async function addSplMintToDraw(
   connection: Connection,
@@ -17,30 +14,25 @@ export async function addSplMintToDraw(
   programId: PublicKey,
   draw: PublicKey,
   row: SplMintDraft,
-  sendTransaction: WalletSendTransaction,
 ): Promise<string> {
   const program = createLotteryProgram(connection, wallet);
   const globalConfig = globalConfigPda(programId);
 
   const arg = splMintDraftToOnChainArg(row);
-  return sendTransactionViaWallet(
-    connection,
-    sendTransaction,
-    () =>
-      program.methods
-        .addSplMintToDraw({
-          mint: new PublicKey(arg.mint),
-          pricePerTicket: new BN(arg.pricePerTicket),
-          mintDecimals: arg.mintDecimals,
-          cap: arg.cap,
-          pricingMode: arg.pricingMode,
-        })
-        .accounts({
-          authority: wallet.publicKey,
-          globalConfig,
-          draw,
-        })
-        .transaction(),
-    wallet.publicKey,
+  return sendTransactionViaWallet(connection, wallet, () =>
+    program.methods
+      .addSplMintToDraw({
+        mint: new PublicKey(arg.mint),
+        pricePerTicket: new BN(arg.pricePerTicket),
+        mintDecimals: arg.mintDecimals,
+        cap: arg.cap,
+        pricingMode: arg.pricingMode,
+      })
+      .accounts({
+        authority: wallet.publicKey,
+        globalConfig,
+        draw,
+      })
+      .transaction(),
   );
 }

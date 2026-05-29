@@ -78,7 +78,7 @@ function buyDisabledReason(
 export function HomeLotterySection() {
   const { connection } = useConnection();
   const wallet = useLotteryWallet();
-  const { connected, sendTransaction } = useWallet();
+  const { connected } = useWallet();
   const { setVisible } = useWalletModal();
   const programId = useMemo(() => lotteryProgramId(), []);
 
@@ -354,7 +354,7 @@ export function HomeLotterySection() {
 
   const onBuy = useCallback(async () => {
     if (!activeDraw || !buyable) return;
-    if (!wallet || !sendTransaction) {
+    if (!wallet) {
       setPhase({
         kind: "error",
         message:
@@ -380,7 +380,6 @@ export function HomeLotterySection() {
               programId,
               activeDraw,
               count,
-              sendTransaction,
             )
           : await (async () => {
               const mint = new PublicKey(payWith);
@@ -399,7 +398,6 @@ export function HomeLotterySection() {
                 mint,
                 count,
                 quoted,
-                sendTransaction,
               );
             })();
       const firstId = activeDraw.totalTickets;
@@ -427,7 +425,6 @@ export function HomeLotterySection() {
     splUiRows,
     ticketCount,
     tickerPrices,
-    sendTransaction,
     wallet,
   ]);
 

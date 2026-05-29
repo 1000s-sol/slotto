@@ -31,7 +31,6 @@ export function useAutoSettleDraw(
 ): void {
   const { connection } = useConnection();
   const wallet = useLotteryWallet();
-  const { sendTransaction } = useWallet();
   const refreshRef = useRef(refresh);
   refreshRef.current = refresh;
 
@@ -45,13 +44,12 @@ export function useAutoSettleDraw(
       if (cancelled || cranking) return;
       cranking = true;
       try {
-        if (draw.totalTickets === 0 && wallet && sendTransaction) {
+        if (draw.totalTickets === 0 && wallet) {
           await crankEmptyDrawWithWallet(
             connection,
             wallet,
             lotteryProgramId(),
             draw.drawId,
-            sendTransaction,
           );
           await refreshRef.current();
           onCrankResult?.({ ok: true });
@@ -94,7 +92,6 @@ export function useAutoSettleDraw(
     draw?.totalTickets,
     nowSec,
     onCrankResult,
-    sendTransaction,
     wallet,
   ]);
 }

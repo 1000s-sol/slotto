@@ -167,7 +167,7 @@ export function formatLotteryBuyError(
   }
 
   if (text.toLowerCase().includes("no signers")) {
-    return "Wallet could not sign this purchase. Disconnect and reconnect Phantom, then try again.";
+    return "Wallet could not sign this purchase. Refresh the page, reconnect Phantom on mainnet, and try again.";
   }
 
   if (isRateLimited(text)) {

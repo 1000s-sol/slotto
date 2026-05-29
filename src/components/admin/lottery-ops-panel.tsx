@@ -92,7 +92,7 @@ export function LotteryOpsPanel({
 }: LotteryOpsPanelProps) {
   const { connection } = useConnection();
   const wallet = useAnchorWallet();
-  const { connected, publicKey, sendTransaction } = useWallet();
+  const { connected, publicKey } = useWallet();
   const { setVisible } = useWalletModal();
 
   const programId = useMemo(() => lotteryProgramId(), []);
@@ -185,25 +185,21 @@ export function LotteryOpsPanel({
   }, [config, publicKey]);
 
   const onInitialize = useCallback(async () => {
-    if (!wallet || !publicKey || !sendTransaction) return;
+    if (!wallet || !publicKey) return;
     setPhase({ kind: "busy", label: "Confirm initialize in Phantom…" });
     try {
       const program = createLotteryProgram(connection, wallet);
       const team = new PublicKey(teamVault.trim());
       const bux = new PublicKey(buxVault.trim());
       const setup = new PublicKey(setupVault.trim());
-      const sig = await sendTransactionViaWallet(
-        connection,
-        sendTransaction,
-        () =>
-          program.methods
-            .initialize(team, bux, setup)
-            .accounts({
-              authority: publicKey,
-              globalConfig,
-            })
-            .transaction(),
-        publicKey,
+      const sig = await sendTransactionViaWallet(connection, wallet, () =>
+        program.methods
+          .initialize(team, bux, setup)
+          .accounts({
+            authority: publicKey,
+            globalConfig,
+          })
+          .transaction(),
       );
       await refreshConfig();
       await onLiveDrawChange();
@@ -224,14 +220,13 @@ export function LotteryOpsPanel({
     publicKey,
     refreshConfig,
     onLiveDrawChange,
-    sendTransaction,
     setupVault,
     teamVault,
     wallet,
   ]);
 
   const onCreateDraw = useCallback(async () => {
-    if (!wallet || !publicKey || !sendTransaction) {
+    if (!wallet || !publicKey) {
       setPhase({
         kind: "error",
         message: "Connect your authority wallet first.",
@@ -380,27 +375,23 @@ export function LotteryOpsPanel({
         kind: "busy",
         label: `Confirm create_draw #${drawId} in Phantom…`,
       });
-      const sig = await sendTransactionViaWallet(
-        connection,
-        sendTransaction,
-        () =>
-          program.methods
-            .createDraw(
-              new BN(openTs),
-              new BN(closeTs),
-              refundKey,
-              new BN(seedLamports),
-              splArgs,
-            )
-            .accountsPartial({
-              authority: publicKey,
-              globalConfig,
-              draw,
-              prizeVault,
-              ticketChunk0,
-            })
-            .transaction(),
-        publicKey,
+      const sig = await sendTransactionViaWallet(connection, wallet, () =>
+        program.methods
+          .createDraw(
+            new BN(openTs),
+            new BN(closeTs),
+            refundKey,
+            new BN(seedLamports),
+            splArgs,
+          )
+          .accountsPartial({
+            authority: publicKey,
+            globalConfig,
+            draw,
+            prizeVault,
+            ticketChunk0,
+          })
+          .transaction(),
       );
 
       const skippedTeamAta: string[] = [];
@@ -414,13 +405,7 @@ export function LotteryOpsPanel({
           kind: "busy",
           label: `Ensuring team ATA for ${row.symbol}…`,
         });
-        await ensureTeamTokenAta(
-          connection,
-          wallet,
-          programId,
-          mintPk,
-          sendTransaction,
-        );
+        await ensureTeamTokenAta(connection, wallet, programId, mintPk);
       }
 
       const existsOnServer = await adminDrawExistsOnServerAction(drawId);
@@ -479,7 +464,6 @@ export function LotteryOpsPanel({
     seedRefund,
     seedSol,
     tokenEnabled,
-    sendTransaction,
     serverClusterLabel,
     tokenSettings,
     wallet,

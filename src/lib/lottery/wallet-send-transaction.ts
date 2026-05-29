@@ -1,35 +1,29 @@
+import type { AnchorWallet } from "@solana/wallet-adapter-react";
 import type {
   Connection,
-  PublicKey,
   Transaction,
   TransactionSignature,
 } from "@solana/web3.js";
 
 /**
- * Send an Anchor-built transaction through the wallet adapter (Phantom uses
- * signAndSendTransaction internally). Avoids Blowfish "malicious dApp" heuristics
- * triggered by signTransaction + sendRawTransaction via Anchor .rpc().
+ * Build, sign with the connected wallet, and send a legacy transaction.
+ * Uses signTransaction + sendRawTransaction (not adapter sendTransaction) so
+ * Phantom reliably signs buyer/authority txs including buy_sol_tickets.
  */
-export type WalletSendTransaction = (
-  transaction: Transaction,
-  connection: Connection,
-  options?: { skipPreflight?: boolean },
-) => Promise<TransactionSignature>;
-
 export async function sendTransactionViaWallet(
   connection: Connection,
-  sendTransaction: WalletSendTransaction,
+  wallet: AnchorWallet,
   buildTransaction: () => Promise<Transaction>,
-  feePayer: PublicKey,
 ): Promise<TransactionSignature> {
   const tx = await buildTransaction();
   const { blockhash, lastValidBlockHeight } =
     await connection.getLatestBlockhash("confirmed");
 
   tx.recentBlockhash = blockhash;
-  tx.feePayer = feePayer;
+  tx.feePayer = wallet.publicKey;
 
-  const signature = await sendTransaction(tx, connection, {
+  const signed = await wallet.signTransaction(tx);
+  const signature = await connection.sendRawTransaction(signed.serialize(), {
     skipPreflight: false,
   });
 

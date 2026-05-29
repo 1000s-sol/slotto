@@ -5,10 +5,7 @@ import type { LotteryDrawView } from "./chain";
 import { DrawState } from "./constants";
 import { fetchDrawById } from "./chain";
 import { createLotteryProgram } from "./program";
-import {
-  sendTransactionViaWallet,
-  type WalletSendTransaction,
-} from "./wallet-send-transaction";
+import { sendTransactionViaWallet } from "./wallet-send-transaction";
 
 /**
  * Permissionless close + refund for a draw with zero tickets.
@@ -19,7 +16,6 @@ export async function crankEmptyDrawWithWallet(
   wallet: AnchorWallet,
   programId: PublicKey,
   drawId: number,
-  sendTransaction: WalletSendTransaction,
 ): Promise<string[]> {
   const signatures: string[] = [];
   const program = createLotteryProgram(connection, wallet);
@@ -36,11 +32,8 @@ export async function crankEmptyDrawWithWallet(
 
   if (draw.state === DrawState.Selling) {
     const drawPk = draw.draw;
-    const sig = await sendTransactionViaWallet(
-      connection,
-      sendTransaction,
-      () => program.methods.closeSales().accounts({ draw: drawPk }).transaction(),
-      wallet.publicKey,
+    const sig = await sendTransactionViaWallet(connection, wallet, () =>
+      program.methods.closeSales().accounts({ draw: drawPk }).transaction(),
     );
     signatures.push(sig);
     const refreshed = await fetchDrawById(connection, programId, drawId);
@@ -53,19 +46,15 @@ export async function crankEmptyDrawWithWallet(
     const prizeVault = draw.prizeVault;
     const acct = await program.account.draw.fetch(drawPk);
     const seedRefund = acct.seedRefund;
-    const sig = await sendTransactionViaWallet(
-      connection,
-      sendTransaction,
-      () =>
-        program.methods
-          .refundEmptyDraw()
-          .accounts({
-            draw: drawPk,
-            prizeVault,
-            seedRefund,
-          })
-          .transaction(),
-      wallet.publicKey,
+    const sig = await sendTransactionViaWallet(connection, wallet, () =>
+      program.methods
+        .refundEmptyDraw()
+        .accounts({
+          draw: drawPk,
+          prizeVault,
+          seedRefund,
+        })
+        .transaction(),
     );
     signatures.push(sig);
   }

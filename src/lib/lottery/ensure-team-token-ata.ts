@@ -7,10 +7,7 @@ import { Connection, PublicKey } from "@solana/web3.js";
 
 import { globalConfigPda } from "./pdas";
 import { createLotteryProgram } from "./program";
-import {
-  sendTransactionViaWallet,
-  type WalletSendTransaction,
-} from "./wallet-send-transaction";
+import { sendTransactionViaWallet } from "./wallet-send-transaction";
 
 /** Authority pays team-wallet ATA rent for one SPL mint before sales. */
 export async function ensureTeamTokenAta(
@@ -18,7 +15,6 @@ export async function ensureTeamTokenAta(
   wallet: AnchorWallet,
   programId: PublicKey,
   mint: PublicKey,
-  sendTransaction: WalletSendTransaction,
 ): Promise<string> {
   const program = createLotteryProgram(connection, wallet);
   const globalConfig = globalConfigPda(programId);
@@ -31,20 +27,16 @@ export async function ensureTeamTokenAta(
     TOKEN_PROGRAM_ID,
   );
 
-  return sendTransactionViaWallet(
-    connection,
-    sendTransaction,
-    () =>
-      program.methods
-        .ensureTeamTokenAta()
-        .accountsPartial({
-          authority: wallet.publicKey,
-          globalConfig,
-          mint,
-          teamVault,
-          teamToken,
-        })
-        .transaction(),
-    wallet.publicKey,
+  return sendTransactionViaWallet(connection, wallet, () =>
+    program.methods
+      .ensureTeamTokenAta()
+      .accountsPartial({
+        authority: wallet.publicKey,
+        globalConfig,
+        mint,
+        teamVault,
+        teamToken,
+      })
+      .transaction(),
   );
 }
