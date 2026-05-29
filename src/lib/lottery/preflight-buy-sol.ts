@@ -110,7 +110,8 @@ export async function preflightBuySolTickets(
     count,
   );
 
-  const sim = await connection.simulateTransaction(tx, [], false);
+  // Do not pass `[]` as signers — empty array is truthy and triggers tx.sign() → "No signers".
+  const sim = await connection.simulateTransaction(tx, undefined, false);
 
   if (sim.value.err) {
     const logs = sim.value.logs?.join("\n") ?? "";
