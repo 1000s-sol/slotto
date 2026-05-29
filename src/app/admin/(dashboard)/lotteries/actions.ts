@@ -1,6 +1,12 @@
 "use server";
 
+import { Connection } from "@solana/web3.js";
+
 import { currentAdminAddress } from "@/lib/admin-session";
+import { lotteryProgramId } from "@/lib/lottery/config";
+import { globalConfigPda } from "@/lib/lottery/pdas";
+import { createLotteryReadOnlyProgram } from "@/lib/lottery/program";
+import { resolveLotteryRpcUrl } from "@/lib/lottery/rpc-url";
 import {
   appendDrawSplMintRow,
   batchUpdateDrawSplMintRows,
@@ -22,6 +28,36 @@ async function requireAdmin() {
   const admin = await currentAdminAddress();
   if (!admin) throw new Error("Unauthorized");
   return admin;
+}
+
+export type AdminGlobalConfigView = {
+  globalConfigPda: string;
+  authority: string;
+  teamVault: string;
+  buxVault: string;
+  setupVault: string;
+  nextDrawId: string;
+};
+
+/** Read global config via server RPC (matches `LOTTERY_CLUSTER` / Helius). */
+export async function adminFetchGlobalConfigAction(): Promise<AdminGlobalConfigView | null> {
+  await requireAdmin();
+  const programId = lotteryProgramId();
+  const globalConfig = globalConfigPda(programId);
+  const connection = new Connection(resolveLotteryRpcUrl(), "confirmed");
+  const info = await connection.getAccountInfo(globalConfig);
+  if (!info) return null;
+
+  const program = createLotteryReadOnlyProgram(connection);
+  const cfg = await program.account.globalConfig.fetch(globalConfig);
+  return {
+    globalConfigPda: globalConfig.toBase58(),
+    authority: cfg.authority.toBase58(),
+    teamVault: cfg.teamVault.toBase58(),
+    buxVault: cfg.buxVault.toBase58(),
+    setupVault: cfg.setupVault.toBase58(),
+    nextDrawId: cfg.nextDrawId.toString(),
+  };
 }
 
 export async function adminLoadSplCatalogAction(): Promise<SplMintDraft[]> {

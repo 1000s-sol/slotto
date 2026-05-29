@@ -8,8 +8,10 @@ import {
   adminAppendDrawSplMintDbAction,
   adminBatchUpdateDrawSplSettingsAction,
   adminFetchDrawSplRowsAction,
+  adminMintsExistOnClusterAction,
   adminSaveSplRowsForDrawAction,
 } from "@/app/admin/(dashboard)/lotteries/actions";
+import { ensureTeamTokenAta } from "@/lib/lottery/ensure-team-token-ata";
 import { DrawState } from "@/lib/lottery/constants";
 import type { LotteryDrawView, SplMintRowView } from "@/lib/lottery/chain";
 import { lotteryProgramId } from "@/lib/lottery/config";
@@ -173,6 +175,49 @@ export function LotteryCurrentDrawSpl({
     }
   };
 
+  const onEnsureTeamAtas = async () => {
+    if (!wallet) return;
+    const mints = chainMints.map((m) => m.mint);
+    if (mints.length === 0) return;
+    setBusy(true);
+    setMsg(null);
+    try {
+      const onCluster = await adminMintsExistOnClusterAction(mints);
+      const skipped: string[] = [];
+      const created: string[] = [];
+      for (const m of chainMints) {
+        const label =
+          rows.find((r) => r.mint === m.mint)?.symbol ?? m.mint.slice(0, 8);
+        if (!onCluster[m.mint]) {
+          skipped.push(label);
+          continue;
+        }
+        setMsg(`Creating team ATA for ${label}…`);
+        await ensureTeamTokenAta(
+          connection,
+          wallet,
+          programId,
+          new PublicKey(m.mint),
+        );
+        created.push(label);
+      }
+      setMsgTone("ok");
+      const parts: string[] = [];
+      if (created.length) parts.push(`Team ATAs ready for ${created.join(", ")}.`);
+      if (skipped.length) {
+        parts.push(
+          `Skipped ${skipped.join(", ")} (mint not on lottery cluster — set LOTTERY_CLUSTER=mainnet-beta on Vercel).`,
+        );
+      }
+      setMsg(parts.join(" ") || "No SPL mints on this draw.");
+    } catch (e) {
+      setMsgTone("error");
+      setMsg(e instanceof Error ? e.message : "Ensure team ATA failed");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const onAddMintOnChain = async () => {
     if (!wallet || newMint.length === 0) return;
     const draft = newMint[0];
@@ -313,6 +358,16 @@ export function LotteryCurrentDrawSpl({
             </table>
           </div>
           <div className="flex flex-wrap gap-2">
+            {selling && chainMints.length > 0 ? (
+              <button
+                type="button"
+                disabled={busy || !wallet}
+                onClick={() => void onEnsureTeamAtas()}
+                className="rounded-xl border border-accent-cyan/50 px-4 py-2 text-sm font-semibold text-accent-cyan hover:bg-accent-cyan/10 disabled:opacity-50"
+              >
+                Ensure team token ATAs
+              </button>
+            ) : null}
             <button
               type="button"
               disabled={busy || !hasEdits}

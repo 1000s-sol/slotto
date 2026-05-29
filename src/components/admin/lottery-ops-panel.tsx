@@ -10,6 +10,11 @@ import {
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
+  lotteryCluster,
+  lotteryClusterLabel,
+  publicRpcClusterMismatch,
+} from "@/lib/lottery/cluster";
+import {
   lotteryProgramId,
   solscanAccountUrl,
   solscanTxUrl,
@@ -36,6 +41,7 @@ import { ensureTeamTokenAta } from "@/lib/lottery/ensure-team-token-ata";
 import { splMintDraftToOnChainArg } from "@/lib/lottery/project-tokens-for-draw";
 import {
   adminBuildSplMintDraftsForCreateDrawAction,
+  adminFetchGlobalConfigAction,
   adminFetchProjectTokensForDrawAction,
   adminMintsExistOnClusterAction,
   adminSaveSplRowsForDrawAction,
@@ -100,25 +106,27 @@ export function LotteryOpsPanel({
     Record<string, ProjectTokenDrawSettings>
   >({});
 
+  const cluster = lotteryCluster();
+  const clusterLabel = lotteryClusterLabel(cluster);
+  const rpcMismatch = publicRpcClusterMismatch();
+
   const refreshConfig = useCallback(async () => {
     if (!wallet) return;
-    const program = createLotteryProgram(connection, wallet);
-    const info = await connection.getAccountInfo(globalConfig);
-    if (!info) {
+    const cfg = await adminFetchGlobalConfigAction();
+    if (!cfg) {
       setInitialized(false);
       setConfig(null);
       return;
     }
-    const cfg = await program.account.globalConfig.fetch(globalConfig);
     setInitialized(true);
     setConfig({
-      authority: cfg.authority.toBase58(),
-      teamVault: cfg.teamVault.toBase58(),
-      buxVault: cfg.buxVault.toBase58(),
-      setupVault: cfg.setupVault.toBase58(),
-      nextDrawId: cfg.nextDrawId.toString(),
+      authority: cfg.authority,
+      teamVault: cfg.teamVault,
+      buxVault: cfg.buxVault,
+      setupVault: cfg.setupVault,
+      nextDrawId: cfg.nextDrawId,
     });
-  }, [connection, globalConfig, wallet]);
+  }, [wallet]);
 
   useEffect(() => {
     if (!wallet) {
@@ -348,10 +356,27 @@ export function LotteryOpsPanel({
           </a>
         </p>
         <p className="mt-2 text-muted">
+          Cluster <span className="font-mono text-foreground">{clusterLabel}</span>
+          {rpcMismatch ? (
+            <span className="text-amber-200/90">
+              {" "}
+              — wallet RPC does not match{" "}
+              <span className="font-mono">NEXT_PUBLIC_LOTTERY_CLUSTER</span>; set{" "}
+              <span className="font-mono">NEXT_PUBLIC_SOLANA_RPC_URL</span> to a{" "}
+              {clusterLabel} endpoint or clear it.
+            </span>
+          ) : null}
+        </p>
+        <p className="mt-2 text-muted">
           Global config PDA{" "}
-          <span className="font-mono text-foreground">
-            {globalConfig.toBase58().slice(0, 8)}…
-          </span>
+          <a
+            href={solscanAccountUrl(globalConfig.toBase58())}
+            className="font-mono text-accent-cyan hover:underline"
+            target="_blank"
+            rel="noreferrer"
+          >
+            {globalConfig.toBase58()}
+          </a>
         </p>
       </div>
 
@@ -374,7 +399,10 @@ export function LotteryOpsPanel({
           <div className="space-y-4 rounded-2xl border border-border bg-bg-elevated/70 p-6">
             <h2 className="text-lg font-semibold">1. Initialize (once per program)</h2>
             {initialized === false ? (
-              <p className="text-sm text-muted">Not initialized on this cluster yet.</p>
+              <p className="text-sm text-muted">
+                Not initialized on {clusterLabel} yet (or server RPC cannot read the
+                account).
+              </p>
             ) : initialized && config ? (
               <dl className="grid gap-2 text-sm sm:grid-cols-2">
                 <div>
@@ -507,7 +535,7 @@ export function LotteryOpsPanel({
                 onClick={onCreateDraw}
                 className="rounded-xl bg-gradient-to-r from-accent-purple to-accent-blue px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Create draw on devnet
+                Create draw on {clusterLabel}
               </button>
             </div>
           ) : null}

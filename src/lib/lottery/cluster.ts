@@ -1,4 +1,4 @@
-/** Solana cluster inferred from lottery RPC URL (app + scripts). */
+/** Solana cluster for lottery (app + scripts). */
 export type LotteryCluster = "devnet" | "mainnet-beta";
 
 export function lotteryClusterFromRpc(rpc: string): LotteryCluster {
@@ -7,16 +7,43 @@ export function lotteryClusterFromRpc(rpc: string): LotteryCluster {
   return "mainnet-beta";
 }
 
-/** Cluster for Solscan links and UI copy. Uses `NEXT_PUBLIC_SOLANA_RPC_URL` when set. */
-export function lotteryCluster(): LotteryCluster {
-  const rpc = process.env.NEXT_PUBLIC_SOLANA_RPC_URL?.trim() ?? "";
-  if (rpc) return lotteryClusterFromRpc(rpc);
-  if (process.env.NEXT_PUBLIC_SLOTTO_LOTTERY_PROGRAM_ID?.trim()) {
-    return "devnet";
+/**
+ * Target cluster for lottery (browser + server).
+ * Set `NEXT_PUBLIC_LOTTERY_CLUSTER` on Vercel/local so the admin wallet uses mainnet
+ * even when `LOTTERY_CLUSTER` is server-only.
+ */
+export function resolveLotteryClusterEnv(): LotteryCluster {
+  const publicCluster = process.env.NEXT_PUBLIC_LOTTERY_CLUSTER?.trim();
+  if (publicCluster === "mainnet-beta" || publicCluster === "devnet") {
+    return publicCluster;
   }
-  return "mainnet-beta";
+
+  const cluster = process.env.LOTTERY_CLUSTER?.trim();
+  if (cluster === "mainnet-beta" || cluster === "devnet") return cluster;
+
+  const publicRpc = process.env.NEXT_PUBLIC_SOLANA_RPC_URL?.trim();
+  if (publicRpc) return lotteryClusterFromRpc(publicRpc);
+
+  if (process.env.NODE_ENV === "production") return "mainnet-beta";
+  return "devnet";
+}
+
+/** Cluster for Solscan links and UI copy. */
+export function lotteryCluster(): LotteryCluster {
+  return resolveLotteryClusterEnv();
+}
+
+export function lotteryClusterLabel(cluster: LotteryCluster = lotteryCluster()): string {
+  return cluster === "devnet" ? "devnet" : "mainnet";
 }
 
 export function isMainnetLottery(): boolean {
   return lotteryCluster() === "mainnet-beta";
+}
+
+/** True when a configured public RPC URL targets a different cluster than env. */
+export function publicRpcClusterMismatch(): boolean {
+  const rpc = process.env.NEXT_PUBLIC_SOLANA_RPC_URL?.trim();
+  if (!rpc) return false;
+  return lotteryClusterFromRpc(rpc) !== resolveLotteryClusterEnv();
 }

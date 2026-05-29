@@ -96,13 +96,25 @@ function isWalletRejected(text: string): boolean {
   );
 }
 
+function isWalletClusterMismatch(text: string): boolean {
+  const lower = text.toLowerCase();
+  return (
+    lower.includes("attempt to debit an account but found no record") ||
+    lower.includes("account not found") ||
+    lower.includes("could not find account") ||
+    (lower.includes("simulation failed") &&
+      (lower.includes("accountnotfound") ||
+        lower.includes("account not found") ||
+        lower.includes("incorrect program id")))
+  );
+}
+
 function isInsufficientSol(text: string): boolean {
   const lower = text.toLowerCase();
   return (
     lower.includes("insufficient lamports") ||
     lower.includes("insufficient funds for fee") ||
     lower.includes("insufficientfundsforfee") ||
-    lower.includes("attempt to debit an account but found no record") ||
     (lower.includes("insufficient funds") && !lower.includes("buyer_token")) ||
     (lower.includes("simulation failed") &&
       lower.includes("transfer") &&
@@ -162,12 +174,23 @@ export function formatLotteryBuyError(
 
   const payingSpl = context.payWith && context.payWith !== "SOL";
 
+  if (isWalletClusterMismatch(text)) {
+    return "Wallet network mismatch: switch Phantom to the same network Slotto uses (Mainnet Beta for production), then try again.";
+  }
+
   if (payingSpl && isInsufficientSplToken(text)) {
     return "Insufficient token balance. Connect a wallet that holds this token, or buy the token first.";
   }
 
   if (isInsufficientSol(text) || (!payingSpl && isInsufficientSplToken(text))) {
     return "Insufficient SOL balance for this purchase (including network fees).";
+  }
+
+  if (
+    text.includes("OutsideSalesWindow") ||
+    text.toLowerCase().includes("outside sales window")
+  ) {
+    return "Ticket sales are not open yet (or have closed). Check the countdown on this page.";
   }
 
   if (
@@ -193,6 +216,12 @@ export function formatLotterySettlementError(error: unknown): string {
   const text = combinedErrorText(error);
   if (text.includes("Unknown action")) {
     return "Settlement already completed or duplicate crank — refresh the page.";
+  }
+  if (
+    text.includes("Keeper not configured") ||
+    text.includes("LOTTERY_KEEPER_SECRET_KEY")
+  ) {
+    return "Auto-settlement is not configured on the server. Connect a wallet to close this empty draw, or run: npm run lottery:settle -- <drawId>";
   }
   if (
     text.includes("invalid api key") ||

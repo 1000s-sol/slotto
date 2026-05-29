@@ -6,6 +6,7 @@ import { PublicKey } from "@solana/web3.js";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { LotteryWinnerPanel } from "@/components/lottery/lottery-winner-panel";
+import { WalletClusterBanner } from "@/components/lottery/wallet-cluster-banner";
 import { SplPoolInfoButton } from "@/components/lottery/spl-pool-info-modal";
 import { TicketCountInput } from "@/components/lottery/ticket-count-input";
 import { SiteSelect } from "@/components/ui/site-select";
@@ -206,7 +207,10 @@ export function HomeLotterySection() {
     if (drawNeedsSettlement(activeDraw, nowSec)) {
       return {
         kind: "label" as const,
-        label: "Drawing winner…",
+        label:
+          activeDraw.totalTickets === 0
+            ? "Closing empty draw…"
+            : "Drawing winner…",
         parts: null,
       };
     }
@@ -538,6 +542,9 @@ export function HomeLotterySection() {
             }`}
           >
             <h3 className="text-lg font-semibold">Buy tickets</h3>
+            <div className="mt-3">
+              <WalletClusterBanner />
+            </div>
             <p className="mt-2 text-sm text-muted">
               {payWith === "SOL" ? (
                 <>
@@ -647,6 +654,14 @@ export function HomeLotterySection() {
                   </a>
                 </p>
               </div>
+            ) : null}
+            {needsSettlement &&
+            activeDraw?.totalTickets === 0 &&
+            !connected ? (
+              <p className="mt-4 text-sm text-amber-100/90">
+                No tickets were sold. Connect a wallet to finish closing this draw
+                (permissionless; you only pay a small tx fee).
+              </p>
             ) : null}
             {settleError ? (
               <div className="mt-4 rounded-xl border border-red-500/40 bg-red-950/30 px-4 py-3 text-sm text-red-200">

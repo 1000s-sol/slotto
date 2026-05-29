@@ -6,6 +6,7 @@ import { globalConfigPda, ticketChunkPda } from "./pdas";
 import { createLotteryProgram } from "./program";
 import { ticketChunkIndicesForRange } from "./ticket-chunks";
 import type { LotteryDrawView } from "./chain";
+import { preflightBuySolTickets } from "./preflight-buy-sol";
 
 export async function buySolTickets(
   connection: Connection,
@@ -17,6 +18,8 @@ export async function buySolTickets(
   if (!Number.isInteger(count) || count < 1 || count > MAX_SOL_TICKETS_PER_BUY) {
     throw new Error(`Buy 1–${MAX_SOL_TICKETS_PER_BUY} tickets per transaction.`);
   }
+
+  await preflightBuySolTickets(connection, wallet, programId, draw, count);
 
   const program = createLotteryProgram(connection, wallet);
   const globalConfig = globalConfigPda(programId);

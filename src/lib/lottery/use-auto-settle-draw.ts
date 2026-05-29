@@ -1,8 +1,11 @@
 "use client";
 
+import { useAnchorWallet, useConnection } from "@solana/wallet-adapter-react";
 import { useEffect, useRef } from "react";
 
 import type { LotteryDrawView } from "./chain";
+import { lotteryProgramId } from "./config";
+import { crankEmptyDrawWithWallet } from "./crank-empty-draw";
 import { drawNeedsSettlement } from "./draw-settlement";
 import {
   triggerLotteryCrank,
@@ -22,6 +25,8 @@ export function useAutoSettleDraw(
   refresh: () => Promise<void>,
   onCrankResult?: (result: CrankUiResult) => void,
 ): void {
+  const { connection } = useConnection();
+  const wallet = useAnchorWallet();
   const refreshRef = useRef(refresh);
   refreshRef.current = refresh;
 
@@ -35,6 +40,18 @@ export function useAutoSettleDraw(
       if (cancelled || cranking) return;
       cranking = true;
       try {
+        if (draw.totalTickets === 0 && wallet) {
+          await crankEmptyDrawWithWallet(
+            connection,
+            wallet,
+            lotteryProgramId(),
+            draw.drawId,
+          );
+          await refreshRef.current();
+          onCrankResult?.({ ok: true });
+          return;
+        }
+
         const result = await triggerLotteryCrank(draw.drawId);
         await refreshRef.current();
         if (!result.ok && result.error) {
@@ -45,6 +62,12 @@ export function useAutoSettleDraw(
         } else if (result.ok) {
           onCrankResult?.({ ok: true });
         }
+      } catch (e) {
+        await refreshRef.current();
+        onCrankResult?.({
+          ok: false,
+          error: formatLotterySettlementError(e),
+        });
       } finally {
         cranking = false;
       }
@@ -56,5 +79,15 @@ export function useAutoSettleDraw(
       cancelled = true;
       clearInterval(id);
     };
-  }, [draw, draw?.drawId, draw?.state, draw?.salesCloseTs, nowSec, onCrankResult]);
+  }, [
+    connection,
+    draw,
+    draw?.drawId,
+    draw?.state,
+    draw?.salesCloseTs,
+    draw?.totalTickets,
+    nowSec,
+    onCrankResult,
+    wallet,
+  ]);
 }

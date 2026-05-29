@@ -31,6 +31,7 @@
     "lottery:init": "tsx scripts/lottery-initialize.ts",
     "lottery:init-devnet": "LOTTERY_CLUSTER=devnet tsx scripts/lottery-initialize.ts",
     "lottery:settle": "tsx scripts/lottery-settle-draw.ts",
+    "lottery:simulate-buy": "tsx scripts/lottery-simulate-buy-sol.ts",
     "lottery:keeper": "tsx scripts/lottery-keeper.ts",
     "lottery:mint-devnet-token": "tsx scripts/mint-devnet-spl.ts",
     "lottery:test:all": "npm run lottery:test && npm run lottery:test:integration"

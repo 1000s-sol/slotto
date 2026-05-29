@@ -172,8 +172,8 @@ export function ProjectTokenDrawAllocator({
 
       <p className="text-xs text-muted">
         Liquid tokens use a live quote (~95% of 0.01 SOL, same feed as the site ticker).
-        On devnet you can enable mainnet project mints to verify prices; SPL buys only work
-        when the mint exists on devnet. Fixed tokens need a manual price per ticket.
+        On mainnet, SPL tickets require the mint on-chain. Fixed tokens need a manual price
+        per ticket.
       </p>
       {previewError ? (
         <p className="text-xs text-amber-200/90">{previewError}</p>
