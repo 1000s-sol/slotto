@@ -35,13 +35,7 @@ export async function sendTransactionViaWallet(
   tx.recentBlockhash = blockhash;
   tx.feePayer = wallet.publicKey;
 
-  const signTx =
-    _opts?.adapter &&
-    typeof _opts.adapter.signTransaction === "function"
-      ? _opts.adapter.signTransaction.bind(_opts.adapter)
-      : wallet.signTransaction.bind(wallet);
-
-  const signed = await signTx(tx);
+  const signed = await wallet.signTransaction(tx);
   const signature = await connection.sendRawTransaction(signed.serialize(), {
     skipPreflight: false,
   });
