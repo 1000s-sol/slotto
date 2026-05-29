@@ -103,18 +103,24 @@ export async function fetchInProgressDraw(
   connection: Connection,
   programId: PublicKey,
 ): Promise<LotteryDrawView | null> {
-  const draws = await fetchAllDraws(connection, programId);
-  const floor = highestTerminalDrawId(draws);
-  for (let i = draws.length - 1; i >= 0; i -= 1) {
-    const d = draws[i];
-    const s = d.state;
+  const n = await fetchDrawCount(connection, programId);
+  if (n === 0) return null;
+
+  let floor = -1;
+  for (let id = n - 1; id >= 0; id -= 1) {
+    const draw = await fetchDrawById(connection, programId, id);
+    if (!draw) continue;
+    const s = draw.state;
+    if (s === DrawState.Settled || s === DrawState.Refunded) {
+      floor = Math.max(floor, draw.drawId);
+      continue;
+    }
     if (
       s === DrawState.Selling ||
       s === DrawState.SalesClosed ||
       s === DrawState.VrfRequested
     ) {
-      if (d.drawId <= floor) continue;
-      return d;
+      if (draw.drawId > floor) return draw;
     }
   }
   return null;
@@ -124,9 +130,10 @@ export async function fetchLatestSettledDraw(
   connection: Connection,
   programId: PublicKey,
 ): Promise<LotteryDrawView | null> {
-  const draws = await fetchAllDraws(connection, programId);
-  for (let i = draws.length - 1; i >= 0; i -= 1) {
-    if (draws[i].state === DrawState.Settled && draws[i].winner) return draws[i];
+  const n = await fetchDrawCount(connection, programId);
+  for (let id = n - 1; id >= 0; id -= 1) {
+    const draw = await fetchDrawById(connection, programId, id);
+    if (draw?.state === DrawState.Settled && draw.winner) return draw;
   }
   return null;
 }

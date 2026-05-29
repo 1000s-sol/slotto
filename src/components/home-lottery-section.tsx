@@ -19,22 +19,17 @@ import { resolveSplQuotedPricePerTicket } from "@/lib/lottery/resolve-spl-quoted
 import type { TickerPriceItem } from "@/lib/token-usd-prices";
 import { SPL_PRICING_LIQUID_DYNAMIC } from "@/lib/lottery/spl-pricing";
 import { splBaseUnitsToUi } from "@/lib/lottery/spl-price";
-import {
-  chainUnixTs,
-  fetchJackpotLamports,
-  isDrawBuyable,
-  type LotteryDrawView,
-} from "@/lib/lottery/chain";
+import { isDrawBuyable, type LotteryDrawView } from "@/lib/lottery/chain";
 import { DrawState, MAX_SOL_TICKETS_PER_BUY } from "@/lib/lottery/constants";
 import { lotteryProgramId, solscanTxUrl } from "@/lib/lottery/config";
 import { drawNeedsSettlement } from "@/lib/lottery/draw-settlement";
 import { formatLotteryBuyError } from "@/lib/lottery/user-facing-error";
 import {
-  fetchInProgressDraw,
-  fetchLatestSettledDraw,
   fetchWinnerPrizeLamports,
   formatSolFromLamports,
+  lotteryDrawViewFromJson,
 } from "@/lib/lottery/draws";
+import { fetchLotteryStateClient } from "@/lib/lottery/fetch-lottery-state-client";
 import {
   clampTicketCountForPayWith,
   maxBuyableTicketsForPayWith,
@@ -101,6 +96,7 @@ export function HomeLotterySection() {
   const [liquidQuoteUi, setLiquidQuoteUi] = useState<string | null>(null);
   const [liquidQuoteLoading, setLiquidQuoteLoading] = useState(false);
   const [settleError, setSettleError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -130,37 +126,43 @@ export function HomeLotterySection() {
   const draw = activeDraw ?? settledDraw;
 
   const refresh = useCallback(async () => {
-    const inProgress = await fetchInProgressDraw(connection, programId);
-    setActiveDraw(inProgress);
-    if (inProgress) {
-      setSettledDraw(null);
-      setWinnerPrizeLamports(null);
-      setWinnerSocial(null);
-      if (inProgress.state === DrawState.Selling) {
-        setJackpotLamports(
-          await fetchJackpotLamports(connection, inProgress.prizeVault),
-        );
-      } else {
-        setJackpotLamports(null);
-      }
-    } else {
-      const settled = await fetchLatestSettledDraw(connection, programId);
-      setSettledDraw(settled);
-      setJackpotLamports(null);
-      if (settled?.winner) {
-        const [prize, socials] = await Promise.all([
-          fetchWinnerPrizeLamports(connection, settled.winner, settled),
-          fetchWalletSocialsClient([settled.winner]),
-        ]);
-        setWinnerPrizeLamports(prize);
-        setWinnerSocial(socials[settled.winner] ?? null);
-      } else {
+    try {
+      const state = await fetchLotteryStateClient();
+      setLoadError(null);
+      setNowSec(state.nowSec);
+
+      if (state.activeDraw) {
+        const inProgress = lotteryDrawViewFromJson(state.activeDraw);
+        setActiveDraw(inProgress);
+        setSettledDraw(null);
         setWinnerPrizeLamports(null);
         setWinnerSocial(null);
+        setJackpotLamports(state.jackpotLamports);
+      } else {
+        setActiveDraw(null);
+        setJackpotLamports(null);
+        const settled = state.settledDraw
+          ? lotteryDrawViewFromJson(state.settledDraw)
+          : null;
+        setSettledDraw(settled);
+        if (settled?.winner) {
+          const [prize, socials] = await Promise.all([
+            fetchWinnerPrizeLamports(connection, settled.winner, settled),
+            fetchWalletSocialsClient([settled.winner]),
+          ]);
+          setWinnerPrizeLamports(prize);
+          setWinnerSocial(socials[settled.winner] ?? null);
+        } else {
+          setWinnerPrizeLamports(null);
+          setWinnerSocial(null);
+        }
       }
+    } catch (e) {
+      setLoadError(
+        e instanceof Error ? e.message : "Could not load lottery from chain.",
+      );
     }
-    setNowSec(await chainUnixTs(connection));
-  }, [connection, programId]);
+  }, [connection]);
 
   useAutoSettleDraw(activeDraw, nowSec, refresh, (result) => {
     if (result.ok) setSettleError(null);
@@ -192,12 +194,10 @@ export function HomeLotterySection() {
 
   useEffect(() => {
     const tick = setInterval(() => {
-      chainUnixTs(connection)
-        .then(setNowSec)
-        .catch(() => undefined);
+      setNowSec((s) => (s !== null ? s + 1 : s));
     }, 1000);
     return () => clearInterval(tick);
-  }, [connection]);
+  }, []);
 
   const countdown = useMemo(() => {
     if (showWinner) {
@@ -450,6 +450,11 @@ export function HomeLotterySection() {
         Play our fully onchain monthly lotto game
       </h2>
 
+      {loadError ? (
+        <div className="rounded-2xl border border-red-500/40 bg-red-950/30 px-4 py-3 text-sm text-red-200">
+          {loadError} The page will retry automatically.
+        </div>
+      ) : null}
       {loading ? (
         <p className="text-sm text-muted">Loading on-chain draw…</p>
       ) : !draw ? (

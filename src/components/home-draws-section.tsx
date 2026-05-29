@@ -4,16 +4,16 @@ import { useConnection } from "@solana/wallet-adapter-react";
 import { LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { chainUnixTs } from "@/lib/lottery/chain";
 import { DrawState } from "@/lib/lottery/constants";
 import { lotteryProgramId, solscanAccountUrl } from "@/lib/lottery/config";
 import { drawNeedsSettlement } from "@/lib/lottery/draw-settlement";
 import {
-  fetchInProgressDraw,
   fetchPastSettledDraws,
   fetchSettledDrawPrizeLamports,
   formatDrawDateLabel,
+  lotteryDrawViewFromJson,
 } from "@/lib/lottery/draws";
+import { fetchLotteryStateClient } from "@/lib/lottery/fetch-lottery-state-client";
 import type { LotteryDrawView } from "@/lib/lottery/chain";
 import { fetchDrawEntrants } from "@/lib/lottery/ticket-holders";
 import { DiscordLogo } from "@/components/discord-logo";
@@ -121,34 +121,45 @@ export function HomeDrawsSection() {
   const [nowSec, setNowSec] = useState<number | null>(null);
 
   const refreshDraw = useCallback(async () => {
-    const draw = await fetchInProgressDraw(connection, programId);
-    setInProgressDraw(draw);
-    if (!draw) {
-      setDrawId(null);
-      setDrawAddress(null);
-      setTotalTickets(0);
-      setDrawState(null);
+    try {
+      const state = await fetchLotteryStateClient();
+      setNowSec(state.nowSec);
+      const draw = state.activeDraw
+        ? lotteryDrawViewFromJson(state.activeDraw)
+        : null;
+      setInProgressDraw(draw);
+      if (!draw) {
+        setDrawId(null);
+        setDrawAddress(null);
+        setTotalTickets(0);
+        setDrawState(null);
+        setEntrants([]);
+        return;
+      }
+      setDrawId(draw.drawId);
+      setDrawAddress(draw.draw.toBase58());
+      setTotalTickets(draw.totalTickets);
+      setDrawState(draw.state);
+      const holders = await fetchDrawEntrants(connection, programId, draw);
+      const socials = await fetchWalletSocialsClient(
+        holders.map((h) => h.wallet),
+      );
+      setEntrants(
+        holders.map((h) => {
+          const s = socials[h.wallet];
+          return {
+            wallet: h.wallet,
+            discord: s?.discord ?? null,
+            x: s?.x ?? null,
+            tickets: h.tickets,
+            paidWithMints: [SOL_MINT],
+          };
+        }),
+      );
+    } catch {
+      setInProgressDraw(null);
       setEntrants([]);
-      return;
     }
-    setDrawId(draw.drawId);
-    setDrawAddress(draw.draw.toBase58());
-    setTotalTickets(draw.totalTickets);
-    setDrawState(draw.state);
-    const holders = await fetchDrawEntrants(connection, programId, draw);
-    const socials = await fetchWalletSocialsClient(holders.map((h) => h.wallet));
-    setEntrants(
-      holders.map((h) => {
-        const s = socials[h.wallet];
-        return {
-          wallet: h.wallet,
-          discord: s?.discord ?? null,
-          x: s?.x ?? null,
-          tickets: h.tickets,
-          paidWithMints: [SOL_MINT],
-        };
-      }),
-    );
   }, [connection, programId]);
 
   const needsSettlement = Boolean(
@@ -156,16 +167,11 @@ export function HomeDrawsSection() {
   );
 
   useEffect(() => {
-    chainUnixTs(connection)
-      .then(setNowSec)
-      .catch(() => undefined);
     const tick = setInterval(() => {
-      chainUnixTs(connection)
-        .then(setNowSec)
-        .catch(() => undefined);
+      setNowSec((s) => (s !== null ? s + 1 : s));
     }, 1000);
     return () => clearInterval(tick);
-  }, [connection]);
+  }, []);
 
   const refreshPast = useCallback(async () => {
     const settled = await fetchPastSettledDraws(connection, programId);
