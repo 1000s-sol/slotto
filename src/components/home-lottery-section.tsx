@@ -7,6 +7,7 @@ import { PublicKey } from "@solana/web3.js";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { LotteryWinnerPanel } from "@/components/lottery/lottery-winner-panel";
+import { VercelPhantomBuyNotice } from "@/components/lottery/vercel-phantom-buy-notice";
 import { SplPoolInfoButton } from "@/components/lottery/spl-pool-info-modal";
 import { TicketCountInput } from "@/components/lottery/ticket-count-input";
 import { SiteSelect } from "@/components/ui/site-select";
@@ -604,6 +605,7 @@ export function HomeLotterySection() {
             }`}
           >
             <h3 className="text-lg font-semibold">Buy tickets</h3>
+            <VercelPhantomBuyNotice />
             <p className="mt-2 text-sm text-muted">
               {payWith === "SOL" ? (
                 <>
