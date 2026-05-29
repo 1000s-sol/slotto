@@ -14,12 +14,14 @@ function emptyRow(): SplMintDraft {
     symbol: "",
     label: "",
     mintDecimals: 9,
+    pricingMode: "fixed",
     priceUi: "1",
     pricePerTicket: "1000000000",
     onChainCap: 500,
     displayCap: 60,
     published: false,
     purchasesLocked: false,
+    enabled: true,
   };
 }
 
@@ -265,8 +267,10 @@ export function validateSplMintRows(rows: SplMintDraft[]): string | null {
     if (r.displayCap > r.onChainCap) {
       return `UI cap cannot exceed on-chain cap for ${r.symbol || r.mint}`;
     }
-    if (!r.pricePerTicket || r.pricePerTicket === "0") {
-      return `Price required for ${r.symbol || r.mint}`;
+    if (r.pricingMode !== "liquidDynamic") {
+      if (!r.pricePerTicket || r.pricePerTicket === "0") {
+        return `Price required for ${r.symbol || r.mint}`;
+      }
     }
   }
   if (active.length > SPL_MINT_MAX_ON_CHAIN) {

@@ -72,6 +72,7 @@ export function mergeSplMintsForBuyUi(
       displayCap: effectiveCap,
       pricePerTicket: chain.pricePerTicket,
       decimals: chain.decimals,
+      pricingMode: chain.pricingMode,
       published,
       purchasesLocked,
       buyable:

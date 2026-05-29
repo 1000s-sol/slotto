@@ -13,6 +13,11 @@ import { fetchWalletSocialsClient } from "@/lib/fetch-wallet-social-client";
 import type { WalletSocialPublic } from "@/lib/social-profile-url";
 import { buySolTickets } from "@/lib/lottery/buy-sol-tickets";
 import { buySplTickets } from "@/lib/lottery/buy-spl-tickets";
+import { fetchTickerPricesClient } from "@/lib/lottery/fetch-ticker-prices-client";
+import { resolveSplQuotedPricePerTicket } from "@/lib/lottery/resolve-spl-quoted-price";
+import type { TickerPriceItem } from "@/lib/token-usd-prices";
+import { SPL_PRICING_LIQUID_DYNAMIC } from "@/lib/lottery/spl-pricing";
+import { splBaseUnitsToUi } from "@/lib/lottery/spl-price";
 import {
   chainUnixTs,
   fetchJackpotLamports,
@@ -91,7 +96,28 @@ export function HomeLotterySection() {
   const [payWith, setPayWith] = useState<"SOL" | string>("SOL");
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
   const [splUiRows, setSplUiRows] = useState<SplMintUiRow[]>([]);
+  const [tickerPrices, setTickerPrices] = useState<TickerPriceItem[]>([]);
+  const [liquidQuoteUi, setLiquidQuoteUi] = useState<string | null>(null);
+  const [liquidQuoteLoading, setLiquidQuoteLoading] = useState(false);
   const [settleError, setSettleError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const items = await fetchTickerPricesClient();
+        if (!cancelled) setTickerPrices(items);
+      } catch {
+        if (!cancelled) setTickerPrices([]);
+      }
+    };
+    void load();
+    const id = setInterval(() => void load(), 60_000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, []);
 
   const needsSettlement = Boolean(
     activeDraw && drawNeedsSettlement(activeDraw, nowSec),
@@ -268,8 +294,51 @@ export function HomeLotterySection() {
     const opt = splUiRows.find((o) => o.mint === payWith);
     if (!opt) return "";
     const left = splTicketsRemaining(opt);
-    return `SPL tickets remaining: ${left}/${opt.displayCap}`;
-  }, [payWith, splUiRows]);
+    const priceHint =
+      opt.pricingMode === SPL_PRICING_LIQUID_DYNAMIC
+        ? liquidQuoteLoading
+          ? " · fetching live price…"
+          : liquidQuoteUi
+            ? ` · ~${liquidQuoteUi} per ticket (live)`
+            : ""
+        : "";
+    return `SPL tickets remaining: ${left}/${opt.displayCap}${priceHint}`;
+  }, [payWith, splUiRows, liquidQuoteUi, liquidQuoteLoading]);
+
+  useEffect(() => {
+    if (payWith === "SOL" || !activeDraw) {
+      setLiquidQuoteUi(null);
+      return;
+    }
+    const opt = splUiRows.find((o) => o.mint === payWith);
+    if (!opt || opt.pricingMode !== SPL_PRICING_LIQUID_DYNAMIC) {
+      setLiquidQuoteUi(null);
+      return;
+    }
+    let cancelled = false;
+    setLiquidQuoteLoading(true);
+    void resolveSplQuotedPricePerTicket(
+      connection,
+      programId,
+      activeDraw,
+      new PublicKey(payWith),
+      tickerPrices,
+    )
+      .then((q) => {
+        if (!cancelled) {
+          setLiquidQuoteUi(splBaseUnitsToUi(q.toString(), opt.decimals));
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setLiquidQuoteUi(null);
+      })
+      .finally(() => {
+        if (!cancelled) setLiquidQuoteLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeDraw, connection, payWith, programId, splUiRows, tickerPrices]);
 
   const disabledReason = buyDisabledReason(buyable, connected);
   const selectedSpl = splUiRows.find((o) => o.mint === payWith);
@@ -300,14 +369,25 @@ export function HomeLotterySection() {
               activeDraw,
               count,
             )
-          : await buySplTickets(
-              connection,
-              wallet,
-              programId,
-              activeDraw,
-              new PublicKey(payWith),
-              count,
-            );
+          : await (async () => {
+              const mint = new PublicKey(payWith);
+              const quoted = await resolveSplQuotedPricePerTicket(
+                connection,
+                programId,
+                activeDraw,
+                mint,
+                tickerPrices,
+              );
+              return buySplTickets(
+                connection,
+                wallet,
+                programId,
+                activeDraw,
+                mint,
+                count,
+                quoted,
+              );
+            })();
       const firstId = activeDraw.totalTickets;
       const lastId = activeDraw.totalTickets + count - 1;
       const ids = count === 1 ? `#${firstId}` : `#${firstId}–#${lastId}`;
@@ -332,6 +412,7 @@ export function HomeLotterySection() {
     refresh,
     splUiRows,
     ticketCount,
+    tickerPrices,
     wallet,
   ]);
 

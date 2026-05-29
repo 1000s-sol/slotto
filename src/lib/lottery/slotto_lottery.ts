@@ -165,6 +165,56 @@ export type SlottoLottery = {
       ]
     },
     {
+      "name": "ensureTeamTokenAta",
+      "discriminator": [
+        107,
+        234,
+        16,
+        11,
+        64,
+        198,
+        158,
+        243
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "globalConfig"
+        },
+        {
+          "name": "mint"
+        },
+        {
+          "name": "teamVault"
+        },
+        {
+          "name": "teamToken",
+          "writable": true
+        },
+        {
+          "name": "tokenProgram",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "associatedTokenProgram",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "initTicketChunk",
       "discriminator": [
         193,
@@ -338,6 +388,10 @@ export type SlottoLottery = {
         {
           "name": "count",
           "type": "u32"
+        },
+        {
+          "name": "quotedPricePerTicket",
+          "type": "u64"
         }
       ]
     },
@@ -749,6 +803,21 @@ export type SlottoLottery = {
       "code": 6035,
       "name": "invalidDrawStateForWithdrawSpl",
       "msg": "invalidDrawStateForWithdrawSpl"
+    },
+    {
+      "code": 6036,
+      "name": "invalidSplPricingMode",
+      "msg": "invalidSplPricingMode"
+    },
+    {
+      "code": 6037,
+      "name": "invalidSplQuotedPrice",
+      "msg": "invalidSplQuotedPrice"
+    },
+    {
+      "code": 6038,
+      "name": "splQuotedPriceTooHigh",
+      "msg": "splQuotedPriceTooHigh"
     }
   ],
   "types": [
@@ -772,6 +841,10 @@ export type SlottoLottery = {
           {
             "name": "cap",
             "type": "u32"
+          },
+          {
+            "name": "pricingMode",
+            "type": "u8"
           }
         ]
       }
@@ -794,13 +867,8 @@ export type SlottoLottery = {
             "type": "u8"
           },
           {
-            "name": "padding0",
-            "type": {
-              "array": [
-                "u8",
-                3
-              ]
-            }
+            "name": "pricingMode",
+            "type": "u8"
           },
           {
             "name": "cap",
@@ -809,15 +877,6 @@ export type SlottoLottery = {
           {
             "name": "sold",
             "type": "u32"
-          },
-          {
-            "name": "padding1",
-            "type": {
-              "array": [
-                "u8",
-                4
-              ]
-            }
           }
         ]
       }

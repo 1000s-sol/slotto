@@ -159,6 +159,56 @@
       ]
     },
     {
+      "name": "ensure_team_token_ata",
+      "discriminator": [
+        107,
+        234,
+        16,
+        11,
+        64,
+        198,
+        158,
+        243
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "global_config"
+        },
+        {
+          "name": "mint"
+        },
+        {
+          "name": "team_vault"
+        },
+        {
+          "name": "team_token",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "init_ticket_chunk",
       "discriminator": [
         193,
@@ -332,6 +382,10 @@
         {
           "name": "count",
           "type": "u32"
+        },
+        {
+          "name": "quoted_price_per_ticket",
+          "type": "u64"
         }
       ]
     },
@@ -584,6 +638,10 @@
           {
             "name": "cap",
             "type": "u32"
+          },
+          {
+            "name": "pricing_mode",
+            "type": "u8"
           }
         ]
       }
@@ -606,13 +664,8 @@
             "type": "u8"
           },
           {
-            "name": "_padding0",
-            "type": {
-              "array": [
-                "u8",
-                3
-              ]
-            }
+            "name": "pricing_mode",
+            "type": "u8"
           },
           {
             "name": "cap",
@@ -621,15 +674,6 @@
           {
             "name": "sold",
             "type": "u32"
-          },
-          {
-            "name": "_padding1",
-            "type": {
-              "array": [
-                "u8",
-                4
-              ]
-            }
           }
         ]
       }
@@ -971,6 +1015,21 @@
       "code": 6035,
       "name": "InvalidDrawStateForWithdrawSpl",
       "msg": "InvalidDrawStateForWithdrawSpl"
+    },
+    {
+      "code": 6036,
+      "name": "InvalidSplPricingMode",
+      "msg": "InvalidSplPricingMode"
+    },
+    {
+      "code": 6037,
+      "name": "InvalidSplQuotedPrice",
+      "msg": "InvalidSplQuotedPrice"
+    },
+    {
+      "code": 6038,
+      "name": "SplQuotedPriceTooHigh",
+      "msg": "SplQuotedPriceTooHigh"
     }
   ]
 }

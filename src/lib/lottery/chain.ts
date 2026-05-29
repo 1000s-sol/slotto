@@ -22,6 +22,7 @@ export type SplMintRowView = {
   sold: number;
   pricePerTicket: string;
   decimals: number;
+  pricingMode: number;
 };
 
 export type LotteryDrawView = {
@@ -81,6 +82,7 @@ function toDrawViewFromRaw(
       sold: row.sold,
       pricePerTicket: row.pricePerTicket.toString(),
       decimals: row.mintDecimals,
+      pricingMode: row.pricingMode,
     });
   }
 

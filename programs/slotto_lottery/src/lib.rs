@@ -19,6 +19,11 @@ declare_id!("6mYYxtJ4NPH1oNJoy2CpJGQq6XiWCsu8iB5y6ior6TMq");
 /// Max SPL mints inlined on [`Draw`] (see spec).
 pub const SPL_MINT_MAX: usize = 50;
 
+/// Fixed SPL price per ticket (set at `create_draw` / `add_spl_mint_to_draw`).
+pub const SPL_PRICING_FIXED: u8 = 0;
+/// Price per ticket supplied at `buy_spl_tickets` (client quotes ≈0.0095 SOL at purchase).
+pub const SPL_PRICING_LIQUID_DYNAMIC: u8 = 1;
+
 /// Owners per [`TicketChunk`] PDA (see spec).
 pub const TICKETS_PER_CHUNK: usize = 256;
 
@@ -163,7 +168,7 @@ pub mod slotto_lottery {
         for row in &spl_rows {
             require_keys_neq!(row.mint, Pubkey::default());
             require!(row.cap > 0, ErrorCode::InvalidSplCap);
-            require!(row.price_per_ticket > 0, ErrorCode::InvalidSplPrice);
+            spl_validate_mint_arg(row)?;
             for m in &seen {
                 require_keys_neq!(row.mint, *m);
             }
@@ -188,13 +193,7 @@ pub mod slotto_lottery {
                 *row = SplMintRow::default();
             }
             for (i, row) in spl_rows.iter().enumerate() {
-                draw.spl_mint_rows[i] = SplMintRow {
-                    mint: row.mint,
-                    price_per_ticket: row.price_per_ticket,
-                    mint_decimals: row.mint_decimals,
-                    cap: row.cap,
-                    sold: 0,
-                };
+                draw.spl_mint_rows[i] = spl_mint_row_from_arg(row);
             }
             draw.vrf_request = Pubkey::default();
             draw.winning_ticket_id = 0;
@@ -228,7 +227,7 @@ pub mod slotto_lottery {
     pub fn add_spl_mint_to_draw(ctx: Context<AddSplMintToDraw>, spl_row: SplMintArg) -> Result<()> {
         require_keys_neq!(spl_row.mint, Pubkey::default());
         require!(spl_row.cap > 0, ErrorCode::InvalidSplCap);
-        require!(spl_row.price_per_ticket > 0, ErrorCode::InvalidSplPrice);
+        spl_validate_mint_arg(&spl_row)?;
 
         let mut draw = ctx.accounts.draw.load_mut()?;
         require!(
@@ -249,17 +248,16 @@ pub mod slotto_lottery {
         }
 
         let idx = draw.spl_count as usize;
-        draw.spl_mint_rows[idx] = SplMintRow {
-            mint: spl_row.mint,
-            price_per_ticket: spl_row.price_per_ticket,
-            mint_decimals: spl_row.mint_decimals,
-            cap: spl_row.cap,
-            sold: 0,
-        };
+        draw.spl_mint_rows[idx] = spl_mint_row_from_arg(&spl_row);
         draw.spl_count = draw
             .spl_count
             .checked_add(1)
             .ok_or(error!(ErrorCode::ArithmeticOverflow))?;
+        Ok(())
+    }
+
+    /// Authority: create the team wallet ATA for an SPL mint (buyers must not pay ATA rent).
+    pub fn ensure_team_token_ata(ctx: Context<EnsureTeamTokenAta>) -> Result<()> {
         Ok(())
     }
 
@@ -368,7 +366,11 @@ pub mod slotto_lottery {
     /// **0.0005 SOL × count** setup fee only (no SOL team/BUX slice on SPL buys).
     ///
     /// **Remaining accounts:** same as [`buy_sol_tickets`] — ticket chunk PDAs, sorted by chunk index.
-    pub fn buy_spl_tickets(ctx: Context<BuySplTickets>, count: u32) -> Result<()> {
+    pub fn buy_spl_tickets(
+        ctx: Context<BuySplTickets>,
+        count: u32,
+        quoted_price_per_ticket: u64,
+    ) -> Result<()> {
         require!(count > 0 && count <= MAX_SPL_TICKETS_PER_BUY, ErrorCode::InvalidTicketCount);
 
         let mint_key = ctx.accounts.mint.key();
@@ -404,7 +406,9 @@ pub mod slotto_lottery {
             .checked_add(count)
             .ok_or(error!(ErrorCode::ArithmeticOverflow))?;
 
-        let spl_amount = spl_token_amount_for_buy(row.price_per_ticket, count)?;
+        let price_per_ticket =
+            spl_resolve_price_per_ticket(&row, quoted_price_per_ticket)?;
+        let spl_amount = spl_token_amount_for_buy(price_per_ticket, count)?;
 
         let fee_setup = spl_fee_lamports_total(count)?;
 
@@ -777,6 +781,7 @@ pub struct SplMintArg {
     pub price_per_ticket: u64,
     pub mint_decimals: u8,
     pub cap: u32,
+    pub pricing_mode: u8,
 }
 
 #[derive(Clone, Copy, Default, AnchorSerialize, AnchorDeserialize, InitSpace)]
@@ -785,8 +790,47 @@ pub struct SplMintRow {
     pub mint: Pubkey,
     pub price_per_ticket: u64,
     pub mint_decimals: u8,
+    pub pricing_mode: u8,
     pub cap: u32,
     pub sold: u32,
+}
+
+fn spl_validate_mint_arg(row: &SplMintArg) -> Result<()> {
+    match row.pricing_mode {
+        SPL_PRICING_FIXED => require!(row.price_per_ticket > 0, ErrorCode::InvalidSplPrice),
+        SPL_PRICING_LIQUID_DYNAMIC => {}
+        _ => return Err(error!(ErrorCode::InvalidSplPricingMode)),
+    }
+    Ok(())
+}
+
+fn spl_mint_row_from_arg(row: &SplMintArg) -> SplMintRow {
+    SplMintRow {
+        mint: row.mint,
+        price_per_ticket: row.price_per_ticket,
+        mint_decimals: row.mint_decimals,
+        pricing_mode: row.pricing_mode,
+        cap: row.cap,
+        sold: 0,
+    }
+}
+
+/// Fixed rows use on-chain price; liquid-dynamic rows use the buy-time quote (≤ optional max).
+fn spl_resolve_price_per_ticket(row: &SplMintRow, quoted: u64) -> Result<u64> {
+    match row.pricing_mode {
+        SPL_PRICING_FIXED => {
+            require!(quoted == row.price_per_ticket, ErrorCode::InvalidSplQuotedPrice);
+            Ok(row.price_per_ticket)
+        }
+        SPL_PRICING_LIQUID_DYNAMIC => {
+            require!(quoted > 0, ErrorCode::InvalidSplQuotedPrice);
+            if row.price_per_ticket > 0 {
+                require!(quoted <= row.price_per_ticket, ErrorCode::SplQuotedPriceTooHigh);
+            }
+            Ok(quoted)
+        }
+        _ => Err(error!(ErrorCode::InvalidSplPricingMode)),
+    }
 }
 
 #[repr(u8)]
@@ -1004,6 +1048,29 @@ pub struct InitTicketChunk<'info> {
 }
 
 #[derive(Accounts)]
+pub struct EnsureTeamTokenAta<'info> {
+    #[account(mut, constraint = authority.key() == global_config.authority @ ErrorCode::Unauthorized)]
+    pub authority: Signer<'info>,
+    #[account(seeds = [b"global_config"], bump = global_config.bump)]
+    pub global_config: Account<'info, GlobalConfig>,
+    pub mint: Account<'info, Mint>,
+    /// CHECK: team wallet from global config.
+    #[account(constraint = team_vault.key() == global_config.team_vault @ ErrorCode::InvalidTeamVault)]
+    pub team_vault: UncheckedAccount<'info>,
+    #[account(
+        init_if_needed,
+        payer = authority,
+        associated_token::mint = mint,
+        associated_token::authority = team_vault,
+    )]
+    pub team_token: Account<'info, TokenAccount>,
+    pub token_program: Program<'info, Token>,
+    pub associated_token_program: Program<'info, AssociatedToken>,
+    pub system_program: Program<'info, System>,
+    pub rent: Sysvar<'info, Rent>,
+}
+
+#[derive(Accounts)]
 pub struct AddSplMintToDraw<'info> {
     #[account(mut, constraint = authority.key() == global_config.authority @ ErrorCode::Unauthorized)]
     pub authority: Signer<'info>,
@@ -1062,10 +1129,9 @@ pub struct BuySplTickets<'info> {
     )]
     pub buyer_token: Account<'info, TokenAccount>,
     #[account(
-        init_if_needed,
-        payer = buyer,
-        associated_token::mint = mint,
-        associated_token::authority = team_vault,
+        mut,
+        token::mint = mint,
+        token::authority = team_vault,
     )]
     pub team_token: Account<'info, TokenAccount>,
     /// CHECK: setup SOL recipient from global config (SPL ticket fee only).
@@ -1169,6 +1235,12 @@ pub enum ErrorCode {
     InvalidSplCap,
     #[msg("SPL price must be > 0")]
     InvalidSplPrice,
+    #[msg("invalid SPL pricing mode")]
+    InvalidSplPricingMode,
+    #[msg("quoted SPL price invalid for this mint")]
+    InvalidSplQuotedPrice,
+    #[msg("quoted SPL price exceeds on-chain max")]
+    SplQuotedPriceTooHigh,
     #[msg("draw id counter overflow")]
     DrawIdOverflow,
     #[msg("draw is not accepting ticket sales")]

@@ -26,13 +26,20 @@ import {
   LOTTERY_TEAM_VAULT,
 } from "@/lib/lottery/recipients";
 import { createLotteryProgram } from "@/lib/lottery/program";
-import type { SplMintDraft } from "@/lib/lottery/spl-types";
 import type { LotteryDrawView } from "@/lib/lottery/chain";
 import {
-  LotterySplMintEditor,
-  validateSplMintRows,
-} from "@/components/admin/lottery-spl-mint-editor";
+  ProjectTokenDrawAllocator,
+  validateProjectTokenDrawSettings,
+  type ProjectTokenDrawSettings,
+} from "@/components/admin/project-token-draw-allocator";
+import { fetchTickerPricesClient } from "@/lib/lottery/fetch-ticker-prices-client";
+import { ensureTeamTokenAta } from "@/lib/lottery/ensure-team-token-ata";
 import {
+  projectTokensToSplMintDrafts,
+  splMintDraftToOnChainArg,
+} from "@/lib/lottery/project-tokens-for-draw";
+import {
+  adminFetchProjectTokensForDrawAction,
   adminSaveSplRowsForDrawAction,
 } from "@/app/admin/(dashboard)/lotteries/actions";
 
@@ -90,7 +97,10 @@ export function LotteryOpsPanel({
   const [salesClose, setSalesClose] = useState("");
   const [seedSol, setSeedSol] = useState("0.05");
   const [seedRefund, setSeedRefund] = useState("");
-  const [splRows, setSplRows] = useState<SplMintDraft[]>([]);
+  const [tokenEnabled, setTokenEnabled] = useState<Record<string, boolean>>({});
+  const [tokenSettings, setTokenSettings] = useState<
+    Record<string, ProjectTokenDrawSettings>
+  >({});
 
   const refreshConfig = useCallback(async () => {
     if (!wallet) return;
@@ -225,19 +235,38 @@ export function LotteryOpsPanel({
         ? new PublicKey(seedRefund.trim())
         : publicKey;
 
-      const activeSpl = splRows.filter((r) => r.mint.trim());
-      const splErr = validateSplMintRows(activeSpl);
+      const tokens =
+        projectTokens.length > 0
+          ? projectTokens
+          : await adminFetchProjectTokensForDrawAction();
+      const splErr = validateProjectTokenDrawSettings(
+        tokens,
+        tokenEnabled,
+        tokenSettings,
+      );
       if (splErr) {
         setPhase({ kind: "error", message: splErr });
         return;
       }
 
-      const splArgs = activeSpl.map((r) => ({
-        mint: new PublicKey(r.mint),
-        pricePerTicket: new BN(r.pricePerTicket),
-        mintDecimals: r.mintDecimals,
-        cap: r.onChainCap,
-      }));
+      const tickerPrices = await fetchTickerPricesClient();
+      const activeSpl = await projectTokensToSplMintDrafts(
+        connection,
+        tokens,
+        tokenEnabled,
+        tokenSettings,
+        tickerPrices,
+      );
+      const splArgs = activeSpl.map((r) => {
+        const arg = splMintDraftToOnChainArg(r);
+        return {
+          mint: new PublicKey(arg.mint),
+          pricePerTicket: new BN(arg.pricePerTicket),
+          mintDecimals: arg.mintDecimals,
+          cap: arg.cap,
+          pricingMode: arg.pricingMode,
+        };
+      });
 
       const sig = await program.methods
         .createDraw(
@@ -255,6 +284,19 @@ export function LotteryOpsPanel({
           ticketChunk0,
         })
         .rpc();
+
+      for (const row of activeSpl) {
+        setPhase({
+          kind: "busy",
+          label: `Ensuring team ATA for ${row.symbol}…`,
+        });
+        await ensureTeamTokenAta(
+          connection,
+          wallet,
+          programId,
+          new PublicKey(row.mint),
+        );
+      }
 
       if (activeSpl.length > 0) {
         await adminSaveSplRowsForDrawAction(drawId, activeSpl);
@@ -287,7 +329,8 @@ export function LotteryOpsPanel({
     salesOpen,
     seedRefund,
     seedSol,
-    splRows,
+    tokenEnabled,
+    tokenSettings,
     wallet,
   ]);
 
@@ -445,9 +488,11 @@ export function LotteryOpsPanel({
                 </label>
               </div>
 
-              <LotterySplMintEditor
-                rows={splRows}
-                onChange={setSplRows}
+              <ProjectTokenDrawAllocator
+                enabled={tokenEnabled}
+                onEnabledChange={setTokenEnabled}
+                settings={tokenSettings}
+                onSettingsChange={setTokenSettings}
                 disabled={phase.kind === "busy" || !isOnChainAuthority}
               />
 

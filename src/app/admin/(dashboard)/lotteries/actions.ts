@@ -10,6 +10,7 @@ import {
   updateDrawSplMintRow,
   type DrawSplMintSettingsPatch,
 } from "@/lib/lottery/spl-catalog-db";
+import { fetchPublishedProjectTokens } from "@/lib/lottery/project-tokens-for-draw";
 import type { SplMintDraft } from "@/lib/lottery/spl-types";
 
 async function requireAdmin() {
@@ -21,6 +22,11 @@ async function requireAdmin() {
 export async function adminLoadSplCatalogAction(): Promise<SplMintDraft[]> {
   await requireAdmin();
   return loadSplCatalogForNewDraw();
+}
+
+export async function adminFetchProjectTokensForDrawAction() {
+  await requireAdmin();
+  return fetchPublishedProjectTokens();
 }
 
 export async function adminSaveSplRowsForDrawAction(

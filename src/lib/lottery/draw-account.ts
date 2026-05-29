@@ -57,6 +57,7 @@ export type RawSplMintRow = {
   mint: PublicKey;
   pricePerTicket: bigint;
   mintDecimals: number;
+  pricingMode: number;
   cap: number;
   sold: number;
 };
@@ -75,6 +76,7 @@ export function readSplMintRowFromRaw(
     mint: new PublicKey(data.subarray(base, base + 32)),
     pricePerTicket: data.readBigUInt64LE(base + 32),
     mintDecimals: data[base + 40] ?? 0,
+    pricingMode: data[base + 41] ?? 0,
     cap: data.readUInt32LE(base + 44),
     sold: data.readUInt32LE(base + 48),
   };

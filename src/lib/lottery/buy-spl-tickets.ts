@@ -1,3 +1,4 @@
+import { BN } from "@coral-xyz/anchor";
 import type { AnchorWallet } from "@solana/wallet-adapter-react";
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -19,6 +20,7 @@ export async function buySplTickets(
   draw: LotteryDrawView,
   mint: PublicKey,
   count: number,
+  quotedPricePerTicket: bigint,
 ): Promise<string> {
   if (!Number.isInteger(count) || count < 1 || count > MAX_SOL_TICKETS_PER_BUY) {
     throw new Error(`Buy 1–${MAX_SOL_TICKETS_PER_BUY} tickets per transaction.`);
@@ -54,7 +56,7 @@ export async function buySplTickets(
   }));
 
   return program.methods
-    .buySplTickets(count)
+    .buySplTickets(count, new BN(quotedPricePerTicket.toString()))
     .accounts({
       buyer: wallet.publicKey,
       draw: draw.draw,

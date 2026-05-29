@@ -36,6 +36,7 @@ type SplMintRowArg = {
   pricePerTicket: anchor.BN;
   mintDecimals: number;
   cap: number;
+  pricingMode: number;
 };
 
 const DrawState = {
@@ -337,6 +338,7 @@ describe("slotto_lottery", () => {
           pricePerTicket,
           mintDecimals: 6,
           cap: 4,
+          pricingMode: 0,
         },
       ],
     });
@@ -375,9 +377,20 @@ describe("slotto_lottery", () => {
     );
     const teamTokenBefore = await tokenAmountOrZero(provider.connection, teamAta);
 
+    await program.methods
+      .ensureTeamTokenAta()
+      .accountsPartial({
+        authority: authority.publicKey,
+        globalConfig,
+        mint,
+        teamVault,
+        teamToken: teamAta,
+      })
+      .rpc();
+
     await rpcWithBlockhashRetry(() =>
       program.methods
-        .buySplTickets(2)
+        .buySplTickets(2, pricePerTicket)
         .accounts({
           buyer: splBuyer.publicKey,
           draw,

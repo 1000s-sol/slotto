@@ -75,6 +75,9 @@ const errors = [
   "EmptyTicketOwner",
   "WinnerMismatch",
   "InvalidDrawStateForWithdrawSpl",
+  "InvalidSplPricingMode",
+  "InvalidSplQuotedPrice",
+  "SplQuotedPriceTooHigh",
 ].map((name, i) => ({ code: 6000 + i, name, msg: name }));
 
 const idl = {
@@ -115,6 +118,19 @@ const idl = {
       acc("global_config"),
       acc("draw", { writable: true }),
     ], [arg("spl_row", { defined: { name: "splMintArg" } })]),
+    ix("ensure_team_token_ata", [
+      acc("authority", { writable: true, signer: true }),
+      acc("global_config"),
+      acc("mint"),
+      acc("team_vault"),
+      acc("team_token", { writable: true }),
+      acc("token_program", { address: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" }),
+      acc("associated_token_program", {
+        address: "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL",
+      }),
+      acc("system_program", { address: "11111111111111111111111111111111" }),
+      acc("rent", { address: "SysvarRent111111111111111111111111111111111" }),
+    ], []),
     ix("init_ticket_chunk", [
       acc("authority", { writable: true, signer: true }),
       acc("global_config"),
@@ -151,7 +167,10 @@ const idl = {
       acc("system_program", { address: "11111111111111111111111111111111" }),
       acc("rent", { address: "SysvarRent111111111111111111111111111111111" }),
       acc("clock", { address: "SysvarC1ock11111111111111111111111111111111" }),
-    ], [arg("count", "u32")]),
+    ], [
+      arg("count", "u32"),
+      arg("quoted_price_per_ticket", "u64"),
+    ]),
     ix("close_sales", [
       acc("draw", { writable: true }),
       acc("clock", { address: "SysvarC1ock11111111111111111111111111111111" }),
@@ -203,6 +222,7 @@ const idl = {
           { name: "price_per_ticket", type: "u64" },
           { name: "mint_decimals", type: "u8" },
           { name: "cap", type: "u32" },
+          { name: "pricing_mode", type: "u8" },
         ],
       },
     },
@@ -214,11 +234,9 @@ const idl = {
           { name: "mint", type: "pubkey" },
           { name: "price_per_ticket", type: "u64" },
           { name: "mint_decimals", type: "u8" },
-          // `#[repr(C)]` aligns `cap` / `sold` to 4 bytes (row size = 56).
-          { name: "_padding0", type: { array: ["u8", 3] } },
+          { name: "pricing_mode", type: "u8" },
           { name: "cap", type: "u32" },
           { name: "sold", type: "u32" },
-          { name: "_padding1", type: { array: ["u8", 4] } },
         ],
       },
     },
