@@ -42,6 +42,7 @@ import {
   type ProjectTokenDrawSettings,
 } from "@/components/admin/project-token-draw-allocator";
 import { ensureTeamTokenAta } from "@/lib/lottery/ensure-team-token-ata";
+import { formatLotteryAdminError } from "@/lib/lottery/user-facing-error";
 import { sendTransactionViaWallet } from "@/lib/lottery/wallet-send-transaction";
 import { ProductionDomainBanner } from "@/components/lottery/production-domain-banner";
 import { splMintDraftToOnChainArg } from "@/lib/lottery/project-tokens-for-draw";
@@ -263,19 +264,7 @@ export function LotteryOpsPanel({
         });
         return;
       }
-      setConfig({
-        authority: freshCfg.authority,
-        teamVault: freshCfg.teamVault,
-        buxVault: freshCfg.buxVault,
-        setupVault: freshCfg.setupVault,
-        nextDrawId: freshCfg.nextDrawId,
-      });
-
       const program = createLotteryProgram(connection, wallet);
-      const drawId = Number(freshCfg.nextDrawId);
-      const draw = drawPda(programId, drawId);
-      const prizeVault = prizeVaultPda(programId, draw);
-      const ticketChunk0 = ticketChunkPda(programId, draw, 0);
 
       const openTs = parseDatetimeLocal(salesOpen);
       const closeTs = parseDatetimeLocal(salesClose);
@@ -332,9 +321,36 @@ export function LotteryOpsPanel({
         };
       });
 
+      // Re-read next_draw_id after server prep so PDAs match chain (avoids stale UI / devnet id).
+      const cfgBeforeSign = await adminFetchGlobalConfigAction();
+      if (!cfgBeforeSign) {
+        setPhase({
+          kind: "error",
+          message: "Could not re-read global config before signing. Refresh and try again.",
+        });
+        return;
+      }
+      setConfig({
+        authority: cfgBeforeSign.authority,
+        teamVault: cfgBeforeSign.teamVault,
+        buxVault: cfgBeforeSign.buxVault,
+        setupVault: cfgBeforeSign.setupVault,
+        nextDrawId: cfgBeforeSign.nextDrawId,
+      });
+
+      const drawId = Number(cfgBeforeSign.nextDrawId);
+      if (!Number.isFinite(drawId) || drawId < 0) {
+        setPhase({ kind: "error", message: "Invalid next draw id from chain." });
+        return;
+      }
+
+      const draw = drawPda(programId, drawId);
+      const prizeVault = prizeVaultPda(programId, draw);
+      const ticketChunk0 = ticketChunkPda(programId, draw, 0);
+
       setPhase({
         kind: "busy",
-        label: "Confirm create_draw in Phantom…",
+        label: `Confirm create_draw #${drawId} in Phantom…`,
       });
       const sig = await sendTransactionViaWallet(connection, sendTransaction, () =>
         program.methods
@@ -392,7 +408,7 @@ export function LotteryOpsPanel({
         draw: draw.toBase58(),
       });
     } catch (e) {
-      const raw = e instanceof Error ? e.message : "Create draw failed.";
+      const raw = formatLotteryAdminError(e);
       const lower = raw.toLowerCase();
       const hint =
         lower.includes("user rejected") || lower.includes("user declined")

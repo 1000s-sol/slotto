@@ -211,6 +211,25 @@ export function formatLotteryBuyError(
   return text;
 }
 
+/** Admin on-chain actions (create draw, init, team ATA). */
+export function formatLotteryAdminError(error: unknown): string {
+  const text = combinedErrorText(error);
+  if (
+    text.includes("ConstraintSeeds") ||
+    text.includes("seeds constraint was violated") ||
+    text.includes("Error Number: 2006")
+  ) {
+    return (
+      "Draw account mismatch: the app used the wrong draw id for this cluster. " +
+      "Hard-refresh the page, confirm “Next draw id” matches mainnet (should be 1 after draw #0 refunded), then create again."
+    );
+  }
+  if (text.length > 200) {
+    return `${text.slice(0, 200)}…`;
+  }
+  return text.trim() || "On-chain action failed.";
+}
+
 /** Crank / auto-settle errors shown on the homepage. */
 export function formatLotterySettlementError(error: unknown): string {
   const text = combinedErrorText(error);
