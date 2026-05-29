@@ -93,7 +93,7 @@ export async function projectTokensToSplMintDrafts(
         ? liquidSplMaxPriceFromTickerItems(tickerPrices, t.mint, decimals)
         : await fetchLiquidSplMaxPricePerTicket(t.mint, decimals);
       pricePerTicket = max.toString();
-      const spot = (max * 100n) / 110n;
+      const spot = (max * BigInt(100)) / BigInt(110);
       priceUi = splBaseUnitsToUi(spot.toString(), decimals);
     } else {
       pricePerTicket = splUiAmountToBaseUnits(s.priceUi || "1", decimals).toString();

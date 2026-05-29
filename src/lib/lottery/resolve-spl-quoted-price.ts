@@ -37,7 +37,7 @@ export async function resolveSplQuotedPricePerTicket(
   }
 
   const onChain = BigInt(chainRow.pricePerTicket);
-  if (onChain <= 0n) {
+  if (onChain <= BigInt(0)) {
     throw new Error("Invalid fixed SPL price on draw.");
   }
   return onChain;

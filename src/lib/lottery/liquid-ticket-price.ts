@@ -73,7 +73,7 @@ export async function fetchLiquidSplMaxPricePerTicket(
   mintDecimals: number,
 ): Promise<bigint> {
   const spot = await fetchLiquidSplPricePerTicket(mint, mintDecimals);
-  return (spot * 110n) / 100n;
+  return (spot * BigInt(110)) / BigInt(100);
 }
 
 export function liquidSplMaxPriceFromTickerItems(
@@ -82,5 +82,5 @@ export function liquidSplMaxPriceFromTickerItems(
   mintDecimals: number,
 ): bigint {
   const spot = liquidSplPriceFromTickerItems(items, mint, mintDecimals);
-  return (spot * 110n) / 100n;
+  return (spot * BigInt(110)) / BigInt(100);
 }
