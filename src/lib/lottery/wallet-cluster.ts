@@ -1,6 +1,7 @@
 import type { Connection } from "@solana/web3.js";
 
 import {
+  lotteryClusterFromRpc,
   lotteryClusterLabel,
   resolveLotteryClusterEnv,
   type LotteryCluster,
@@ -16,6 +17,10 @@ export async function walletMatchesLotteryCluster(
   connection: Connection,
 ): Promise<boolean> {
   const expected = resolveLotteryClusterEnv();
+  const endpoint = connection.rpcEndpoint?.trim();
+  if (endpoint) {
+    return lotteryClusterFromRpc(endpoint) === expected;
+  }
   try {
     const hash = await connection.getGenesisHash();
     return hash === GENESIS_HASH[expected];

@@ -16,7 +16,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   lotteryCluster,
   lotteryClusterLabel,
-  publicRpcClusterMismatch,
 } from "@/lib/lottery/cluster";
 import {
   lotteryProgramId,
@@ -44,7 +43,6 @@ import {
 import { ensureTeamTokenAta } from "@/lib/lottery/ensure-team-token-ata";
 import { formatLotteryAdminError } from "@/lib/lottery/user-facing-error";
 import { sendTransactionViaWallet } from "@/lib/lottery/wallet-send-transaction";
-import { ProductionDomainBanner } from "@/components/lottery/production-domain-banner";
 import { splMintDraftToOnChainArg } from "@/lib/lottery/project-tokens-for-draw";
 import {
   adminBuildSplMintDraftsForCreateDrawAction,
@@ -121,8 +119,6 @@ export function LotteryOpsPanel({
 
   const cluster = lotteryCluster();
   const clusterLabel = lotteryClusterLabel(cluster);
-  const rpcMismatch = publicRpcClusterMismatch();
-
   const refreshConfig = useCallback(async () => {
     if (!wallet) return;
     const [serverCluster, cfg] = await Promise.all([
@@ -471,7 +467,6 @@ export function LotteryOpsPanel({
 
   return (
     <div className="space-y-8">
-      <ProductionDomainBanner />
       {serverRpcEnvMismatch ? (
         <p className="rounded-xl border border-red-500/60 bg-red-950/40 px-4 py-3 text-sm text-red-100">
           Server RPC cluster ({serverClusterLabel}) does not match LOTTERY_CLUSTER
@@ -511,15 +506,6 @@ export function LotteryOpsPanel({
               <span className="font-mono text-foreground">
                 {serverClusterLabel}
               </span>
-            </span>
-          ) : null}
-          {rpcMismatch ? (
-            <span className="text-amber-200/90">
-              {" "}
-              — wallet RPC does not match{" "}
-              <span className="font-mono">NEXT_PUBLIC_LOTTERY_CLUSTER</span>; set{" "}
-              <span className="font-mono">NEXT_PUBLIC_SOLANA_RPC_URL</span> to a{" "}
-              {clusterLabel} endpoint or clear it.
             </span>
           ) : null}
         </p>
