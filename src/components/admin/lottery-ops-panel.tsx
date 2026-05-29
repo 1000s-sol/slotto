@@ -235,10 +235,7 @@ export function LotteryOpsPanel({
         ? new PublicKey(seedRefund.trim())
         : publicKey;
 
-      const tokens =
-        projectTokens.length > 0
-          ? projectTokens
-          : await adminFetchProjectTokensForDrawAction();
+      const tokens = await adminFetchProjectTokensForDrawAction();
       const splErr = validateProjectTokenDrawSettings(
         tokens,
         tokenEnabled,
