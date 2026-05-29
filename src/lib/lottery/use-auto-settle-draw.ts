@@ -4,7 +4,10 @@ import { useEffect, useRef } from "react";
 
 import type { LotteryDrawView } from "./chain";
 import { drawNeedsSettlement } from "./draw-settlement";
-import { triggerLotteryCrank } from "./trigger-crank-action";
+import {
+  triggerLotteryCrank,
+  type CrankUiResult,
+} from "./trigger-crank-action";
 import { formatLotterySettlementError } from "./user-facing-error";
 
 const CRANK_INTERVAL_MS = 4_000;
@@ -17,7 +20,7 @@ export function useAutoSettleDraw(
   draw: LotteryDrawView | null,
   nowSec: number | null,
   refresh: () => Promise<void>,
-  onCrankError?: (message: string) => void,
+  onCrankResult?: (result: CrankUiResult) => void,
 ): void {
   const refreshRef = useRef(refresh);
   refreshRef.current = refresh;
@@ -48,5 +51,5 @@ export function useAutoSettleDraw(
       cancelled = true;
       clearInterval(id);
     };
-  }, [draw, draw?.drawId, draw?.state, draw?.salesCloseTs, nowSec, onCrankError]);
+  }, [draw, draw?.drawId, draw?.state, draw?.salesCloseTs, nowSec, onCrankResult]);
 }

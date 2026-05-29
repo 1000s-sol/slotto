@@ -191,6 +191,9 @@ export function formatLotteryBuyError(
 /** Crank / auto-settle errors shown on the homepage. */
 export function formatLotterySettlementError(error: unknown): string {
   const text = combinedErrorText(error);
+  if (text.includes("Unknown action")) {
+    return "Settlement already completed or duplicate crank — refresh the page.";
+  }
   if (
     text.includes("invalid api key") ||
     text.includes("-32401") ||

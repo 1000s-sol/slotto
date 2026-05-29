@@ -127,6 +127,9 @@ export async function requestSwitchboardVrf(
   const randomness = new Randomness(sbProgram, randomnessAccount);
 
   const commitIx = await randomness.commitIx(queue);
+  if (!commitIx) {
+    throw new Error("Switchboard commitIx missing (SDK / queue mismatch)");
+  }
   const requestIx = await program.methods
     .requestVrf()
     .accounts({ draw: drawPubkey })
@@ -177,6 +180,9 @@ export async function revealSwitchboardVrf(
   const randomness = new Randomness(sbProgram, randomnessAccount);
 
   const revealIx = await randomness.revealIx();
+  if (!revealIx) {
+    throw new Error("Switchboard revealIx missing (randomness not ready to reveal)");
+  }
   const { blockhash, lastValidBlockHeight } =
     await connection.getLatestBlockhash("confirmed");
 

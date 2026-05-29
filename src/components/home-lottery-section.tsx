@@ -135,7 +135,14 @@ export function HomeLotterySection() {
     setNowSec(await chainUnixTs(connection));
   }, [connection, programId]);
 
-  useAutoSettleDraw(activeDraw, nowSec, refresh, (msg) => setSettleError(msg));
+  useAutoSettleDraw(activeDraw, nowSec, refresh, (result) => {
+    if (result.ok) setSettleError(null);
+    else if (result.error) setSettleError(result.error);
+  });
+
+  useEffect(() => {
+    if (!needsSettlement) setSettleError(null);
+  }, [needsSettlement]);
 
   useEffect(() => {
     let cancelled = false;

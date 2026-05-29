@@ -8,6 +8,11 @@ export type CrankTriggerResult = {
   finalState?: string;
 };
 
+export type CrankUiResult = {
+  ok: boolean;
+  error?: string;
+};
+
 /** Server action: crank when the UI sees a draw awaiting settlement. */
 export async function triggerLotteryCrank(
   drawId: number,

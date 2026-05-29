@@ -48,6 +48,11 @@ async function crankOnRpc(
   return {
     ok: terminal || result.signatures.length > 0,
     finalState: result.finalState,
+    error: terminal
+      ? undefined
+      : result.signatures.length === 0
+        ? `Crank incomplete (still ${result.finalState})`
+        : undefined,
   };
 }
 

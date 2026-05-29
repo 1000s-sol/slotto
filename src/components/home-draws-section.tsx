@@ -19,7 +19,6 @@ import { fetchDrawEntrants } from "@/lib/lottery/ticket-holders";
 import { DiscordLogo } from "@/components/discord-logo";
 import { SocialProfileCell } from "@/components/social-profile-cell";
 import { fetchWalletSocialsClient } from "@/lib/fetch-wallet-social-client";
-import { useAutoSettleDraw } from "@/lib/lottery/use-auto-settle-draw";
 import type { SocialProfile } from "@/lib/social-profile-url";
 
 type TickerItem = {
@@ -155,8 +154,6 @@ export function HomeDrawsSection() {
   const needsSettlement = Boolean(
     inProgressDraw && drawNeedsSettlement(inProgressDraw, nowSec),
   );
-
-  useAutoSettleDraw(inProgressDraw, nowSec, refreshDraw);
 
   useEffect(() => {
     chainUnixTs(connection)
