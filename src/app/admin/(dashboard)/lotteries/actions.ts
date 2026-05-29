@@ -3,10 +3,18 @@
 import { Connection } from "@solana/web3.js";
 
 import { currentAdminAddress } from "@/lib/admin-session";
+import { fetchDrawById } from "@/lib/lottery/chain";
+import {
+  lotteryClusterLabel,
+  resolveLotteryClusterEnv,
+} from "@/lib/lottery/cluster";
 import { lotteryProgramId } from "@/lib/lottery/config";
 import { globalConfigPda } from "@/lib/lottery/pdas";
 import { createLotteryReadOnlyProgram } from "@/lib/lottery/program";
-import { resolveLotteryRpcUrl } from "@/lib/lottery/rpc-url";
+import {
+  resolveLotteryCluster,
+  resolveLotteryRpcUrl,
+} from "@/lib/lottery/rpc-url";
 import {
   appendDrawSplMintRow,
   batchUpdateDrawSplMintRows,
@@ -43,6 +51,35 @@ export type AdminGlobalConfigView = {
   setupVault: string;
   nextDrawId: string;
 };
+
+/** Cluster the server uses for lottery reads/crank (from actual RPC URL, not env label alone). */
+export async function adminFetchServerLotteryClusterAction(): Promise<{
+  cluster: "devnet" | "mainnet-beta";
+  label: string;
+  envLabel: string;
+  rpcEnvMismatch: boolean;
+}> {
+  await requireAdmin();
+  const cluster = resolveLotteryCluster();
+  const envCluster = resolveLotteryClusterEnv();
+  return {
+    cluster,
+    label: lotteryClusterLabel(cluster),
+    envLabel: lotteryClusterLabel(envCluster),
+    rpcEnvMismatch: cluster !== envCluster,
+  };
+}
+
+/** True if draw account exists on the server cluster (post-create verification). */
+export async function adminDrawExistsOnServerAction(
+  drawId: number,
+): Promise<boolean> {
+  await requireAdmin();
+  if (!Number.isFinite(drawId) || drawId < 0) return false;
+  const connection = new Connection(resolveLotteryRpcUrl(), "confirmed");
+  const draw = await fetchDrawById(connection, lotteryProgramId(), drawId);
+  return draw != null;
+}
 
 /** Read global config via server RPC (matches `LOTTERY_CLUSTER` / Helius). */
 export async function adminFetchGlobalConfigAction(): Promise<AdminGlobalConfigView | null> {

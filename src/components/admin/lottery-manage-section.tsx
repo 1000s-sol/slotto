@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { adminFetchInProgressDrawAction } from "@/app/admin/(dashboard)/lotteries/actions";
 import { LotteryCurrentDrawSpl } from "@/components/admin/lottery-current-draw-spl";
 import { LotteryOpsPanel } from "@/components/admin/lottery-ops-panel";
+import { WalletClusterBanner } from "@/components/lottery/wallet-cluster-banner";
 import type { LotteryDrawView } from "@/lib/lottery/chain";
 import { lotteryDrawViewFromJson } from "@/lib/lottery/draws";
 
@@ -39,6 +40,7 @@ export function LotteryManageSection() {
 
   return (
     <>
+      <WalletClusterBanner />
       <LotteryOpsPanel
         liveDraw={liveDraw}
         drawLoading={drawLoading}

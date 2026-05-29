@@ -34,7 +34,7 @@ import {
   LOTTERY_SETUP_VAULT,
   LOTTERY_TEAM_VAULT,
 } from "@/lib/lottery/recipients";
-import { createLotteryProgram } from "@/lib/lottery/program";
+import { createLotteryProgram, createLotteryReadOnlyProgram } from "@/lib/lottery/program";
 import type { LotteryDrawView } from "@/lib/lottery/chain";
 import {
   ProjectTokenDrawAllocator,
@@ -48,8 +48,10 @@ import { ProductionDomainBanner } from "@/components/lottery/production-domain-b
 import { splMintDraftToOnChainArg } from "@/lib/lottery/project-tokens-for-draw";
 import {
   adminBuildSplMintDraftsForCreateDrawAction,
+  adminDrawExistsOnServerAction,
   adminFetchGlobalConfigAction,
   adminFetchProjectTokensForDrawAction,
+  adminFetchServerLotteryClusterAction,
   adminMintsExistOnClusterAction,
   adminSaveSplRowsForDrawAction,
 } from "@/app/admin/(dashboard)/lotteries/actions";
@@ -72,7 +74,7 @@ type Phase =
   | { kind: "idle" }
   | { kind: "busy"; label: string }
   | { kind: "ok"; message: string; signature?: string; draw?: string }
-  | { kind: "error"; message: string };
+  | { kind: "error"; message: string; signature?: string };
 
 function datetimeLocalValue(d: Date): string {
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -99,6 +101,10 @@ export function LotteryOpsPanel({
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
   const [config, setConfig] = useState<GlobalConfigView | null>(null);
   const [initialized, setInitialized] = useState<boolean | null>(null);
+  const [serverClusterLabel, setServerClusterLabel] = useState<string | null>(
+    null,
+  );
+  const [serverRpcEnvMismatch, setServerRpcEnvMismatch] = useState(false);
 
   const [teamVault, setTeamVault] = useState(LOTTERY_TEAM_VAULT);
   const [buxVault, setBuxVault] = useState(LOTTERY_BUX_VAULT);
@@ -119,7 +125,12 @@ export function LotteryOpsPanel({
 
   const refreshConfig = useCallback(async () => {
     if (!wallet) return;
-    const cfg = await adminFetchGlobalConfigAction();
+    const [serverCluster, cfg] = await Promise.all([
+      adminFetchServerLotteryClusterAction(),
+      adminFetchGlobalConfigAction(),
+    ]);
+    setServerClusterLabel(serverCluster.label);
+    setServerRpcEnvMismatch(serverCluster.rpcEnvMismatch);
     if (!cfg) {
       setInitialized(false);
       setConfig(null);
@@ -344,6 +355,19 @@ export function LotteryOpsPanel({
         return;
       }
 
+      const walletProgram = createLotteryReadOnlyProgram(connection);
+      const walletCfg = await walletProgram.account.globalConfig.fetch(
+        globalConfig,
+      );
+      const walletNextDrawId = Number(walletCfg.nextDrawId);
+      if (walletNextDrawId !== drawId) {
+        setPhase({
+          kind: "error",
+          message: `Wallet RPC says the next draw is #${walletNextDrawId}, but the server (Vercel LOTTERY_CLUSTER) says #${drawId}. Phantom must be on ${clusterLabel} and Vercel must use the same cluster — you cannot create draw #${drawId} on mainnet while the UI/server still reads devnet (next id 10).`,
+        });
+        return;
+      }
+
       const draw = drawPda(programId, drawId);
       const prizeVault = prizeVaultPda(programId, draw);
       const ticketChunk0 = ticketChunkPda(programId, draw, 0);
@@ -391,6 +415,16 @@ export function LotteryOpsPanel({
         );
       }
 
+      const existsOnServer = await adminDrawExistsOnServerAction(drawId);
+      if (!existsOnServer) {
+        setPhase({
+          kind: "error",
+          message: `Phantom confirmed a transaction, but draw #${drawId} is not on the server cluster (${serverClusterLabel ?? clusterLabel}). Open the tx on Solscan and check cluster; fix Vercel LOTTERY_CLUSTER / LOTTERY_RPC_URL and wallet network, then try again.`,
+          signature: sig,
+        });
+        return;
+      }
+
       if (activeSpl.length > 0) {
         await adminSaveSplRowsForDrawAction(drawId, activeSpl);
       }
@@ -399,11 +433,11 @@ export function LotteryOpsPanel({
       await onLiveDrawChange();
       const ataNote =
         skippedTeamAta.length > 0
-          ? ` Team ATA skipped for ${skippedTeamAta.join(", ")} (mint not on this cluster — SPL buys disabled; pricing preview still works).`
+          ? ` Team ATA skipped for ${skippedTeamAta.join(", ")} (mint not found on server RPC — usually devnet server + mainnet tokens; SPL buys disabled until cluster is mainnet).`
           : "";
       setPhase({
         kind: "ok",
-        message: `Draw #${drawId} created${activeSpl.length ? ` with ${activeSpl.length} SPL mint(s)` : ""}.${ataNote}`,
+        message: `Draw #${drawId} created on ${serverClusterLabel ?? clusterLabel}${activeSpl.length ? ` with ${activeSpl.length} SPL mint(s)` : ""}.${ataNote}`,
         signature: sig,
         draw: draw.toBase58(),
       });
@@ -438,6 +472,7 @@ export function LotteryOpsPanel({
     seedSol,
     tokenEnabled,
     sendTransaction,
+    serverClusterLabel,
     tokenSettings,
     wallet,
   ]);
@@ -445,6 +480,14 @@ export function LotteryOpsPanel({
   return (
     <div className="space-y-8">
       <ProductionDomainBanner />
+      {serverRpcEnvMismatch ? (
+        <p className="rounded-xl border border-red-500/60 bg-red-950/40 px-4 py-3 text-sm text-red-100">
+          Server RPC cluster ({serverClusterLabel}) does not match LOTTERY_CLUSTER
+          env ({clusterLabel}). Remove or fix{" "}
+          <span className="font-mono">LOTTERY_RPC_URL</span> on Vercel — admin reads
+          the wrong chain (wrong next draw id, SPL mints &quot;not on cluster&quot;).
+        </p>
+      ) : null}
       <div className="rounded-2xl border border-border bg-bg-elevated/70 p-6 text-sm">
         <p className="text-muted">
           Program{" "}
@@ -458,7 +501,26 @@ export function LotteryOpsPanel({
           </a>
         </p>
         <p className="mt-2 text-muted">
-          Cluster <span className="font-mono text-foreground">{clusterLabel}</span>
+          Browser cluster{" "}
+          <span className="font-mono text-foreground">{clusterLabel}</span>
+          {serverClusterLabel && serverClusterLabel !== clusterLabel ? (
+            <span className="text-amber-200/90">
+              {" "}
+              — server reads{" "}
+              <span className="font-mono text-foreground">
+                {serverClusterLabel}
+              </span>{" "}
+              (fix LOTTERY_CLUSTER / LOTTERY_RPC_URL on Vercel)
+            </span>
+          ) : serverClusterLabel ? (
+            <span>
+              {" "}
+              · server{" "}
+              <span className="font-mono text-foreground">
+                {serverClusterLabel}
+              </span>
+            </span>
+          ) : null}
           {rpcMismatch ? (
             <span className="text-amber-200/90">
               {" "}
