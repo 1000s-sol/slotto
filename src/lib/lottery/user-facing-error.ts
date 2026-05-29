@@ -1,3 +1,5 @@
+import { BuyPreflightError } from "./preflight-buy-sol";
+
 type BuyErrorContext = {
   /** "SOL" or SPL mint address */
   payWith?: "SOL" | string;
@@ -111,6 +113,12 @@ function isWalletClusterMismatch(text: string): boolean {
 
 function isInsufficientSol(text: string): boolean {
   const lower = text.toLowerCase();
+  if (
+    lower.includes("insufficientfundsforrent") ||
+    lower.includes("insufficient funds for rent")
+  ) {
+    return false;
+  }
   return (
     lower.includes("insufficient lamports") ||
     lower.includes("insufficient funds for fee") ||
@@ -159,6 +167,10 @@ export function formatLotteryBuyError(
   error: unknown,
   context: BuyErrorContext = {},
 ): string {
+  if (error instanceof BuyPreflightError) {
+    return error.message;
+  }
+
   const text = combinedErrorText(error);
   if (!text.trim()) return "Purchase failed. Please try again.";
 

@@ -13,20 +13,27 @@ export type WalletSendTransaction = (
 ) => Promise<TransactionSignature>;
 
 export type LotteryWalletSendOpts = {
+  /** Phantom / wallet-adapter sign-and-send (same path as create_draw — no Blowfish warning). */
   sendTransaction?: WalletSendTransaction;
   adapter?: WalletAdapter | null;
 };
 
+function errorText(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  return String(error);
+}
+
 /**
- * Sign with the connected wallet (Phantom popup), then broadcast.
- * Uses adapter.signTransaction when available — avoids adapter sendTransaction
- * paths that return "No signers" without opening the wallet.
+ * Build, sign, and send a legacy transaction.
+ * Prefers wallet-adapter `sendTransaction` (Phantom signAndSend); falls back to
+ * signTransaction + sendRaw only when the adapter cannot send.
  */
 export async function sendTransactionViaWallet(
   connection: Connection,
   wallet: AnchorWallet,
   buildTransaction: () => Promise<Transaction>,
-  _opts?: LotteryWalletSendOpts,
+  opts?: LotteryWalletSendOpts,
 ): Promise<TransactionSignature> {
   const tx = await buildTransaction();
   const { blockhash, lastValidBlockHeight } =
@@ -35,9 +42,36 @@ export async function sendTransactionViaWallet(
   tx.recentBlockhash = blockhash;
   tx.feePayer = wallet.publicKey;
 
+  if (opts?.sendTransaction) {
+    try {
+      const signature = await opts.sendTransaction(tx, connection, {
+        skipPreflight: false,
+      });
+      await connection.confirmTransaction(
+        { signature, blockhash, lastValidBlockHeight },
+        "confirmed",
+      );
+      return signature;
+    } catch (e) {
+      const msg = errorText(e).toLowerCase();
+      if (msg.includes("user rejected") || msg.includes("user declined")) {
+        throw e;
+      }
+      // Fall through to sign + sendRaw only for adapter signing failures.
+      if (
+        !msg.includes("no signers") &&
+        !msg.includes("no signer") &&
+        !msg.includes("not connected")
+      ) {
+        throw e;
+      }
+    }
+  }
+
   const signed = await wallet.signTransaction(tx);
   const signature = await connection.sendRawTransaction(signed.serialize(), {
-    skipPreflight: false,
+    // Unsigned-tx RPC preflight often false-flags InsufficientFundsForRent on vaults.
+    skipPreflight: true,
   });
   await connection.confirmTransaction(
     { signature, blockhash, lastValidBlockHeight },
