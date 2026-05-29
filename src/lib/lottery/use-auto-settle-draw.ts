@@ -1,9 +1,6 @@
 "use client";
 
-import {
-  useConnection,
-  useWallet,
-} from "@solana/wallet-adapter-react";
+import { useConnection } from "@solana/wallet-adapter-react";
 import { useEffect, useRef } from "react";
 
 import type { LotteryDrawView } from "./chain";
