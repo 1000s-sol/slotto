@@ -1,7 +1,13 @@
+import { SPL_PRICING_LIQUID_DYNAMIC } from "./spl-pricing";
+
 /** Max SPL mint rows per draw on-chain (must match program `SPL_MINT_MAX`). */
 export const SPL_MINT_MAX_ON_CHAIN = 50;
 
 export type SplPricingMode = "fixed" | "liquidDynamic";
+
+export function pricingModeFromChain(mode: number): SplPricingMode {
+  return mode === SPL_PRICING_LIQUID_DYNAMIC ? "liquidDynamic" : "fixed";
+}
 
 export type SplMintDraft = {
   mint: string;

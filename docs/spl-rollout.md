@@ -119,8 +119,8 @@ npm run dev
 ## 5. Smoke test (devnet)
 
 1. **Admin** → `/admin/lotteries` — sign in with an allowlisted wallet.
-2. **Create draw** — set schedule, add 1–2 SPL rows (or **Reload from last draw**), publish flags / caps, submit. Confirm Postgres rows exist (`db:studio` → `LotteryDrawSplMint`).
-3. **Homepage** — active draw loads; **Pay with** shows SPL mints; buy 1 ticket with SPL (wallet needs token balance + SOL for fees).
+2. **Create draw** — set schedule; enable tokens from **published project listings** (liquid = dynamic price at buy via ticker feed; fixed = manual price). Authority wallet pays team ATA rent per enabled mint. Confirm Postgres rows exist (`db:studio` → `LotteryDrawSplMint`).
+3. **Homepage** — active draw loads; **Pay with** shows SPL mints; buy 1 ticket with SPL (wallet needs token balance + **0.0005 SOL × count** setup fee only; liquid price matches ticker).
 4. **Current draw SPL** (admin) — raise `display_cap` (UI only), toggle **published** / **purchases locked**.
 5. **Add mint** (admin, draw still **Selling**) — only succeeds after program upgrade with `add_spl_mint_to_draw`.
 6. **Settlement** — after `sales_close_ts`, homepage polling should crank (keeper). Or: `npm run lottery:settle -- <drawId>` locally with keeper wallet.
@@ -137,7 +137,9 @@ curl -s "https://<your-host>/api/lottery/draw-spl?drawId=4" | jq .
 
 | Symptom | Likely fix |
 |---------|------------|
-| SPL mints missing on homepage | No rows in `LotteryDrawSplMint` for that `drawId`; re-save from admin or create draw with SPL table filled |
+| SPL mints missing on homepage | No rows in `LotteryDrawSplMint` for that `drawId`; re-save from admin or create draw with tokens enabled |
+| `InvalidSplQuotedPrice` on SPL buy | Liquid: wait for ticker prices; fixed: quoted price must match on-chain row |
+| SPL buy fails on `team_token` | Redeploy program; create draw runs `ensure_team_token_ata` per enabled mint |
 | `add_spl_mint` / buy SPL fails on-chain | Program not redeployed; wrong `NEXT_PUBLIC_SLOTTO_LOTTERY_PROGRAM_ID` |
 | `TooManySplMints` on create | Old program (16 cap); redeploy step 2 |
 | Auto-settle never runs | Set `LOTTERY_KEEPER_SECRET_KEY` on Vercel; keeper needs devnet SOL |
@@ -161,7 +163,12 @@ Records mint addresses in `devnet-tokens.json`. Local images are copied to `publ
 
 ---
 
+## Program changes in latest `main` (redeploy required)
+
+- **`ensure_team_token_ata`** — authority pays team-wallet ATA rent (buyers do not).
+- **`pricing_mode`** on SPL rows — `fixed` or `liquid_dynamic` (≈95% of 0.01 SOL at buy, same USD feed as site ticker).
+- **`buy_spl_tickets(count, quoted_price_per_ticket)`** — client passes quote from `/api/ticker-prices`.
+
 ## Not in this rollout
 
-- **Dynamic SPL price** ≈ 0.095 SOL per ticket — spec TODO; prices are fixed at `create_draw` / `add_spl_mint`.
-- **SPL integration tests** — `npm run lottery:test:integration` (SOL path only today).
+- **SPL integration tests** — extend `tests/slotto_lottery.ts` for liquid-dynamic rows if needed.

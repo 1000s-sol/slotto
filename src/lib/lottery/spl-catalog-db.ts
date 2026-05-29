@@ -26,6 +26,8 @@ export async function loadSplCatalogForNewDraw(): Promise<SplMintDraft[]> {
         displayCap: r.displayCap,
         published: r.published,
         purchasesLocked: r.purchasesLocked,
+        pricingMode: "fixed",
+        enabled: true,
       }));
     }
   }
@@ -44,6 +46,8 @@ export async function loadSplCatalogForNewDraw(): Promise<SplMintDraft[]> {
     displayCap: c.defaultDisplayCap,
     published: c.defaultPublished,
     purchasesLocked: false,
+    pricingMode: "fixed",
+    enabled: true,
   }));
 }
 

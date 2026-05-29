@@ -4,6 +4,7 @@ import { Connection, PublicKey } from "@solana/web3.js";
 
 import { globalConfigPda } from "./pdas";
 import { createLotteryProgram } from "./program";
+import { splMintDraftToOnChainArg } from "./project-tokens-for-draw";
 import type { SplMintDraft } from "./spl-types";
 
 export async function addSplMintToDraw(
@@ -16,12 +17,14 @@ export async function addSplMintToDraw(
   const program = createLotteryProgram(connection, wallet);
   const globalConfig = globalConfigPda(programId);
 
+  const arg = splMintDraftToOnChainArg(row);
   return program.methods
     .addSplMintToDraw({
-      mint: new PublicKey(row.mint),
-      pricePerTicket: new BN(row.pricePerTicket),
-      mintDecimals: row.mintDecimals,
-      cap: row.onChainCap,
+      mint: new PublicKey(arg.mint),
+      pricePerTicket: new BN(arg.pricePerTicket),
+      mintDecimals: arg.mintDecimals,
+      cap: arg.cap,
+      pricingMode: arg.pricingMode,
     })
     .accounts({
       authority: wallet.publicKey,

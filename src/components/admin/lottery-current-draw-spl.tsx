@@ -14,7 +14,7 @@ import { DrawState } from "@/lib/lottery/constants";
 import type { LotteryDrawView, SplMintRowView } from "@/lib/lottery/chain";
 import { lotteryProgramId } from "@/lib/lottery/config";
 import { addSplMintToDraw } from "@/lib/lottery/add-spl-mint-to-draw";
-import type { SplMintDraft } from "@/lib/lottery/spl-types";
+import { pricingModeFromChain, type SplMintDraft } from "@/lib/lottery/spl-types";
 import {
   LotterySplMintEditor,
   validateSplMintRows,
@@ -58,6 +58,8 @@ function chainRowsToDrafts(
       displayCap: db?.displayCap ?? m.cap,
       published: db?.published ?? false,
       purchasesLocked: db?.purchasesLocked ?? false,
+      pricingMode: pricingModeFromChain(m.pricingMode),
+      enabled: true,
     };
   });
 }
