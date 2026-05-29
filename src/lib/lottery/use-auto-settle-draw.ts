@@ -38,7 +38,12 @@ export function useAutoSettleDraw(
         const result = await triggerLotteryCrank(draw.drawId);
         await refreshRef.current();
         if (!result.ok && result.error) {
-          onCrankError?.(formatLotterySettlementError(result.error));
+          onCrankResult?.({
+            ok: false,
+            error: formatLotterySettlementError(result.error),
+          });
+        } else if (result.ok) {
+          onCrankResult?.({ ok: true });
         }
       } finally {
         cranking = false;
