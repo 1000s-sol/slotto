@@ -36,8 +36,11 @@ export async function crankEmptyDrawWithWallet(
 
   if (draw.state === DrawState.Selling) {
     const drawPk = draw.draw;
-    const sig = await sendTransactionViaWallet(connection, sendTransaction, () =>
-      program.methods.closeSales().accounts({ draw: drawPk }).transaction(),
+    const sig = await sendTransactionViaWallet(
+      connection,
+      sendTransaction,
+      () => program.methods.closeSales().accounts({ draw: drawPk }).transaction(),
+      wallet.publicKey,
     );
     signatures.push(sig);
     const refreshed = await fetchDrawById(connection, programId, drawId);
@@ -50,15 +53,19 @@ export async function crankEmptyDrawWithWallet(
     const prizeVault = draw.prizeVault;
     const acct = await program.account.draw.fetch(drawPk);
     const seedRefund = acct.seedRefund;
-    const sig = await sendTransactionViaWallet(connection, sendTransaction, () =>
-      program.methods
-        .refundEmptyDraw()
-        .accounts({
-          draw: drawPk,
-          prizeVault,
-          seedRefund,
-        })
-        .transaction(),
+    const sig = await sendTransactionViaWallet(
+      connection,
+      sendTransaction,
+      () =>
+        program.methods
+          .refundEmptyDraw()
+          .accounts({
+            draw: drawPk,
+            prizeVault,
+            seedRefund,
+          })
+          .transaction(),
+      wallet.publicKey,
     );
     signatures.push(sig);
   }

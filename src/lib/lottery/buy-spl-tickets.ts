@@ -60,20 +60,24 @@ export async function buySplTickets(
     isSigner: false,
   }));
 
-  return sendTransactionViaWallet(connection, sendTransaction, () =>
-    program.methods
-      .buySplTickets(count, new BN(quotedPricePerTicket.toString()))
-      .accounts({
-        buyer: wallet.publicKey,
-        draw: draw.draw,
-        globalConfig,
-        mint,
-        teamVault,
-        buyerToken,
-        teamToken,
-        setupVault: cfg.setupVault,
-      })
-      .remainingAccounts(remainingAccounts)
-      .transaction(),
+  return sendTransactionViaWallet(
+    connection,
+    sendTransaction,
+    () =>
+      program.methods
+        .buySplTickets(count, new BN(quotedPricePerTicket.toString()))
+        .accounts({
+          buyer: wallet.publicKey,
+          draw: draw.draw,
+          globalConfig,
+          mint,
+          teamVault,
+          buyerToken,
+          teamToken,
+          setupVault: cfg.setupVault,
+        })
+        .remainingAccounts(remainingAccounts)
+        .transaction(),
+    wallet.publicKey,
   );
 }

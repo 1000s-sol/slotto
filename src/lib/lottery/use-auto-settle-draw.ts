@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  useAnchorWallet,
   useConnection,
   useWallet,
 } from "@solana/wallet-adapter-react";
@@ -16,6 +15,7 @@ import {
   type CrankUiResult,
 } from "./trigger-crank-action";
 import { formatLotterySettlementError } from "./user-facing-error";
+import { useLotteryWallet } from "./use-lottery-wallet";
 
 const CRANK_INTERVAL_MS = 4_000;
 
@@ -30,7 +30,7 @@ export function useAutoSettleDraw(
   onCrankResult?: (result: CrankUiResult) => void,
 ): void {
   const { connection } = useConnection();
-  const wallet = useAnchorWallet();
+  const wallet = useLotteryWallet();
   const { sendTransaction } = useWallet();
   const refreshRef = useRef(refresh);
   refreshRef.current = refresh;

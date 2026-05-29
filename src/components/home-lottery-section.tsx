@@ -1,6 +1,7 @@
 "use client";
 
-import { useAnchorWallet, useConnection, useWallet } from "@solana/wallet-adapter-react";
+import { useConnection, useWallet } from "@solana/wallet-adapter-react";
+import { useLotteryWallet } from "@/lib/lottery/use-lottery-wallet";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { PublicKey } from "@solana/web3.js";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -76,7 +77,7 @@ function buyDisabledReason(
 
 export function HomeLotterySection() {
   const { connection } = useConnection();
-  const wallet = useAnchorWallet();
+  const wallet = useLotteryWallet();
   const { connected, sendTransaction } = useWallet();
   const { setVisible } = useWalletModal();
   const programId = useMemo(() => lotteryProgramId(), []);
@@ -352,7 +353,15 @@ export function HomeLotterySection() {
     (payWith === "SOL" || Boolean(selectedSpl?.buyable));
 
   const onBuy = useCallback(async () => {
-    if (!wallet || !sendTransaction || !activeDraw || !buyable) return;
+    if (!activeDraw || !buyable) return;
+    if (!wallet || !sendTransaction) {
+      setPhase({
+        kind: "error",
+        message:
+          "Wallet is not ready to sign. Disconnect and reconnect Phantom, then try again.",
+      });
+      return;
+    }
     const count = clampTicketCountForPayWith(
       ticketCount,
       payWith,

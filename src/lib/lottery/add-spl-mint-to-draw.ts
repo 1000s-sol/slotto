@@ -23,20 +23,24 @@ export async function addSplMintToDraw(
   const globalConfig = globalConfigPda(programId);
 
   const arg = splMintDraftToOnChainArg(row);
-  return sendTransactionViaWallet(connection, sendTransaction, () =>
-    program.methods
-      .addSplMintToDraw({
-        mint: new PublicKey(arg.mint),
-        pricePerTicket: new BN(arg.pricePerTicket),
-        mintDecimals: arg.mintDecimals,
-        cap: arg.cap,
-        pricingMode: arg.pricingMode,
-      })
-      .accounts({
-        authority: wallet.publicKey,
-        globalConfig,
-        draw,
-      })
-      .transaction(),
+  return sendTransactionViaWallet(
+    connection,
+    sendTransaction,
+    () =>
+      program.methods
+        .addSplMintToDraw({
+          mint: new PublicKey(arg.mint),
+          pricePerTicket: new BN(arg.pricePerTicket),
+          mintDecimals: arg.mintDecimals,
+          cap: arg.cap,
+          pricingMode: arg.pricingMode,
+        })
+        .accounts({
+          authority: wallet.publicKey,
+          globalConfig,
+          draw,
+        })
+        .transaction(),
+    wallet.publicKey,
   );
 }

@@ -192,14 +192,18 @@ export function LotteryOpsPanel({
       const team = new PublicKey(teamVault.trim());
       const bux = new PublicKey(buxVault.trim());
       const setup = new PublicKey(setupVault.trim());
-      const sig = await sendTransactionViaWallet(connection, sendTransaction, () =>
-        program.methods
-          .initialize(team, bux, setup)
-          .accounts({
-            authority: publicKey,
-            globalConfig,
-          })
-          .transaction(),
+      const sig = await sendTransactionViaWallet(
+        connection,
+        sendTransaction,
+        () =>
+          program.methods
+            .initialize(team, bux, setup)
+            .accounts({
+              authority: publicKey,
+              globalConfig,
+            })
+            .transaction(),
+        publicKey,
       );
       await refreshConfig();
       await onLiveDrawChange();
@@ -376,23 +380,27 @@ export function LotteryOpsPanel({
         kind: "busy",
         label: `Confirm create_draw #${drawId} in Phantom…`,
       });
-      const sig = await sendTransactionViaWallet(connection, sendTransaction, () =>
-        program.methods
-          .createDraw(
-            new BN(openTs),
-            new BN(closeTs),
-            refundKey,
-            new BN(seedLamports),
-            splArgs,
-          )
-          .accountsPartial({
-            authority: publicKey,
-            globalConfig,
-            draw,
-            prizeVault,
-            ticketChunk0,
-          })
-          .transaction(),
+      const sig = await sendTransactionViaWallet(
+        connection,
+        sendTransaction,
+        () =>
+          program.methods
+            .createDraw(
+              new BN(openTs),
+              new BN(closeTs),
+              refundKey,
+              new BN(seedLamports),
+              splArgs,
+            )
+            .accountsPartial({
+              authority: publicKey,
+              globalConfig,
+              draw,
+              prizeVault,
+              ticketChunk0,
+            })
+            .transaction(),
+        publicKey,
       );
 
       const skippedTeamAta: string[] = [];

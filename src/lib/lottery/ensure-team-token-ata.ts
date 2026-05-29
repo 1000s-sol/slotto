@@ -31,16 +31,20 @@ export async function ensureTeamTokenAta(
     TOKEN_PROGRAM_ID,
   );
 
-  return sendTransactionViaWallet(connection, sendTransaction, () =>
-    program.methods
-      .ensureTeamTokenAta()
-      .accountsPartial({
-        authority: wallet.publicKey,
-        globalConfig,
-        mint,
-        teamVault,
-        teamToken,
-      })
-      .transaction(),
+  return sendTransactionViaWallet(
+    connection,
+    sendTransaction,
+    () =>
+      program.methods
+        .ensureTeamTokenAta()
+        .accountsPartial({
+          authority: wallet.publicKey,
+          globalConfig,
+          mint,
+          teamVault,
+          teamToken,
+        })
+        .transaction(),
+    wallet.publicKey,
   );
 }
