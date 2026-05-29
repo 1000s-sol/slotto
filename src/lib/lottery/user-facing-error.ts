@@ -262,7 +262,10 @@ export function formatLotterySettlementError(error: unknown): string {
     text.includes("Keeper not configured") ||
     text.includes("LOTTERY_KEEPER_SECRET_KEY")
   ) {
-    return "Auto-settlement is not configured on the server. Connect a wallet to close this empty draw, or run: npm run lottery:settle -- <drawId>";
+    return (
+      "Auto-settlement is not configured on Vercel (set LOTTERY_KEEPER_SECRET_KEY). " +
+      "Use “Close empty draw” below once — no repeated wallet prompts."
+    );
   }
   if (
     text.includes("invalid api key") ||

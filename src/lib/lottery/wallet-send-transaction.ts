@@ -24,6 +24,22 @@ function errorText(error: unknown): string {
   return String(error);
 }
 
+function isWalletRejectedMessage(msg: string): boolean {
+  const lower = msg.toLowerCase();
+  return (
+    lower.includes("user rejected") ||
+    lower.includes("user denied") ||
+    lower.includes("user declined") ||
+    lower.includes("rejected the request") ||
+    lower.includes("transaction cancelled") ||
+    lower.includes("transaction canceled") ||
+    lower.includes("request cancelled") ||
+    lower.includes("request canceled") ||
+    lower.includes("approval denied") ||
+    lower.includes("4001")
+  );
+}
+
 /**
  * Build, sign, and send a legacy transaction.
  * Prefers wallet-adapter `sendTransaction` (Phantom signAndSend); falls back to
@@ -53,15 +69,16 @@ export async function sendTransactionViaWallet(
       );
       return signature;
     } catch (e) {
-      const msg = errorText(e).toLowerCase();
-      if (msg.includes("user rejected") || msg.includes("user declined")) {
+      const msg = errorText(e);
+      if (isWalletRejectedMessage(msg)) {
         throw e;
       }
       // Fall through to sign + sendRaw only for adapter signing failures.
+      const lower = msg.toLowerCase();
       if (
-        !msg.includes("no signers") &&
-        !msg.includes("no signer") &&
-        !msg.includes("not connected")
+        !lower.includes("no signers") &&
+        !lower.includes("no signer") &&
+        !lower.includes("not connected")
       ) {
         throw e;
       }
