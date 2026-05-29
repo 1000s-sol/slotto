@@ -257,7 +257,7 @@ pub mod slotto_lottery {
     }
 
     /// Authority: create the team wallet ATA for an SPL mint (buyers must not pay ATA rent).
-    pub fn ensure_team_token_ata(ctx: Context<EnsureTeamTokenAta>) -> Result<()> {
+    pub fn ensure_team_token_ata(_ctx: Context<EnsureTeamTokenAta>) -> Result<()> {
         Ok(())
     }
 

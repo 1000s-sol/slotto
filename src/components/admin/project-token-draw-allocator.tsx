@@ -9,7 +9,11 @@ import {
   type SetStateAction,
 } from "react";
 
-import { adminFetchProjectTokensForDrawAction } from "@/app/admin/(dashboard)/lotteries/actions";
+import {
+  adminFetchProjectTokensForDrawAction,
+  adminPreviewLiquidTicketPricesAction,
+} from "@/app/admin/(dashboard)/lotteries/actions";
+import type { LiquidTicketPricePreview } from "@/lib/lottery/preview-liquid-ticket-prices";
 import type { ProjectTokenForDraw } from "@/lib/lottery/project-tokens-for-draw";
 import { SPL_MINT_MAX_ON_CHAIN } from "@/lib/lottery/spl-types";
 
@@ -45,6 +49,11 @@ export function ProjectTokenDrawAllocator({
   const [tokens, setTokens] = useState<ProjectTokenForDraw[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [liquidPreviews, setLiquidPreviews] = useState<
+    Record<string, LiquidTicketPricePreview>
+  >({});
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -76,6 +85,45 @@ export function ProjectTokenDrawAllocator({
   useEffect(() => {
     void load();
   }, [load]);
+
+  const enabledLiquidMints = tokens
+    .filter((t) => t.liquid && enabled[t.mint])
+    .map((t) => t.mint)
+    .sort()
+    .join(",");
+
+  useEffect(() => {
+    if (!enabledLiquidMints) {
+      setLiquidPreviews({});
+      setPreviewError(null);
+      return;
+    }
+    let cancelled = false;
+    setPreviewLoading(true);
+    setPreviewError(null);
+    const mints = enabledLiquidMints.split(",");
+    void adminPreviewLiquidTicketPricesAction(mints)
+      .then((rows) => {
+        if (cancelled) return;
+        const map: Record<string, LiquidTicketPricePreview> = {};
+        for (const r of rows) map[r.mint] = r;
+        setLiquidPreviews(map);
+      })
+      .catch((e) => {
+        if (!cancelled) {
+          setLiquidPreviews({});
+          setPreviewError(
+            e instanceof Error ? e.message : "Could not load live prices.",
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setPreviewLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [enabledLiquidMints]);
 
   const enabledCount = tokens.filter((t) => enabled[t.mint]).length;
 
@@ -123,9 +171,13 @@ export function ProjectTokenDrawAllocator({
       </div>
 
       <p className="text-xs text-muted">
-        Liquid tokens use a live quote at purchase (~95% of 0.01 SOL). Fixed tokens need a
-        manual price per ticket below. Your authority wallet pays team ATA rent before sales.
+        Liquid tokens use a live quote (~95% of 0.01 SOL, same feed as the site ticker).
+        On devnet you can enable mainnet project mints to verify prices; SPL buys only work
+        when the mint exists on devnet. Fixed tokens need a manual price per ticket.
       </p>
+      {previewError ? (
+        <p className="text-xs text-amber-200/90">{previewError}</p>
+      ) : null}
 
       <div className="space-y-2">
         {tokens.map((t) => {
@@ -196,9 +248,16 @@ export function ProjectTokenDrawAllocator({
                       />
                     </label>
                   ) : (
-                    <p className="text-xs text-muted sm:col-span-2">
-                      Spot price is fetched from Jupiter when a user buys.
-                    </p>
+                    <div className="text-xs text-muted sm:col-span-2">
+                      <p>Live ticket price (≈95% of 0.01 SOL):</p>
+                      <p className="mt-1 font-mono text-sm text-accent-cyan">
+                        {previewLoading
+                          ? "Loading…"
+                          : liquidPreviews[t.mint]
+                            ? `~${liquidPreviews[t.mint].priceUi} per ticket`
+                            : "—"}
+                      </p>
+                    </div>
                   )}
                   <label className="flex flex-col gap-1 text-xs text-muted">
                     On-chain max cap

@@ -29,6 +29,15 @@ export async function adminFetchProjectTokensForDrawAction() {
   return fetchPublishedProjectTokens();
 }
 
+export async function adminPreviewLiquidTicketPricesAction(mints: string[]) {
+  await requireAdmin();
+  const unique = [...new Set(mints.map((m) => m.trim()).filter(Boolean))];
+  const { previewLiquidTicketPrices } = await import(
+    "@/lib/lottery/preview-liquid-ticket-prices"
+  );
+  return previewLiquidTicketPrices(unique);
+}
+
 export async function adminSaveSplRowsForDrawAction(
   onChainDrawId: number,
   rows: SplMintDraft[],

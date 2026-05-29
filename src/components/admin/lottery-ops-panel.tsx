@@ -34,6 +34,7 @@ import {
 } from "@/components/admin/project-token-draw-allocator";
 import { fetchTickerPricesClient } from "@/lib/lottery/fetch-ticker-prices-client";
 import { ensureTeamTokenAta } from "@/lib/lottery/ensure-team-token-ata";
+import { mintExistsOnCluster } from "@/lib/lottery/mint-on-cluster";
 import {
   projectTokensToSplMintDrafts,
   splMintDraftToOnChainArg,
@@ -282,17 +283,18 @@ export function LotteryOpsPanel({
         })
         .rpc();
 
+      const skippedTeamAta: string[] = [];
       for (const row of activeSpl) {
+        const mintPk = new PublicKey(row.mint);
+        if (!(await mintExistsOnCluster(connection, mintPk))) {
+          skippedTeamAta.push(row.symbol || row.mint.slice(0, 8));
+          continue;
+        }
         setPhase({
           kind: "busy",
           label: `Ensuring team ATA for ${row.symbol}…`,
         });
-        await ensureTeamTokenAta(
-          connection,
-          wallet,
-          programId,
-          new PublicKey(row.mint),
-        );
+        await ensureTeamTokenAta(connection, wallet, programId, mintPk);
       }
 
       if (activeSpl.length > 0) {
@@ -301,9 +303,13 @@ export function LotteryOpsPanel({
 
       await refreshConfig();
       await onLiveDrawChange();
+      const ataNote =
+        skippedTeamAta.length > 0
+          ? ` Team ATA skipped for ${skippedTeamAta.join(", ")} (mint not on this cluster — SPL buys disabled; pricing preview still works).`
+          : "";
       setPhase({
         kind: "ok",
-        message: `Draw #${drawId} created${activeSpl.length ? ` with ${activeSpl.length} SPL mint(s)` : ""}.`,
+        message: `Draw #${drawId} created${activeSpl.length ? ` with ${activeSpl.length} SPL mint(s)` : ""}.${ataNote}`,
         signature: sig,
         draw: draw.toBase58(),
       });
