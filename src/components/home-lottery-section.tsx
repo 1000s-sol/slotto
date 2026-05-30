@@ -22,6 +22,7 @@ import { buySolTickets } from "@/lib/lottery/buy-sol-tickets";
 import { buySplTickets } from "@/lib/lottery/buy-spl-tickets";
 import { fetchTickerPricesClient } from "@/lib/lottery/fetch-ticker-prices-client";
 import { resolveSplQuotedPricePerTicket } from "@/lib/lottery/resolve-spl-quoted-price";
+import { liquidSplPriceFromTickerItems } from "@/lib/lottery/liquid-ticket-price";
 import type { TickerPriceItem } from "@/lib/token-usd-prices";
 import { SPL_PRICING_LIQUID_DYNAMIC } from "@/lib/lottery/spl-pricing";
 import { splBaseUnitsToUi } from "@/lib/lottery/spl-price";
@@ -70,9 +71,14 @@ type PayTokenMeta = {
 function formatTokenAmount(ui: string): string {
   const n = Number(ui);
   if (!Number.isFinite(n)) return ui;
+  if (n === 0) return "0";
   if (n >= 1000) return n.toLocaleString("en-US", { maximumFractionDigits: 0 });
   if (n >= 1) return n.toLocaleString("en-US", { maximumFractionDigits: 2 });
-  return n.toLocaleString("en-US", { maximumFractionDigits: 6 });
+  if (n >= 0.01) return n.toLocaleString("en-US", { maximumFractionDigits: 4 });
+  // Sub-0.01 prices: keep ~3 significant figures so tiny amounts stay readable.
+  return Number(n.toPrecision(3)).toLocaleString("en-US", {
+    maximumFractionDigits: 12,
+  });
 }
 
 function splitCountdown(totalSec: number): [number, number, number, number] {
@@ -372,56 +378,43 @@ export function HomeLotterySection() {
     );
   }, [payWith, splUiRows]);
 
+  // Single source of truth for per-ticket token cost, quoted live from the same
+  // ticker feed used at purchase time. Both the dropdown and the info text read
+  // this map, so the two values always match (and update as the price moves).
+  const liveCostUiByMint = useMemo(() => {
+    const out: Record<string, string> = {};
+    for (const o of splUiRows) {
+      try {
+        const base =
+          o.pricingMode === SPL_PRICING_LIQUID_DYNAMIC
+            ? liquidSplPriceFromTickerItems(tickerPrices, o.mint, o.decimals)
+            : BigInt(o.pricePerTicket);
+        out[o.mint] = formatTokenAmount(
+          splBaseUnitsToUi(base.toString(), o.decimals),
+        );
+      } catch {
+        // No live price yet (ticker feed still loading) — leave unset.
+      }
+    }
+    return out;
+  }, [splUiRows, tickerPrices]);
+
   const splSubtitle = useMemo(() => {
     if (payWith === "SOL") return null;
     const opt = splUiRows.find((o) => o.mint === payWith);
     if (!opt) return "";
     const left = splTicketsRemaining(opt);
+    const live = liveCostUiByMint[opt.mint];
     const priceHint =
       opt.pricingMode === SPL_PRICING_LIQUID_DYNAMIC
-        ? liquidQuoteLoading
-          ? " · fetching live price…"
-          : liquidQuoteUi
-            ? ` · ~${liquidQuoteUi} per ticket (live)`
-            : ""
-        : "";
+        ? live
+          ? ` · ~${live} per ticket (live)`
+          : " · fetching live price…"
+        : live
+          ? ` · ${live} per ticket`
+          : "";
     return `SPL tickets remaining: ${left}/${opt.displayCap}${priceHint}`;
-  }, [payWith, splUiRows, liquidQuoteUi, liquidQuoteLoading]);
-
-  useEffect(() => {
-    if (payWith === "SOL" || !activeDraw) {
-      setLiquidQuoteUi(null);
-      return;
-    }
-    const opt = splUiRows.find((o) => o.mint === payWith);
-    if (!opt || opt.pricingMode !== SPL_PRICING_LIQUID_DYNAMIC) {
-      setLiquidQuoteUi(null);
-      return;
-    }
-    let cancelled = false;
-    setLiquidQuoteLoading(true);
-    void resolveSplQuotedPricePerTicket(
-      connection,
-      programId,
-      activeDraw,
-      new PublicKey(payWith),
-      tickerPrices,
-    )
-      .then((q) => {
-        if (!cancelled) {
-          setLiquidQuoteUi(splBaseUnitsToUi(q.toString(), opt.decimals));
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setLiquidQuoteUi(null);
-      })
-      .finally(() => {
-        if (!cancelled) setLiquidQuoteLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [activeDraw, connection, payWith, programId, splUiRows, tickerPrices]);
+  }, [payWith, splUiRows, liveCostUiByMint]);
 
   const disabledReason = buyDisabledReason(buyable, connected);
   const selectedSpl = splUiRows.find((o) => o.mint === payWith);
@@ -558,25 +551,13 @@ export function HomeLotterySection() {
       const symbol = meta?.symbol ?? o.symbol;
       const remaining = splTicketsRemaining(o);
       const isLiquid = o.pricingMode === SPL_PRICING_LIQUID_DYNAMIC;
-      let costLabel = symbol;
-      try {
-        if (isLiquid) {
-          const spot =
-            (BigInt(o.pricePerTicket) * BigInt(100)) / BigInt(110);
-          costLabel = `~${formatTokenAmount(
-            splBaseUnitsToUi(spot.toString(), o.decimals),
-          )} ${symbol}`;
-        } else {
-          costLabel = `${formatTokenAmount(
-            splBaseUnitsToUi(o.pricePerTicket, o.decimals),
-          )} ${symbol}`;
-        }
-      } catch {
-        costLabel = symbol;
-      }
+      const live = liveCostUiByMint[o.mint];
+      const costLabel = live
+        ? `${isLiquid ? "~" : ""}${live} ${symbol}`
+        : symbol;
       opts.push({
         value: o.mint,
-        name: meta?.name ?? o.symbol,
+        name: meta?.name ?? symbol,
         symbol,
         imageUrl: meta?.imageUrl ?? null,
         remaining,
@@ -587,7 +568,7 @@ export function HomeLotterySection() {
       });
     }
     return opts;
-  }, [splUiRows, tokenMeta]);
+  }, [splUiRows, tokenMeta, liveCostUiByMint]);
 
   return (
     <section className="space-y-8">

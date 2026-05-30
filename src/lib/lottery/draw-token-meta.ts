@@ -49,21 +49,21 @@ export async function buildDrawTokenMeta(
       const p = projByMint.get(r.mint);
       const liquid = p?.liquid ?? true;
 
-      let symbol = r.symbol?.trim() || p?.tokenName?.trim() || "";
-      let name =
-        p?.tokenName?.trim() || p?.projectName?.trim() || symbol || abbrevMint(r.mint);
+      // Token identity only — never the NFT project name. Prefer the admin's
+      // tokenName, then the on-chain/market symbol, then a mint abbreviation.
+      const tokenName = p?.tokenName?.trim() ?? "";
       let imageUrl = normalizeImageUrl(p?.tokenImageUrl ?? undefined);
+      let marketSymbol = "";
 
-      if (!imageUrl || !symbol) {
+      if (!tokenName || !imageUrl) {
         const helius = await fetchHeliusTokenMeta(r.mint).catch(() => null);
+        marketSymbol = helius?.symbol?.trim() ?? "";
         if (!imageUrl) imageUrl = normalizeImageUrl(helius?.image);
-        if (!symbol) symbol = helius?.symbol?.trim() || abbrevMint(r.mint);
       }
 
-      if (!symbol) symbol = abbrevMint(r.mint);
-      if (!name) name = symbol;
+      const symbol = tokenName || marketSymbol || abbrevMint(r.mint);
 
-      out[r.mint] = { mint: r.mint, symbol, name, imageUrl, liquid };
+      out[r.mint] = { mint: r.mint, symbol, name: symbol, imageUrl, liquid };
     }),
   );
 

@@ -37,6 +37,10 @@ export type ProjectTokenDrawAllocatorProps = {
   settings: Record<string, ProjectTokenDrawSettings>;
   onSettingsChange: Dispatch<SetStateAction<Record<string, ProjectTokenDrawSettings>>>;
   disabled?: boolean;
+  /** Mints already on the draw — hidden so only not-yet-enabled tokens show. */
+  excludeMints?: string[];
+  /** Override copy for the "no tokens" empty state. */
+  emptyLabel?: string;
 };
 
 export function ProjectTokenDrawAllocator({
@@ -45,6 +49,8 @@ export function ProjectTokenDrawAllocator({
   settings,
   onSettingsChange,
   disabled,
+  excludeMints,
+  emptyLabel,
 }: ProjectTokenDrawAllocatorProps) {
   const [tokens, setTokens] = useState<ProjectTokenForDraw[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,11 +61,16 @@ export function ProjectTokenDrawAllocator({
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
 
+  const excludeKey = (excludeMints ?? []).slice().sort().join(",");
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const list = await adminFetchProjectTokensForDrawAction();
+      const exclude = new Set(excludeKey ? excludeKey.split(",") : []);
+      const list = (await adminFetchProjectTokensForDrawAction()).filter(
+        (t) => !exclude.has(t.mint),
+      );
       setTokens(list);
       onEnabledChange((prev) => {
         const next = { ...prev };
@@ -80,7 +91,7 @@ export function ProjectTokenDrawAllocator({
     } finally {
       setLoading(false);
     }
-  }, [onEnabledChange, onSettingsChange]);
+  }, [onEnabledChange, onSettingsChange, excludeKey]);
 
   useEffect(() => {
     void load();
@@ -149,7 +160,8 @@ export function ProjectTokenDrawAllocator({
   if (tokens.length === 0) {
     return (
       <p className="text-sm text-muted">
-        No published projects with a token mint. Add tokens on project listings first.
+        {emptyLabel ??
+          "No published projects with a token mint. Add tokens on project listings first."}
       </p>
     );
   }

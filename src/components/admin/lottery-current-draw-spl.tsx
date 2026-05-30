@@ -11,7 +11,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   adminAppendDrawSplMintDbAction,
   adminBatchUpdateDrawSplSettingsAction,
+  adminBuildSplMintDraftsForCreateDrawAction,
   adminFetchDrawSplRowsAction,
+  adminFetchProjectTokensForDrawAction,
   adminMintsExistOnClusterAction,
   adminSaveSplRowsForDrawAction,
 } from "@/app/admin/(dashboard)/lotteries/actions";
@@ -22,9 +24,10 @@ import { lotteryProgramId } from "@/lib/lottery/config";
 import { addSplMintToDraw } from "@/lib/lottery/add-spl-mint-to-draw";
 import { pricingModeFromChain, type SplMintDraft } from "@/lib/lottery/spl-types";
 import {
-  LotterySplMintEditor,
-  validateSplMintRows,
-} from "@/components/admin/lottery-spl-mint-editor";
+  ProjectTokenDrawAllocator,
+  validateProjectTokenDrawSettings,
+  type ProjectTokenDrawSettings,
+} from "@/components/admin/project-token-draw-allocator";
 
 type DbRow = Awaited<ReturnType<typeof adminFetchDrawSplRowsAction>>[number];
 
@@ -94,7 +97,10 @@ export function LotteryCurrentDrawSpl({
 
   const [rows, setRows] = useState<DbRow[]>([]);
   const [edits, setEdits] = useState<Record<string, MintEdit>>({});
-  const [newMint, setNewMint] = useState<SplMintDraft[]>([]);
+  const [tokenEnabled, setTokenEnabled] = useState<Record<string, boolean>>({});
+  const [tokenSettings, setTokenSettings] = useState<
+    Record<string, ProjectTokenDrawSettings>
+  >({});
   const [msg, setMsg] = useState<string | null>(null);
   const [msgTone, setMsgTone] = useState<"ok" | "error">("ok");
   const [busy, setBusy] = useState(false);
@@ -228,34 +234,85 @@ export function LotteryCurrentDrawSpl({
     }
   };
 
-  const onAddMintOnChain = async () => {
-    if (!wallet || newMint.length === 0) return;
-    const draft = newMint[0];
-    const err = validateSplMintRows([draft]);
-    if (err) {
-      setMsgTone("error");
-      setMsg(err);
-      return;
-    }
+  const mintsOnDraw = useMemo(
+    () => chainMints.map((m) => m.mint),
+    [chainMints],
+  );
+
+  const hasTokensToAdd = useMemo(
+    () => Object.values(tokenEnabled).some(Boolean),
+    [tokenEnabled],
+  );
+
+  const onAddTokensToDraw = async () => {
+    if (!wallet || !hasTokensToAdd) return;
     setBusy(true);
     setMsg(null);
     try {
-      const sig = await addSplMintToDraw(
-        connection,
-        wallet,
-        programId,
-        new PublicKey(drawPk),
-        draft,
-        walletSendOpts,
+      const onDraw = new Set(mintsOnDraw);
+      const tokens = await adminFetchProjectTokensForDrawAction();
+      const candidates = tokens.filter((t) => !onDraw.has(t.mint));
+      const err = validateProjectTokenDrawSettings(
+        candidates,
+        tokenEnabled,
+        tokenSettings,
       );
-      await adminAppendDrawSplMintDbAction(drawId, draft);
-      setNewMint([]);
+      if (err) {
+        setMsgTone("error");
+        setMsg(err);
+        return;
+      }
+
+      const drafts = (
+        await adminBuildSplMintDraftsForCreateDrawAction(
+          tokenEnabled,
+          tokenSettings,
+        )
+      ).filter((d) => !onDraw.has(d.mint));
+      if (drafts.length === 0) {
+        setMsgTone("error");
+        setMsg("Select at least one token to add.");
+        return;
+      }
+
+      const mintsOnCluster = await adminMintsExistOnClusterAction(
+        drafts.map((d) => d.mint),
+      );
+
+      const added: string[] = [];
+      for (const draft of drafts) {
+        const label = draft.symbol || draft.mint.slice(0, 8);
+        setMsg(`Confirm add ${label} in wallet…`);
+        await addSplMintToDraw(
+          connection,
+          wallet,
+          programId,
+          new PublicKey(drawPk),
+          draft,
+          walletSendOpts,
+        );
+        await adminAppendDrawSplMintDbAction(drawId, draft);
+        if (mintsOnCluster[draft.mint]) {
+          setMsg(`Ensuring team ATA for ${label}…`);
+          await ensureTeamTokenAta(
+            connection,
+            wallet,
+            programId,
+            new PublicKey(draft.mint),
+            walletSendOpts,
+          );
+        }
+        added.push(label);
+      }
+
+      setTokenEnabled({});
+      setTokenSettings({});
       await refresh();
       setMsgTone("ok");
-      setMsg(`Mint added. ${sig.slice(0, 8)}…`);
+      setMsg(`Added ${added.join(", ")} to draw #${drawId}.`);
     } catch (e) {
       setMsgTone("error");
-      setMsg(e instanceof Error ? e.message : "Add mint failed");
+      setMsg(e instanceof Error ? e.message : "Add token failed");
     } finally {
       setBusy(false);
     }
@@ -402,25 +459,29 @@ export function LotteryCurrentDrawSpl({
       )}
 
       {selling ? (
-        <div className="border-t border-border pt-4">
+        <div className="space-y-3 border-t border-border pt-4">
           <h3 className="text-sm font-semibold">Add token to live draw (optional)</h3>
-          <p className="mt-1 text-xs text-muted">
-            Only needed when onboarding a new project mid-draw. Saving existing rows does
-            not require adding a token.
+          <p className="text-xs text-muted">
+            Only needed when onboarding a new project mid-draw. Pick from published
+            project tokens not already on this draw — same list and pricing as create
+            draw. Each token added is a separate wallet transaction.
           </p>
-          <LotterySplMintEditor
-            rows={newMint}
-            onChange={setNewMint}
-            disabled={busy}
-            autoLoadCatalog={false}
+          <ProjectTokenDrawAllocator
+            enabled={tokenEnabled}
+            onEnabledChange={setTokenEnabled}
+            settings={tokenSettings}
+            onSettingsChange={setTokenSettings}
+            disabled={busy || !wallet}
+            excludeMints={mintsOnDraw}
+            emptyLabel="No more published project tokens to add — every eligible token is already on this draw."
           />
           <button
             type="button"
-            disabled={busy || newMint.length === 0}
-            onClick={() => void onAddMintOnChain()}
-            className="mt-3 rounded-xl border border-accent-gold/50 px-4 py-2 text-sm font-semibold text-accent-gold disabled:opacity-50"
+            disabled={busy || !wallet || !hasTokensToAdd}
+            onClick={() => void onAddTokensToDraw()}
+            className="rounded-xl border border-accent-gold/50 px-4 py-2 text-sm font-semibold text-accent-gold disabled:opacity-50"
           >
-            Add on-chain + save
+            Add selected on-chain + save
           </button>
         </div>
       ) : null}

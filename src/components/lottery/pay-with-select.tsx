@@ -143,7 +143,7 @@ export function PayWithSelect({
       {open ? (
         <ul
           role="listbox"
-          className="absolute z-30 mt-1.5 max-h-72 w-full overflow-auto rounded-xl border border-border bg-bg-elevated/95 p-1 shadow-xl shadow-black/40 backdrop-blur"
+          className="absolute z-30 mt-1.5 max-h-72 w-full overflow-auto rounded-xl border border-white/15 bg-[color-mix(in_srgb,var(--surface)_80%,white)] p-1 shadow-xl shadow-black/50"
         >
           {options.map((opt) => {
             const isSelected = opt.value === value;
@@ -159,8 +159,8 @@ export function PayWithSelect({
                   }}
                   className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm transition disabled:cursor-not-allowed disabled:opacity-45 ${
                     isSelected
-                      ? "bg-accent-purple/15"
-                      : "hover:bg-surface/60"
+                      ? "bg-accent-purple/30"
+                      : "hover:bg-black/20"
                   }`}
                 >
                   <OptionBody opt={opt} />
