@@ -45,6 +45,7 @@ import { formatLotteryAdminError } from "@/lib/lottery/user-facing-error";
 import { sendTransactionViaWallet } from "@/lib/lottery/wallet-send-transaction";
 import { splMintDraftToOnChainArg } from "@/lib/lottery/project-tokens-for-draw";
 import {
+  adminAnnounceDrawLiveAction,
   adminBuildSplMintDraftsForCreateDrawAction,
   adminDrawExistsOnServerAction,
   adminFetchGlobalConfigAction,
@@ -435,6 +436,11 @@ export function LotteryOpsPanel({
       if (activeSpl.length > 0) {
         await adminSaveSplRowsForDrawAction(drawId, activeSpl);
       }
+
+      // Official @slottogg_ "draw is live" post (no-op unless X posting is on).
+      void adminAnnounceDrawLiveAction(drawId, seedLamports, closeTs).catch(
+        () => {},
+      );
 
       await refreshConfig();
       await onLiveDrawChange();

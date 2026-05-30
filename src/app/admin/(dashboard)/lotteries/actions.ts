@@ -43,6 +43,22 @@ async function requireAdmin() {
   return admin;
 }
 
+/** Official @slottogg_ "draw is live" post (no-op unless X posting is configured). */
+export async function adminAnnounceDrawLiveAction(
+  drawId: number,
+  seedLamports?: number,
+  salesCloseTs?: number,
+): Promise<{ ok: true }> {
+  await requireAdmin();
+  try {
+    const { announceDrawLive } = await import("@/lib/lottery/announce-draw");
+    await announceDrawLive({ drawId, seedLamports, salesCloseTs });
+  } catch (e) {
+    console.warn("[lottery announce] live hook failed:", e);
+  }
+  return { ok: true };
+}
+
 export type AdminGlobalConfigView = {
   globalConfigPda: string;
   authority: string;

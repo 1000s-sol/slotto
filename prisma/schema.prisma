@@ -216,6 +216,23 @@ model LotteryDrawSplMint {
   @@index([onChainDrawId])
 }
 
+/// Idempotency guard for official @slottogg_ X announcements (one per draw+kind).
+enum LotteryAnnouncementKind {
+  LIVE
+  ENDED
+}
+
+model LotteryDrawAnnouncement {
+  id            String                  @id @default(cuid())
+  onChainDrawId Int
+  kind          LotteryAnnouncementKind
+  tweetId       String?
+  postedAt      DateTime                @default(now())
+
+  @@unique([onChainDrawId, kind])
+  @@index([onChainDrawId])
+}
+
 // --- User profile: Discord / X + many linked wallets ---
 
 model UserProfile {
