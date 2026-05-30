@@ -14,6 +14,10 @@ import {
   PayWithSelect,
   type PayWithOption,
 } from "@/components/lottery/pay-with-select";
+import {
+  PurchaseSuccessModal,
+  type PurchaseSuccessDetails,
+} from "@/components/lottery/purchase-success-modal";
 import { SplPoolInfoButton } from "@/components/lottery/spl-pool-info-modal";
 import { TicketCountInput } from "@/components/lottery/ticket-count-input";
 import { fetchWalletSocialsClient } from "@/lib/fetch-wallet-social-client";
@@ -33,7 +37,7 @@ import {
   LAMPORTS_SOL_BUY_FEE_BUFFER,
   MAX_SOL_TICKETS_PER_BUY,
 } from "@/lib/lottery/constants";
-import { lotteryProgramId, solscanTxUrl } from "@/lib/lottery/config";
+import { lotteryProgramId } from "@/lib/lottery/config";
 import { drawNeedsSettlement } from "@/lib/lottery/draw-settlement";
 import { formatLotteryBuyError } from "@/lib/lottery/user-facing-error";
 import {
@@ -54,7 +58,6 @@ import { useAutoSettleDraw } from "@/lib/lottery/use-auto-settle-draw";
 type Phase =
   | { kind: "idle" }
   | { kind: "busy"; label: string }
-  | { kind: "ok"; message: string; signature: string }
   | { kind: "error"; message: string };
 
 const X_URL = "https://x.com/slottogg_";
@@ -125,6 +128,12 @@ export function HomeLotterySection() {
   const [ticketCount, setTicketCount] = useState(1);
   const [payWith, setPayWith] = useState<"SOL" | string>("SOL");
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
+  const [purchase, setPurchase] = useState<{
+    count: number;
+    ids: string;
+    payWith: "SOL" | string;
+    signature: string;
+  } | null>(null);
   const [splUiRows, setSplUiRows] = useState<SplMintUiRow[]>([]);
   const [tokenMeta, setTokenMeta] = useState<Record<string, PayTokenMeta>>({});
   const [tickerPrices, setTickerPrices] = useState<TickerPriceItem[]>([]);
@@ -491,12 +500,10 @@ export function HomeLotterySection() {
       const firstId = activeDraw.totalTickets;
       const lastId = activeDraw.totalTickets + count - 1;
       const ids = count === 1 ? `#${firstId}` : `#${firstId}–#${lastId}`;
+      const boughtWith = payWith;
       await refresh();
-      setPhase({
-        kind: "ok",
-        message: `Purchased ${count} ticket(s) (${ids}).`,
-        signature: sig,
-      });
+      setPhase({ kind: "idle" });
+      setPurchase({ count, ids, payWith: boughtWith, signature: sig });
     } catch (e) {
       setPhase({
         kind: "error",
@@ -574,6 +581,23 @@ export function HomeLotterySection() {
     }
     return opts;
   }, [splUiRows, tokenMeta, liveCostUiByMint]);
+
+  const purchaseDetails = useMemo<PurchaseSuccessDetails | null>(() => {
+    if (!purchase) return null;
+    const metaKey = purchase.payWith === "SOL" ? SOL_MINT : purchase.payWith;
+    const meta = tokenMeta[metaKey];
+    const isSol = purchase.payWith === "SOL";
+    return {
+      count: purchase.count,
+      ticketIds: purchase.ids,
+      tokenSymbol: meta?.symbol ?? (isSol ? "SOL" : ""),
+      tokenName: meta?.name ?? (isSol ? "Solana" : (meta?.symbol ?? "tokens")),
+      tokenImageUrl: meta?.imageUrl ?? null,
+      signature: purchase.signature,
+      jackpotSol:
+        jackpotLamports !== null ? formatSolFromLamports(jackpotLamports) : null,
+    };
+  }, [purchase, tokenMeta, jackpotLamports]);
 
   return (
     <section className="space-y-8">
@@ -776,21 +800,6 @@ export function HomeLotterySection() {
               <p className="mt-3 text-sm text-amber-100/90">{disabledReason}</p>
             ) : null}
 
-            {phase.kind === "ok" ? (
-              <div className="mt-4 rounded-xl border border-emerald-500/40 bg-emerald-950/20 px-4 py-3 text-sm text-emerald-100">
-                <p>{phase.message}</p>
-                <p className="mt-1">
-                  <a
-                    href={solscanTxUrl(phase.signature)}
-                    className="underline"
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    View on Solscan
-                  </a>
-                </p>
-              </div>
-            ) : null}
             {needsSettlement && activeDraw?.totalTickets === 0 ? (
               <p className="mt-4 text-sm text-amber-100/90">
                 No tickets were sold. The server keeper is closing this draw and
@@ -805,6 +814,12 @@ export function HomeLotterySection() {
           </div>
         </>
       )}
+
+      <PurchaseSuccessModal
+        open={purchase !== null}
+        onClose={() => setPurchase(null)}
+        details={purchaseDetails}
+      />
     </section>
   );
 }
