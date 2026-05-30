@@ -473,6 +473,9 @@ export function HomeLotterySection() {
                 mint,
                 tickerPrices,
               );
+              const splLabel =
+                tokenMeta[payWith]?.symbol ??
+                splUiRows.find((o) => o.mint === payWith)?.symbol;
               return buySplTickets(
                 connection,
                 wallet,
@@ -482,6 +485,7 @@ export function HomeLotterySection() {
                 count,
                 quoted,
                 sendOpts,
+                splLabel,
               );
             })();
       const firstId = activeDraw.totalTickets;
@@ -509,6 +513,7 @@ export function HomeLotterySection() {
     splUiRows,
     ticketCount,
     tickerPrices,
+    tokenMeta,
     nowSec,
     sendTransaction,
     wallet,
