@@ -299,6 +299,10 @@ pub mod slotto_lottery {
             .ok_or(error!(ErrorCode::ArithmeticOverflow))?;
 
         let (pot, team, setup) = sol_ticket_lamports_splits(count)?;
+        let total = pot
+            .checked_add(team)
+            .and_then(|s| s.checked_add(setup))
+            .ok_or(error!(ErrorCode::ArithmeticOverflow))?;
 
         let chunk_indices = ticket_chunk_indices_for_range(base, count)?;
         require_eq!(
@@ -310,6 +314,7 @@ pub mod slotto_lottery {
         let buyer_key = ctx.accounts.buyer.key();
         let program_id = ctx.program_id;
 
+        // One debit from the buyer (wallet UIs flag multiple outbound system transfers).
         system_program::transfer(
             CpiContext::new(
                 ctx.accounts.system_program.to_account_info(),
@@ -318,28 +323,21 @@ pub mod slotto_lottery {
                     to: ctx.accounts.prize_vault.to_account_info(),
                 },
             ),
-            pot,
+            total,
         )?;
-        system_program::transfer(
-            CpiContext::new(
-                ctx.accounts.system_program.to_account_info(),
-                system_program::Transfer {
-                    from: ctx.accounts.buyer.to_account_info(),
-                    to: ctx.accounts.team_vault.to_account_info(),
-                },
-            ),
+
+        let prize_vault_info = ctx.accounts.prize_vault.to_account_info();
+        transfer_prize_vault_lamports(
+            &prize_vault_info,
+            &ctx.accounts.team_vault.to_account_info(),
             team,
         )?;
-        system_program::transfer(
-            CpiContext::new(
-                ctx.accounts.system_program.to_account_info(),
-                system_program::Transfer {
-                    from: ctx.accounts.buyer.to_account_info(),
-                    to: ctx.accounts.setup_vault.to_account_info(),
-                },
-            ),
+        transfer_prize_vault_lamports(
+            &prize_vault_info,
+            &ctx.accounts.setup_vault.to_account_info(),
             setup,
         )?;
+        // Remaining lamports in the prize vault are the pot slice (plus any prior seed).
 
         for (i, &chunk_idx) in chunk_indices.iter().enumerate() {
             let chunk_ai = &ctx.remaining_accounts[i];
