@@ -125,7 +125,7 @@ export function PayWithSelect({
         aria-haspopup="listbox"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center gap-2.5 rounded-xl border border-border bg-surface/80 px-3 py-2.5 pr-9 text-left text-sm shadow-inner shadow-black/10 outline-none transition hover:border-accent-purple/30 focus:border-accent-purple/50 focus:ring-4 focus:ring-accent-purple/15 disabled:cursor-not-allowed disabled:opacity-50"
+        className="flex min-h-[3.5rem] w-full items-center gap-2.5 rounded-xl border border-border bg-surface/80 px-3 py-2.5 pr-9 text-left text-sm shadow-inner shadow-black/10 outline-none transition hover:border-accent-purple/30 focus:border-accent-purple/50 focus:ring-4 focus:ring-accent-purple/15 disabled:cursor-not-allowed disabled:opacity-50"
       >
         {selected ? (
           <OptionBody opt={selected} />

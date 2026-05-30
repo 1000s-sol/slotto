@@ -709,8 +709,8 @@ export function HomeLotterySection() {
               </li>
             </ul>
 
-            <div className="mt-6 grid gap-4 sm:grid-cols-3">
-              <label className="flex flex-col gap-2 text-xs text-muted">
+            <div className="mt-6 grid gap-4 sm:grid-cols-3 sm:items-end">
+              <label className="flex flex-col gap-2 text-center text-xs text-muted sm:text-left">
                 Pay with
                 <PayWithSelect
                   value={payWith}
@@ -725,7 +725,7 @@ export function HomeLotterySection() {
                 />
               </label>
 
-              <label className="flex flex-col gap-2 text-xs text-muted">
+              <label className="flex flex-col gap-2 text-center text-xs text-muted sm:text-left">
                 Tickets
                 <TicketCountInput
                   value={ticketCount}
@@ -839,7 +839,7 @@ function BuyTicketButton({
         <button
           type="button"
           onClick={onConnect}
-          className="w-full rounded-xl bg-gradient-to-r from-accent-purple to-accent-blue px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-accent-purple/20"
+          className="flex min-h-[3.5rem] w-full items-center justify-center rounded-xl bg-gradient-to-r from-accent-purple to-accent-blue px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-accent-purple/20"
         >
           Connect wallet
         </button>
@@ -848,7 +848,7 @@ function BuyTicketButton({
           type="button"
           disabled={!canSubmit}
           onClick={onBuy}
-          className="w-full rounded-xl bg-gradient-to-r from-accent-purple to-accent-blue px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-accent-purple/20 disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex min-h-[3.5rem] w-full items-center justify-center rounded-xl bg-gradient-to-r from-accent-purple to-accent-blue px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-accent-purple/20 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {phase.kind === "busy" ? phase.label : "Buy ticket(s)"}
         </button>

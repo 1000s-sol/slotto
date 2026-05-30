@@ -54,13 +54,13 @@ export function TicketCountInput({
     "min-w-0 flex-1 rounded-xl border border-neutral-400/80 bg-neutral-200 px-2 py-2 text-center text-sm tabular-nums text-neutral-900 outline-none focus:border-accent-purple focus:ring-2 focus:ring-accent-purple/30 disabled:cursor-not-allowed";
 
   const stepClass =
-    "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-neutral-400/80 bg-neutral-100 text-lg font-semibold leading-none text-neutral-800 transition hover:bg-neutral-300 disabled:cursor-not-allowed disabled:opacity-50";
+    "flex w-10 shrink-0 items-center justify-center self-stretch rounded-xl border border-neutral-400/80 bg-neutral-100 text-lg font-semibold leading-none text-neutral-800 transition hover:bg-neutral-300 disabled:cursor-not-allowed disabled:opacity-50";
 
   return (
     <div
       role="group"
       aria-label="Ticket count"
-      className="flex items-stretch gap-1"
+      className="flex min-h-[3.5rem] items-stretch gap-1"
     >
       <button
         type="button"
