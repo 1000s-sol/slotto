@@ -17,5 +17,10 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
     return <>{children}</>;
   }
 
-  return <SessionProvider>{children}</SessionProvider>;
+  // Avoid aggressive session refetching: the window-focus refetch races with
+  // Next.js route prefetching and the aborted request logs an Auth.js
+  // "NetworkError when attempting to fetch resource" to the console.
+  return (
+    <SessionProvider refetchOnWindowFocus={false}>{children}</SessionProvider>
+  );
 }

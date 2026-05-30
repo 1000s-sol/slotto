@@ -59,9 +59,10 @@ function formatPct(n: number) {
 }
 
 function TokenThumb({ item, size = 18 }: { item: TokenMeta | undefined; size?: number }) {
+  const [failed, setFailed] = useState(false);
   const dim = `${size}px`;
   const cls = "shrink-0 rounded-full object-cover ring-1 ring-border";
-  if (item?.imageUrl) {
+  if (item?.imageUrl && !failed) {
     return (
       <img
         src={item.imageUrl}
@@ -72,6 +73,7 @@ function TokenThumb({ item, size = 18 }: { item: TokenMeta | undefined; size?: n
         loading="lazy"
         decoding="async"
         referrerPolicy="no-referrer"
+        onError={() => setFailed(true)}
       />
     );
   }

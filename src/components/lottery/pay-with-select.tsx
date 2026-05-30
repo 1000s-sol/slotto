@@ -24,9 +24,13 @@ function Avatar({
   symbol: string;
   size?: number;
 }) {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    setFailed(false);
+  }, [imageUrl]);
   const dim = `${size}px`;
   const cls = "shrink-0 rounded-full object-cover ring-1 ring-border";
-  if (imageUrl) {
+  if (imageUrl && !failed) {
     return (
       <img
         src={imageUrl}
@@ -36,6 +40,7 @@ function Avatar({
         loading="lazy"
         decoding="async"
         referrerPolicy="no-referrer"
+        onError={() => setFailed(true)}
       />
     );
   }
