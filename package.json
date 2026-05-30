@@ -34,7 +34,8 @@
     "lottery:simulate-buy": "tsx scripts/lottery-simulate-buy-sol.ts",
     "lottery:keeper": "tsx scripts/lottery-keeper.ts",
     "lottery:mint-devnet-token": "tsx scripts/mint-devnet-spl.ts",
-    "lottery:test:all": "npm run lottery:test && npm run lottery:test:integration"
+    "lottery:test:all": "npm run lottery:test && npm run lottery:test:integration",
+    "x:test-post": "tsx scripts/x-test-post.ts"
   },
   "dependencies": {
     "@noble/curves": "^1.8.0",
