@@ -60,7 +60,7 @@ export function TicketCountInput({
     <div
       role="group"
       aria-label="Ticket count"
-      className="flex min-h-[3.5rem] items-stretch gap-1"
+      className="flex min-h-[3.5rem] w-full min-w-0 items-stretch gap-1"
     >
       <button
         type="button"

@@ -709,8 +709,8 @@ export function HomeLotterySection() {
               </li>
             </ul>
 
-            <div className="mt-6 grid gap-4 sm:grid-cols-3 sm:items-end">
-              <label className="flex flex-col gap-2 text-center text-xs text-muted sm:text-left">
+            <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3 sm:items-end">
+              <label className="flex min-w-0 flex-col gap-2 text-center text-xs text-muted sm:text-left">
                 Pay with
                 <PayWithSelect
                   value={payWith}
@@ -725,7 +725,7 @@ export function HomeLotterySection() {
                 />
               </label>
 
-              <label className="flex flex-col gap-2 text-center text-xs text-muted sm:text-left">
+              <label className="flex min-w-0 flex-col gap-2 text-center text-xs text-muted sm:text-left">
                 Tickets
                 <TicketCountInput
                   value={ticketCount}
