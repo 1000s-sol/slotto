@@ -6,6 +6,7 @@ import {
   useWallet,
 } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
+import { getAssociatedTokenAddressSync } from "@solana/spl-token";
 import { PublicKey } from "@solana/web3.js";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -38,6 +39,12 @@ import {
   MAX_SOL_TICKETS_PER_BUY,
 } from "@/lib/lottery/constants";
 import { lotteryProgramId } from "@/lib/lottery/config";
+import {
+  FREE_ENTRY_MINT,
+  FREE_ENTRY_PRICE_PER_TICKET,
+  freeEntryConfigured,
+  isFreeEntryMint,
+} from "@/lib/lottery/free-entry";
 import { drawNeedsSettlement } from "@/lib/lottery/draw-settlement";
 import { formatLotteryBuyError } from "@/lib/lottery/user-facing-error";
 import {
@@ -140,6 +147,7 @@ export function HomeLotterySection() {
   const [liquidQuoteUi, setLiquidQuoteUi] = useState<string | null>(null);
   const [liquidQuoteLoading, setLiquidQuoteLoading] = useState(false);
   const [walletLamports, setWalletLamports] = useState<number | null>(null);
+  const [holdsFreeEntry, setHoldsFreeEntry] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -301,6 +309,35 @@ export function HomeLotterySection() {
       })
       .catch(() => {
         if (!cancelled) setWalletLamports(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [connection, connected, wallet?.publicKey, phase.kind]);
+
+  // Holder-gate the free-entry option: only surface it when the connected
+  // wallet actually holds ≥1 token. Re-checks after each buy (phase.kind).
+  useEffect(() => {
+    if (!connected || !wallet?.publicKey || !freeEntryConfigured()) {
+      setHoldsFreeEntry(false);
+      return;
+    }
+    let cancelled = false;
+    const ata = getAssociatedTokenAddressSync(
+      new PublicKey(FREE_ENTRY_MINT),
+      wallet.publicKey,
+    );
+    void connection
+      .getTokenAccountBalance(ata, "confirmed")
+      .then((bal) => {
+        if (!cancelled) {
+          setHoldsFreeEntry(
+            BigInt(bal.value.amount) >= BigInt(FREE_ENTRY_PRICE_PER_TICKET),
+          );
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setHoldsFreeEntry(false);
       });
     return () => {
       cancelled = true;
@@ -559,6 +596,8 @@ export function HomeLotterySection() {
     ];
     for (const o of splUiRows) {
       if (!o.published || o.purchasesLocked) continue;
+      // Free-entry is a permanent draw option, but only shown to holders.
+      if (isFreeEntryMint(o.mint) && !holdsFreeEntry) continue;
       const meta = tokenMeta[o.mint];
       const symbol = meta?.symbol ?? o.symbol;
       const remaining = splTicketsRemaining(o);
@@ -580,7 +619,13 @@ export function HomeLotterySection() {
       });
     }
     return opts;
-  }, [splUiRows, tokenMeta, liveCostUiByMint]);
+  }, [splUiRows, tokenMeta, liveCostUiByMint, holdsFreeEntry]);
+
+  // If the wallet no longer holds a free-entry token (e.g. just spent it),
+  // drop the now-hidden selection back to SOL.
+  useEffect(() => {
+    if (isFreeEntryMint(payWith) && !holdsFreeEntry) setPayWith("SOL");
+  }, [payWith, holdsFreeEntry]);
 
   const purchaseDetails = useMemo<PurchaseSuccessDetails | null>(() => {
     if (!purchase) return null;

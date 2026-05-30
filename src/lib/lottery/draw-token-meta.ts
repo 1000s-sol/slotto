@@ -1,6 +1,12 @@
 import { fetchHeliusTokenMeta, normalizeImageUrl } from "@/lib/helius-token-meta";
 import { WRAPPED_SOL_MINT } from "@/lib/token-usd-prices";
 
+import {
+  FREE_ENTRY_IMAGE_PATH,
+  FREE_ENTRY_NAME,
+  FREE_ENTRY_SYMBOL,
+  isFreeEntryMint,
+} from "./free-entry";
 import { fetchPublishedProjectTokens } from "./project-tokens-for-draw";
 import { fetchSplMintRowsForDraw } from "./spl-catalog-db";
 
@@ -46,6 +52,18 @@ export async function buildDrawTokenMeta(
 
   await Promise.all(
     rows.map(async (r) => {
+      // SLOTTO FREE ENTRY: fixed identity + bundled art, independent of Helius.
+      if (isFreeEntryMint(r.mint)) {
+        out[r.mint] = {
+          mint: r.mint,
+          symbol: FREE_ENTRY_SYMBOL,
+          name: FREE_ENTRY_NAME,
+          imageUrl: FREE_ENTRY_IMAGE_PATH,
+          liquid: false,
+        };
+        return;
+      }
+
       const p = projByMint.get(r.mint);
       const liquid = p?.liquid ?? true;
 

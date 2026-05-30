@@ -1,0 +1,16 @@
+{
+  "name": "SLOTTO FREE ENTRY",
+  "symbol": "FREE",
+  "description": "Redeemable for one free entry into a Slotto draw at slotto.gg. 1 token = 1 ticket. Handed out as giveaway prizes; recycles back to the team on redemption.",
+  "image": "https://slotto.gg/free-entry-token.png",
+  "external_url": "https://slotto.gg",
+  "properties": {
+    "files": [
+      {
+        "uri": "https://slotto.gg/free-entry-token.png",
+        "type": "image/png"
+      }
+    ],
+    "category": "image"
+  }
+}

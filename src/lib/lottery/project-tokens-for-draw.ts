@@ -6,6 +6,11 @@ import {
   WRAPPED_SOL_MINT,
   type TickerPriceItem,
 } from "@/lib/token-usd-prices";
+import {
+  FREE_ENTRY_MINT,
+  freeEntryConfigured,
+  freeEntryDraft,
+} from "./free-entry";
 import { SPL_PRICING_FIXED, SPL_PRICING_LIQUID_DYNAMIC } from "./spl-pricing";
 import type { SplMintDraft } from "./spl-types";
 import { splBaseUnitsToUi, splUiAmountToBaseUnits } from "./spl-price";
@@ -111,6 +116,13 @@ export async function buildSplMintDraftsForCreateDraw(
       purchasesLocked: false,
       enabled: true,
     });
+  }
+
+  // SLOTTO FREE ENTRY is a permanent payment option on every draw (like SOL),
+  // so giveaway winners can always redeem a free ticket. No-op until the mint
+  // is configured via NEXT_PUBLIC_FREE_ENTRY_MINT.
+  if (freeEntryConfigured() && !drafts.some((d) => d.mint === FREE_ENTRY_MINT)) {
+    drafts.push(freeEntryDraft());
   }
 
   return drafts;
