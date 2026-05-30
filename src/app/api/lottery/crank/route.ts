@@ -63,11 +63,22 @@ async function handleCrank(request: Request) {
       if (!Number.isFinite(drawId) || drawId < 0) {
         return NextResponse.json({ error: "Invalid drawId" }, { status: 400 });
       }
-      const result = await crankDraw(connection, program, programId, drawId);
+      const result = await crankDraw(
+        connection,
+        program,
+        programId,
+        drawId,
+        payer,
+      );
       return NextResponse.json({ ok: true, results: [result] });
     }
 
-    const results = await crankAllPendingDraws(connection, program, programId);
+    const results = await crankAllPendingDraws(
+      connection,
+      program,
+      programId,
+      payer,
+    );
     return NextResponse.json({ ok: true, results });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Crank failed";
