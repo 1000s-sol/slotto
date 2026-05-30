@@ -21,11 +21,11 @@ import { SocialProfileCell } from "@/components/social-profile-cell";
 import { fetchWalletSocialsClient } from "@/lib/fetch-wallet-social-client";
 import type { SocialProfile } from "@/lib/social-profile-url";
 
-type TickerItem = {
+type TokenMeta = {
   mint: string;
   symbol: string;
-  priceUsd: number | null;
-  logoUrl: string | null;
+  name?: string;
+  imageUrl: string | null;
 };
 
 const SOL_MINT = "So11111111111111111111111111111111111111112";
@@ -35,7 +35,6 @@ type Entrant = {
   discord: SocialProfile | null;
   x: SocialProfile | null;
   tickets: number;
-  paidWithMints: string[];
 };
 
 type PastDraw = {
@@ -59,13 +58,13 @@ function formatPct(n: number) {
   return `${n.toFixed(2)}%`;
 }
 
-function TokenThumb({ item, size = 18 }: { item: TickerItem | undefined; size?: number }) {
+function TokenThumb({ item, size = 18 }: { item: TokenMeta | undefined; size?: number }) {
   const dim = `${size}px`;
   const cls = "shrink-0 rounded-full object-cover ring-1 ring-border";
-  if (item?.logoUrl) {
+  if (item?.imageUrl) {
     return (
       <img
-        src={item.logoUrl}
+        src={item.imageUrl}
         alt={item.symbol}
         title={item.symbol}
         className={cls}
@@ -106,7 +105,8 @@ export function HomeDrawsSection() {
   const { connection } = useConnection();
   const programId = useMemo(() => lotteryProgramId(), []);
   const [tab, setTab] = useState<Tab>("current");
-  const [tokens, setTokens] = useState<Record<string, TickerItem>>({});
+  const [tokens, setTokens] = useState<Record<string, TokenMeta>>({});
+  const [paidWith, setPaidWith] = useState<Record<string, string[]>>({});
   const [entrants, setEntrants] = useState<Entrant[]>([]);
   const [drawId, setDrawId] = useState<number | null>(null);
   const [drawAddress, setDrawAddress] = useState<string | null>(null);
@@ -152,7 +152,6 @@ export function HomeDrawsSection() {
             discord: s?.discord ?? null,
             x: s?.x ?? null,
             tickets: h.tickets,
-            paidWithMints: [SOL_MINT],
           };
         }),
       );
@@ -237,15 +236,21 @@ export function HomeDrawsSection() {
   }, [refreshPast]);
 
   useEffect(() => {
+    if (drawId === null) {
+      setTokens({});
+      return;
+    }
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch("/api/ticker-prices", { cache: "no-store" });
-        const json = (await res.json()) as { items?: TickerItem[] };
-        if (cancelled || !json.items) return;
-        const map: Record<string, TickerItem> = {};
-        for (const it of json.items) map[it.mint] = it;
-        setTokens(map);
+        const res = await fetch(`/api/lottery/draw-tokens?drawId=${drawId}`, {
+          cache: "no-store",
+        });
+        const json = (await res.json()) as {
+          tokens?: Record<string, TokenMeta>;
+        };
+        if (cancelled || !json.tokens) return;
+        setTokens(json.tokens);
       } catch {
         /* fallback letters render */
       }
@@ -253,7 +258,36 @@ export function HomeDrawsSection() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [drawId]);
+
+  useEffect(() => {
+    if (drawId === null || totalTickets === 0) {
+      setPaidWith({});
+      return;
+    }
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const res = await fetch(
+          `/api/lottery/draw-paid-with?drawId=${drawId}`,
+          { cache: "no-store" },
+        );
+        const json = (await res.json()) as {
+          paidWith?: Record<string, string[]>;
+        };
+        if (cancelled || !json.paidWith) return;
+        setPaidWith(json.paidWith);
+      } catch {
+        /* fallback to SOL thumbnail */
+      }
+    };
+    void load();
+    const poll = setInterval(() => void load(), 30_000);
+    return () => {
+      cancelled = true;
+      clearInterval(poll);
+    };
+  }, [drawId, totalTickets]);
 
   const sortedEntrants = useMemo(
     () => [...entrants].sort((a, b) => b.tickets - a.tickets),
@@ -316,6 +350,7 @@ export function HomeDrawsSection() {
             settling={needsSettlement}
             entrants={sortedEntrants}
             tokens={tokens}
+            paidWith={paidWith}
             totalTickets={totalTickets}
           />
         )
@@ -339,6 +374,7 @@ function CurrentDrawTable({
   settling,
   entrants,
   tokens,
+  paidWith,
   totalTickets,
 }: {
   drawId: number;
@@ -346,7 +382,8 @@ function CurrentDrawTable({
   drawState: number | null;
   settling: boolean;
   entrants: Entrant[];
-  tokens: Record<string, TickerItem>;
+  tokens: Record<string, TokenMeta>;
+  paidWith: Record<string, string[]>;
   totalTickets: number;
 }) {
   return (
@@ -433,7 +470,7 @@ function CurrentDrawTable({
                     </td>
                     <td className="px-3 py-3">
                       <div className="flex items-center gap-1.5">
-                        {e.paidWithMints.map((m) => (
+                        {(paidWith[e.wallet] ?? [SOL_MINT]).map((m) => (
                           <TokenThumb key={m} item={tokens[m]} />
                         ))}
                       </div>

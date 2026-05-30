@@ -201,13 +201,24 @@ export async function crankDraw(
           "Missing randomness account for Switchboard settle. Draw has no Switchboard vrf_request on-chain; re-run from SalesClosed or set LOTTERY_RANDOMNESS_ACCOUNT.",
         );
       }
-      actions.push("reveal_vrf");
-      const revealSig = await revealSwitchboardVrf(
-        connection,
-        keeper,
-        randomnessAccount,
-      );
-      signatures.push(revealSig);
+      // Reveal is best-effort: Switchboard oracles often auto-reveal the
+      // randomness account after commit, in which case the SDK reveal throws
+      // ("Invalid account discriminator" / already revealed). `settle` reads
+      // the revealed value directly on-chain and fails cleanly only if it is
+      // genuinely unresolved, so a reveal error must not block settlement.
+      try {
+        actions.push("reveal_vrf");
+        const revealSig = await revealSwitchboardVrf(
+          connection,
+          keeper,
+          randomnessAccount,
+        );
+        signatures.push(revealSig);
+      } catch (e) {
+        actions.push(
+          `reveal_vrf skipped (${e instanceof Error ? e.message : "error"})`,
+        );
+      }
       actions.push("settle (switchboard)");
       const { signature, winningTicketId } = await settleDrawWithSwitchboard(
         connection,

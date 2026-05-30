@@ -10,9 +10,12 @@ import { PublicKey } from "@solana/web3.js";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { LotteryWinnerPanel } from "@/components/lottery/lottery-winner-panel";
+import {
+  PayWithSelect,
+  type PayWithOption,
+} from "@/components/lottery/pay-with-select";
 import { SplPoolInfoButton } from "@/components/lottery/spl-pool-info-modal";
 import { TicketCountInput } from "@/components/lottery/ticket-count-input";
-import { SiteSelect } from "@/components/ui/site-select";
 import { fetchWalletSocialsClient } from "@/lib/fetch-wallet-social-client";
 import type { WalletSocialPublic } from "@/lib/social-profile-url";
 import { buySolTickets } from "@/lib/lottery/buy-sol-tickets";
@@ -54,6 +57,23 @@ type Phase =
   | { kind: "error"; message: string };
 
 const X_URL = "https://x.com/slottogg_";
+const SOL_MINT = "So11111111111111111111111111111111111111112";
+
+type PayTokenMeta = {
+  mint: string;
+  symbol: string;
+  name: string;
+  imageUrl: string | null;
+  liquid: boolean;
+};
+
+function formatTokenAmount(ui: string): string {
+  const n = Number(ui);
+  if (!Number.isFinite(n)) return ui;
+  if (n >= 1000) return n.toLocaleString("en-US", { maximumFractionDigits: 0 });
+  if (n >= 1) return n.toLocaleString("en-US", { maximumFractionDigits: 2 });
+  return n.toLocaleString("en-US", { maximumFractionDigits: 6 });
+}
 
 function splitCountdown(totalSec: number): [number, number, number, number] {
   const s = Math.max(0, Math.floor(totalSec));
@@ -100,11 +120,10 @@ export function HomeLotterySection() {
   const [payWith, setPayWith] = useState<"SOL" | string>("SOL");
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
   const [splUiRows, setSplUiRows] = useState<SplMintUiRow[]>([]);
+  const [tokenMeta, setTokenMeta] = useState<Record<string, PayTokenMeta>>({});
   const [tickerPrices, setTickerPrices] = useState<TickerPriceItem[]>([]);
   const [liquidQuoteUi, setLiquidQuoteUi] = useState<string | null>(null);
   const [liquidQuoteLoading, setLiquidQuoteLoading] = useState(false);
-  const [settleError, setSettleError] = useState<string | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
   const [walletLamports, setWalletLamports] = useState<number | null>(null);
 
   useEffect(() => {
@@ -137,7 +156,6 @@ export function HomeLotterySection() {
   const refresh = useCallback(async () => {
     try {
       const state = await fetchLotteryStateClient();
-      setLoadError(null);
       setNowSec(state.nowSec);
 
       if (state.activeDraw) {
@@ -167,20 +185,22 @@ export function HomeLotterySection() {
         }
       }
     } catch (e) {
-      setLoadError(
-        e instanceof Error ? e.message : "Could not load lottery from chain.",
+      // Background load failures must stay silent — the page retries on its
+      // own poll interval. Never surface RPC noise to visitors.
+      console.warn(
+        "[lottery] load failed (will retry):",
+        e instanceof Error ? e.message : e,
       );
     }
   }, [connection]);
 
   useAutoSettleDraw(activeDraw, nowSec, refresh, (result) => {
-    if (result.ok) setSettleError(null);
-    else if (result.error) setSettleError(result.error);
+    // Settlement runs on the server keeper with no visitor interaction, so any
+    // failure is logged for debugging but never shown on the homepage.
+    if (!result.ok && result.error) {
+      console.warn("[lottery] auto-settle:", result.error);
+    }
   });
-
-  useEffect(() => {
-    if (!needsSettlement) setSettleError(null);
-  }, [needsSettlement]);
 
   useEffect(() => {
     let cancelled = false;
@@ -307,6 +327,31 @@ export function HomeLotterySection() {
       cancelled = true;
     };
   }, [activeDraw, buyable]);
+
+  useEffect(() => {
+    const drawId = activeDraw?.drawId;
+    if (drawId === undefined) {
+      setTokenMeta({});
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/lottery/draw-tokens?drawId=${drawId}`, {
+          cache: "no-store",
+        });
+        const json = (await res.json()) as {
+          tokens?: Record<string, PayTokenMeta>;
+        };
+        if (!cancelled && json.tokens) setTokenMeta(json.tokens);
+      } catch {
+        if (!cancelled) setTokenMeta({});
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeDraw?.drawId]);
 
   const splBuyable = splUiRows.filter((o) => o.buyable);
 
@@ -492,17 +537,64 @@ export function HomeLotterySection() {
 
   const buySectionDisabled = !buyable;
 
+  const payOptions = useMemo<PayWithOption[]>(() => {
+    const solMeta = tokenMeta[SOL_MINT];
+    const opts: PayWithOption[] = [
+      {
+        value: "SOL",
+        name: solMeta?.name ?? "Solana",
+        symbol: "SOL",
+        imageUrl: solMeta?.imageUrl ?? null,
+        remaining: null,
+        cap: null,
+        costLabel: "0.01 SOL",
+        disabled: false,
+        soldOut: false,
+      },
+    ];
+    for (const o of splUiRows) {
+      if (!o.published || o.purchasesLocked) continue;
+      const meta = tokenMeta[o.mint];
+      const symbol = meta?.symbol ?? o.symbol;
+      const remaining = splTicketsRemaining(o);
+      const isLiquid = o.pricingMode === SPL_PRICING_LIQUID_DYNAMIC;
+      let costLabel = symbol;
+      try {
+        if (isLiquid) {
+          const spot =
+            (BigInt(o.pricePerTicket) * BigInt(100)) / BigInt(110);
+          costLabel = `~${formatTokenAmount(
+            splBaseUnitsToUi(spot.toString(), o.decimals),
+          )} ${symbol}`;
+        } else {
+          costLabel = `${formatTokenAmount(
+            splBaseUnitsToUi(o.pricePerTicket, o.decimals),
+          )} ${symbol}`;
+        }
+      } catch {
+        costLabel = symbol;
+      }
+      opts.push({
+        value: o.mint,
+        name: meta?.name ?? o.symbol,
+        symbol,
+        imageUrl: meta?.imageUrl ?? null,
+        remaining,
+        cap: o.displayCap,
+        costLabel,
+        disabled: !o.buyable,
+        soldOut: remaining <= 0,
+      });
+    }
+    return opts;
+  }, [splUiRows, tokenMeta]);
+
   return (
     <section className="space-y-8">
       <h2 className="text-balance text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
         Play our fully onchain monthly lotto game
       </h2>
 
-      {loadError ? (
-        <div className="rounded-2xl border border-red-500/40 bg-red-950/30 px-4 py-3 text-sm text-red-200">
-          {loadError} The page will retry automatically.
-        </div>
-      ) : null}
       {loading ? (
         <p className="text-sm text-muted">Loading on-chain draw…</p>
       ) : !draw ? (
@@ -639,35 +731,17 @@ export function HomeLotterySection() {
             <div className="mt-6 grid gap-4 sm:grid-cols-3">
               <label className="flex flex-col gap-2 text-xs text-muted">
                 Pay with
-                <SiteSelect
+                <PayWithSelect
                   value={payWith}
-                  onChange={(e) => {
-                    const next = e.target.value;
+                  options={payOptions}
+                  disabled={buySectionDisabled}
+                  onChange={(next) => {
                     setPayWith(next);
                     setTicketCount((c) =>
                       clampTicketCountForPayWith(c, next, splUiRows),
                     );
                   }}
-                  disabled={buySectionDisabled}
-                >
-                  <option value="SOL">SOL</option>
-                  {splUiRows
-                    .filter((o) => o.published && !o.purchasesLocked)
-                    .map((o) => {
-                      const left = splTicketsRemaining(o);
-                      const label = `${o.symbol || o.mint.slice(0, 4)} (${left}/${o.displayCap})`;
-                      return (
-                        <option
-                          key={o.mint}
-                          value={o.mint}
-                          disabled={!o.buyable}
-                        >
-                          {label}
-                          {!o.buyable ? " — sold out" : ""}
-                        </option>
-                      );
-                    })}
-                </SiteSelect>
+                />
               </label>
 
               <label className="flex flex-col gap-2 text-xs text-muted">
@@ -736,11 +810,6 @@ export function HomeLotterySection() {
                 No tickets were sold. The server keeper is closing this draw and
                 refunding the seed SOL — no wallet action needed.
               </p>
-            ) : null}
-            {settleError ? (
-              <div className="mt-4 rounded-xl border border-red-500/40 bg-red-950/30 px-4 py-3 text-sm text-red-200">
-                Settlement: {settleError}
-              </div>
             ) : null}
             {phase.kind === "error" ? (
               <div className="mt-4 rounded-xl border border-red-500/40 bg-red-950/30 px-4 py-3 text-sm text-red-200">
