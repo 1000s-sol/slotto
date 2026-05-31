@@ -11,6 +11,7 @@ import {
   lotteryDrawViewToJson,
   type LotteryDrawViewJson,
 } from "./draws";
+import { isPastWinnerDrawVisible } from "./past-winners-filter";
 
 export type LotteryStateSnapshot = {
   activeDraw: LotteryDrawViewJson | null;
@@ -42,7 +43,7 @@ export async function fetchLotteryState(
     }
   } else {
     const settled = await fetchLatestSettledDraw(connection, programId);
-    if (settled) {
+    if (settled && isPastWinnerDrawVisible(settled.drawId)) {
       settledDraw = lotteryDrawViewToJson(settled);
       settledDrawPrizeLamports = await fetchSettledDrawPrizeLamports(
         connection,

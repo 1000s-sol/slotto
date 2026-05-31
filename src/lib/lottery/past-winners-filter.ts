@@ -1,4 +1,4 @@
-/** Minimum draw id shown in the homepage past winners table (0 = show all). */
+/** Minimum draw id shown in homepage past winners and the winner hero (0 = show all). */
 export function pastWinnersMinDrawId(): number {
   const raw = process.env.LOTTERY_PAST_WINNERS_MIN_DRAW_ID?.trim();
   if (!raw) return 0;
