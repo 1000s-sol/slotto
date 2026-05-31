@@ -35,6 +35,23 @@ export function isRpcAuthError(message: string): boolean {
   );
 }
 
+/** RPC rate limits (Helius -32429, HTTP 429) — backoff then try public fallback. */
+export function isRpcRateLimitError(message: string): boolean {
+  const lower = message.toLowerCase();
+  return (
+    lower.includes("429") ||
+    lower.includes("too many requests") ||
+    lower.includes("rate limit") ||
+    lower.includes("rate limited") ||
+    lower.includes("-32429")
+  );
+}
+
+/** Errors where switching to the public cluster RPC may succeed. */
+export function isRpcFallbackError(message: string): boolean {
+  return isRpcAuthError(message) || isRpcRateLimitError(message);
+}
+
 /** Public Solana endpoints 403 browser traffic — only usable as a last resort. */
 function isPublicSolanaEndpoint(url: string): boolean {
   const lower = url.toLowerCase();
