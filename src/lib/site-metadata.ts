@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
-/** Default Open Graph / Twitter card image (public/brand/slotto-tickets.png). */
-export const SITE_SHARE_IMAGE = "/brand/slotto-tickets.png";
+/** Default Open Graph / Twitter card image (public/brand/slotto-tickets1.png). */
+export const SITE_SHARE_IMAGE = "/brand/slotto-tickets1.png";
 
 export const SITE_NAME = "Slotto";
 

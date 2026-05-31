@@ -44,7 +44,7 @@ curl -X POST https://slotto.gg/api/maintenance/lock
 
 ## Link previews (Discord, X, iMessage)
 
-Root layout sets Open Graph / Twitter to `public/brand/slotto-tickets.png` with the live product title and description (on-site overlay still uses `public/maintenance/slotto-v2-coming-soon.png`).
+Root layout sets Open Graph / Twitter to `public/brand/slotto-tickets1.png` with the live product title and description (on-site overlay still uses `public/maintenance/slotto-v2-coming-soon.png`).
 
 To swap the embed card image, replace that file or drop a new PNG at the same path and redeploy. Recommended size: square, at least 1200×1200 px. Favicon is separate: `src/app/icon.png` (do not change via layout metadata).
 
