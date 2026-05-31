@@ -52,6 +52,7 @@ import {
   adminFetchGlobalConfigAction,
   adminFetchProjectTokensForDrawAction,
   adminFetchServerLotteryClusterAction,
+  adminFetchWalletRpcEndpointAction,
   adminMintsExistOnClusterAction,
   adminSaveSplRowsForDrawAction,
 } from "@/app/admin/(dashboard)/lotteries/actions";
