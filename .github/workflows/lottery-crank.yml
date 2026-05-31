@@ -32,7 +32,7 @@ jobs:
             exit 1
           fi
           URL="${LOTTERY_CRANK_URL:-https://www.slotto.gg/api/lottery/crank}"
-          echo "POST ${URL}"
+          echo "GET ${URL}"
           curl -sfS -X GET \
             -H "Authorization: Bearer ${CRON_SECRET}" \
             -H "Accept: application/json" \
