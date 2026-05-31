@@ -44,6 +44,7 @@ type DbRow = {
   purchasesLocked: boolean;
   pricePerTicket: string;
   mintDecimals: number;
+  lotteryBuySupported?: boolean;
 };
 
 /** Merge on-chain SPL rows with Postgres display caps and flags. */
@@ -63,6 +64,7 @@ export function mergeSplMintsForBuyUi(
     );
     const published = db?.published ?? true;
     const purchasesLocked = db?.purchasesLocked ?? false;
+    const lotteryBuySupported = db?.lotteryBuySupported ?? true;
     const effectiveCap = Math.min(chain.cap, displayCap);
     const remaining = splTicketsRemaining({
       displayCap: effectiveCap,
@@ -79,10 +81,12 @@ export function mergeSplMintsForBuyUi(
       pricingMode: chain.pricingMode,
       published,
       purchasesLocked,
+      lotteryBuySupported,
       buyable:
         buyable &&
         published &&
         !purchasesLocked &&
+        lotteryBuySupported &&
         remaining > 0 &&
         chain.sold < chain.cap,
     });

@@ -1,16 +1,21 @@
-import {
-  TOKEN_PROGRAM_ID,
-  getAssociatedTokenAddressSync,
-} from "@solana/spl-token";
+import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import type { Connection, PublicKey } from "@solana/web3.js";
 
+import {
+  buyerAssociatedTokenAddress,
+  isLotterySplBuySupportedProgram,
+  resolveMintTokenProgram,
+} from "./mint-token-program";
+
 export type WalletMintBalanceSnapshot = {
-  /** Balance in the buyer ATA used by `buy_spl_tickets`. */
+  /** Balance in the buyer ATA used by `buy_spl_tickets` (legacy SPL only). */
   amount: string;
   /** Sum across all token accounts for this mint (matches wallet UI). */
   totalAmount: string;
   decimals: number;
   ata: string;
+  /** Whether this mint can be used for on-chain SPL ticket buys. */
+  lotteryBuySupported: boolean;
 };
 
 function parsedAmount(account: {
@@ -34,12 +39,10 @@ export async function fetchWalletMintBalance(
   owner: PublicKey,
   mint: PublicKey,
 ): Promise<WalletMintBalanceSnapshot> {
-  const ata = getAssociatedTokenAddressSync(
-    mint,
-    owner,
-    false,
-    TOKEN_PROGRAM_ID,
-  );
+  const tokenProgram =
+    (await resolveMintTokenProgram(connection, mint)) ?? TOKEN_PROGRAM_ID;
+  const lotteryBuySupported = isLotterySplBuySupportedProgram(tokenProgram);
+  const ata = buyerAssociatedTokenAddress(mint, owner, tokenProgram);
 
   let total = BigInt(0);
   let decimals = 0;
@@ -61,7 +64,7 @@ export async function fetchWalletMintBalance(
     }
   }
 
-  if (parsed.value.length === 0) {
+  if (parsed.value.length === 0 && lotteryBuySupported) {
     try {
       const bal = await connection.getTokenAccountBalance(ata, "confirmed");
       ataAmount = BigInt(bal.value.amount);
@@ -70,7 +73,7 @@ export async function fetchWalletMintBalance(
     } catch {
       // No token account yet — leave zeros.
     }
-  } else if (ataAmount === BigInt(0)) {
+  } else if (ataAmount === BigInt(0) && lotteryBuySupported) {
     try {
       const bal = await connection.getTokenAccountBalance(ata, "confirmed");
       ataAmount = BigInt(bal.value.amount);
@@ -84,5 +87,6 @@ export async function fetchWalletMintBalance(
     totalAmount: total.toString(),
     decimals,
     ata: ata.toBase58(),
+    lotteryBuySupported,
   };
 }

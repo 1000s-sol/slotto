@@ -1,6 +1,7 @@
 import { PublicKey } from "@solana/web3.js";
 import { NextResponse } from "next/server";
 
+import { mintSupportedForLotterySplBuy } from "@/lib/lottery/mint-token-program";
 import { withLotteryServerRpc } from "@/lib/lottery/server-rpc";
 import { fetchWalletMintBalance } from "@/lib/lottery/wallet-mint-balance";
 import { clientIp, isLikelyBase58Pubkey, rateLimit } from "@/lib/rate-limit";

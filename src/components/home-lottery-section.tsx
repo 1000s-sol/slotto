@@ -613,7 +613,7 @@ export function HomeLotterySection() {
       },
     ];
     for (const o of splUiRows) {
-      if (!o.published || o.purchasesLocked) continue;
+      if (!o.published || o.purchasesLocked || !o.lotteryBuySupported) continue;
       // Free-entry is a permanent draw option, but only shown to holders.
       if (isFreeEntryMint(o.mint) && !holdsFreeEntry) continue;
       const meta = tokenMeta[o.mint];

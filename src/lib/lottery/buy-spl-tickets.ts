@@ -15,6 +15,7 @@ import {
 import { globalConfigPda, ticketChunkPda } from "./pdas";
 import { BuyPreflightError, type LotteryVaultPubkeys } from "./preflight-buy-sol";
 import { createLotteryProgram } from "./program";
+import { mintSupportedForLotterySplBuy } from "./mint-token-program";
 import { splBaseUnitsToUi } from "./spl-price";
 import { ticketChunkIndicesForRange } from "./ticket-chunks";
 import {
@@ -38,6 +39,14 @@ export async function buySplTickets(
     throw new Error(`Buy 1–${MAX_SOL_TICKETS_PER_BUY} tickets per transaction.`);
   }
 
+  const label = tokenLabel?.trim() || "tokens";
+  const supported = await mintSupportedForLotterySplBuy(connection, mint);
+  if (!supported) {
+    throw new BuyPreflightError(
+      `${label} uses Token-2022, which Slotto SPL ticket buys do not support yet. Pay with SOL or another listed token.`,
+    );
+  }
+
   const program = createLotteryProgram(connection, wallet);
   const globalConfig = globalConfigPda(programId);
   const teamVault = vaults.teamVault;
@@ -54,7 +63,6 @@ export async function buySplTickets(
   // simulator can't cover (no/low token balance, or no SOL for the network
   // fee) gets flagged as "malicious / request blocked". Catch it here with a
   // plain message so Phantom never sees a failing simulation.
-  const label = tokenLabel?.trim() || "tokens";
   const chainRow = draw.splMints.find((r) => r.mint === mint.toBase58());
   const decimals = chainRow?.decimals ?? 0;
   const required = quotedPricePerTicket * BigInt(count);
