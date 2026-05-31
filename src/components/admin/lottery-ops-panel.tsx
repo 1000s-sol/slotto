@@ -40,7 +40,7 @@ import {
 } from "@/components/admin/project-token-draw-allocator";
 import { ensureTeamTokenAta } from "@/lib/lottery/ensure-team-token-ata";
 import { formatLotteryAdminError } from "@/lib/lottery/user-facing-error";
-import { lotteryWalletSendOptsForBrowser } from "@/lib/lottery/lottery-wallet-client";
+import { lotteryWalletSendOptsForAdmin } from "@/lib/lottery/lottery-admin-wallet-client";
 import { useLotteryWallet } from "@/lib/lottery/use-lottery-wallet";
 import { sendTransactionViaWallet } from "@/lib/lottery/wallet-send-transaction";
 import { splMintDraftToOnChainArg } from "@/lib/lottery/project-tokens-for-draw";
@@ -93,7 +93,7 @@ export function LotteryOpsPanel({
   onLiveDrawChange,
 }: LotteryOpsPanelProps) {
   const wallet = useLotteryWallet();
-  const { connected, publicKey, sendTransaction } = useWallet();
+  const { connected, publicKey } = useWallet();
   const { setVisible } = useWalletModal();
 
   const programId = useMemo(() => lotteryProgramId(), []);
@@ -126,11 +126,8 @@ export function LotteryOpsPanel({
   const cluster = lotteryCluster();
   const clusterLabel = lotteryClusterLabel(cluster);
   const walletSendOpts = useMemo(
-    () =>
-      wallet
-        ? lotteryWalletSendOptsForBrowser(wallet, sendTransaction)
-        : undefined,
-    [wallet, sendTransaction],
+    () => (wallet ? lotteryWalletSendOptsForAdmin(wallet) : undefined),
+    [wallet],
   );
   /**
    * Used only to build the transaction (no network for `.transaction()`) and for

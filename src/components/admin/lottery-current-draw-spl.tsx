@@ -2,7 +2,6 @@
 
 import {
   useConnection,
-  useWallet,
 } from "@solana/wallet-adapter-react";
 import { PublicKey } from "@solana/web3.js";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -19,7 +18,7 @@ import {
   adminSaveSplRowsForDrawAction,
 } from "@/app/admin/(dashboard)/lotteries/actions";
 import { splDbMintsMatchChain } from "@/lib/lottery/sync-draw-spl-from-chain";
-import { lotteryWalletSendOptsForBrowser } from "@/lib/lottery/lottery-wallet-client";
+import { lotteryWalletSendOptsForAdmin } from "@/lib/lottery/lottery-admin-wallet-client";
 import { useLotteryWallet } from "@/lib/lottery/use-lottery-wallet";
 import { ensureTeamTokenAta } from "@/lib/lottery/ensure-team-token-ata";
 import { DrawState } from "@/lib/lottery/constants";
@@ -86,14 +85,10 @@ export function LotteryCurrentDrawSpl({
 }) {
   const { connection } = useConnection();
   const wallet = useLotteryWallet();
-  const { sendTransaction } = useWallet();
   const programId = useMemo(() => lotteryProgramId(), []);
   const walletSendOpts = useMemo(
-    () =>
-      wallet
-        ? lotteryWalletSendOptsForBrowser(wallet, sendTransaction)
-        : undefined,
-    [wallet, sendTransaction],
+    () => (wallet ? lotteryWalletSendOptsForAdmin(wallet) : undefined),
+    [wallet],
   );
 
   const drawId = draw.drawId;

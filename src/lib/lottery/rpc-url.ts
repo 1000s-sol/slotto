@@ -71,9 +71,20 @@ export function resolvePublicSolanaRpcUrl(): string {
   return DEFAULT_RPC[cluster];
 }
 
+/** Keyed / Helius URLs in LOTTERY_RPC_URL often 403 on Vercel — use HELIUS_API_KEY instead. */
+function isForbiddenLotteryRpc(url: string): boolean {
+  const lower = url.toLowerCase();
+  return (
+    lower.includes("helius-rpc.com") ||
+    lower.includes("api-key=") ||
+    lower.includes("api_key=")
+  );
+}
+
 /**
  * Server-side lottery (admin actions, crank, API).
- * LOTTERY_RPC_URL override > Helius (HELIUS_API_KEY) > public cluster endpoint.
+ * Safe LOTTERY_RPC_URL override > Helius (HELIUS_API_KEY) > public cluster endpoint.
+ * Ignores LOTTERY_RPC_URL when it embeds an api-key or points at Helius (common misconfig).
  */
 export function resolveLotteryRpcUrl(): string {
   const cluster = resolveLotteryClusterEnv();
@@ -81,7 +92,11 @@ export function resolveLotteryRpcUrl(): string {
   const explicit =
     process.env.LOTTERY_RPC_URL?.trim() ||
     (cluster === "devnet" ? process.env.LOTTERY_DEVNET_RPC?.trim() : undefined);
-  if (explicit && lotteryClusterFromRpc(explicit) === cluster) {
+  if (
+    explicit &&
+    !isForbiddenLotteryRpc(explicit) &&
+    lotteryClusterFromRpc(explicit) === cluster
+  ) {
     return explicit;
   }
 

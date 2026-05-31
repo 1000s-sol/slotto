@@ -101,6 +101,31 @@ export async function adminFetchRecentBlockhashAction(): Promise<{
   });
 }
 
+/** Broadcast a Phantom-signed transaction via server RPC (Helius + public fallback). */
+export async function adminBroadcastSignedTransactionAction(
+  transactionBase64: string,
+): Promise<{ signature: string }> {
+  await requireAdmin();
+  const b64 = transactionBase64.trim();
+  if (!b64) throw new Error("Missing transaction");
+  let raw: Buffer;
+  try {
+    raw = Buffer.from(b64, "base64");
+  } catch {
+    throw new Error("Invalid transaction encoding");
+  }
+  if (raw.length < 64 || raw.length > 1232) {
+    throw new Error("Invalid transaction size");
+  }
+  const signature = await withLotteryServerRpc((connection) =>
+    connection.sendRawTransaction(raw, {
+      skipPreflight: false,
+      maxRetries: 3,
+    }),
+  );
+  return { signature };
+}
+
 /**
  * Confirm a signature via server RPC (Helius) — the browser cannot poll public RPC (403).
  * Polls signature status until confirmed/finalized or timeout.

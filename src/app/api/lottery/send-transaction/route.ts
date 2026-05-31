@@ -1,12 +1,11 @@
-import { Connection } from "@solana/web3.js";
 import { NextResponse } from "next/server";
 
-import { resolveLotteryRpcUrl } from "@/lib/lottery/rpc-url";
+import { withLotteryServerRpc } from "@/lib/lottery/server-rpc";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
-/** Broadcast a wallet-signed legacy transaction via server RPC (Helius). */
+/** Broadcast a wallet-signed legacy transaction via server RPC (Helius + fallback). */
 export async function POST(request: Request) {
   const ip = clientIp(request);
   const limited = rateLimit(`lottery-send:${ip}`, 30, 60_000);
@@ -41,11 +40,12 @@ export async function POST(request: Request) {
   }
 
   try {
-    const connection = new Connection(resolveLotteryRpcUrl(), "confirmed");
-    const signature = await connection.sendRawTransaction(raw, {
-      skipPreflight: false,
-      maxRetries: 3,
-    });
+    const signature = await withLotteryServerRpc((connection) =>
+      connection.sendRawTransaction(raw, {
+        skipPreflight: false,
+        maxRetries: 3,
+      }),
+    );
     return NextResponse.json({ signature });
   } catch (e) {
     const message = e instanceof Error ? e.message : "send failed";

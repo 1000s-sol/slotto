@@ -259,8 +259,8 @@ export function formatLotteryAdminError(error: unknown): string {
     text.toLowerCase().includes("access forbidden")
   ) {
     return (
-      "RPC 403 — Helius or Phantom blocked the call. Remove LOTTERY_RPC_URL if it contains helius on Vercel, redeploy, hard-refresh, retry. " +
-      "Admin uses api.mainnet-beta.solana.com only."
+      "RPC 403 — server could not reach Solana. On Vercel: remove LOTTERY_RPC_URL if it is a Helius URL " +
+      "(use HELIUS_API_KEY instead), confirm HELIUS_API_KEY is valid, redeploy, hard-refresh, and retry."
     );
   }
   if (
