@@ -49,15 +49,26 @@ export async function adminAnnounceDrawLiveAction(
   drawId: number,
   seedLamports?: number,
   salesCloseTs?: number,
-): Promise<{ ok: true }> {
+): Promise<{ ok: true } | { ok: false; reason: string }> {
   await requireAdmin();
+  const { xPostingConfigured } = await import("@/lib/x/post-tweet");
+  if (!xPostingConfigured()) {
+    return {
+      ok: false,
+      reason:
+        "X posting not configured on Vercel (set SLOTTO_X_POSTING_ENABLED=true and SLOTTO_X_* keys).",
+    };
+  }
   try {
     const { announceDrawLive } = await import("@/lib/lottery/announce-draw");
     await announceDrawLive({ drawId, seedLamports, salesCloseTs });
+    return { ok: true };
   } catch (e) {
-    console.warn("[lottery announce] live hook failed:", e);
+    return {
+      ok: false,
+      reason: e instanceof Error ? e.message : "X post failed",
+    };
   }
-  return { ok: true };
 }
 
 export type AdminGlobalConfigView = {

@@ -18,18 +18,20 @@ export type BlockhashBundle = {
 
 export type LotteryWalletSendOpts = {
   sendTransaction?: WalletSendTransaction;
-  /** Admin: sign in Phantom, broadcast via our Connection (bypasses Phantom RPC 403). */
+  /** Sign in Phantom, then broadcast without Phantom's RPC (server or local Connection). */
   signAndSendRaw?: boolean;
-  /** Admin: blockhash from server RPC instead of browser Connection. */
+  /** Blockhash from server RPC instead of browser Connection. */
   fetchBlockhash?: () => Promise<BlockhashBundle>;
+  /** Broadcast signed bytes (e.g. POST /api/lottery/send-transaction). */
+  broadcastRawTransaction?: (raw: Uint8Array) => Promise<TransactionSignature>;
   /**
-   * Admin: confirm the signature server-side (Helius) instead of in the browser.
+   * Confirm the signature server-side (Helius) instead of in the browser.
    * Required when the browser RPC is public Solana (403s confirmation polling).
    */
   confirmSignature?: (
     signature: string,
   ) => Promise<{ confirmed: boolean; error: string | null }>;
-  /** Admin / recovery: skip RPC simulate when provider returns 403 on preflight. */
+  /** Skip RPC simulate when provider returns 403 on preflight. */
   skipPreflight?: boolean;
 };
 
@@ -95,10 +97,13 @@ export async function sendTransactionViaWallet(
   if (opts?.signAndSendRaw) {
     try {
       const signed = await wallet.signTransaction(tx);
-      const signature = await connection.sendRawTransaction(
-        signed.serialize(),
-        { skipPreflight: opts.skipPreflight ?? true, maxRetries: 3 },
-      );
+      const raw = signed.serialize();
+      const signature = opts.broadcastRawTransaction
+        ? await opts.broadcastRawTransaction(raw)
+        : await connection.sendRawTransaction(raw, {
+            skipPreflight: opts.skipPreflight ?? true,
+            maxRetries: 3,
+          });
       return confirm(signature);
     } catch (e) {
       if (isWalletRejectedMessage(errorText(e))) throw e;
@@ -108,7 +113,7 @@ export async function sendTransactionViaWallet(
 
   if (!opts?.sendTransaction) {
     throw new Error(
-      "Wallet send is unavailable. Refresh the page and reconnect Phantom on Mainnet Beta.",
+      "Wallet send is unavailable. Hard refresh, reconnect Phantom on Mainnet Beta, then try again.",
     );
   }
 

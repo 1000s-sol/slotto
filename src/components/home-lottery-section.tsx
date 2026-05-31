@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  useAnchorWallet,
   useConnection,
   useWallet,
 } from "@solana/wallet-adapter-react";
@@ -46,7 +45,8 @@ import {
   isFreeEntryMint,
 } from "@/lib/lottery/free-entry";
 import { drawNeedsSettlement } from "@/lib/lottery/draw-settlement";
-import { lotteryWalletSendOptsFromApi } from "@/lib/lottery/lottery-wallet-client";
+import { lotteryWalletSendOptsForBrowser } from "@/lib/lottery/lottery-wallet-client";
+import { useLotteryWallet } from "@/lib/lottery/use-lottery-wallet";
 import { formatLotteryBuyError } from "@/lib/lottery/user-facing-error";
 import {
   fetchWinnerPrizeLamports,
@@ -117,7 +117,7 @@ function buyDisabledReason(
 
 export function HomeLotterySection() {
   const { connection } = useConnection();
-  const wallet = useAnchorWallet();
+  const wallet = useLotteryWallet();
   const { connected, sendTransaction } = useWallet();
   const { setVisible } = useWalletModal();
   const programId = useMemo(() => lotteryProgramId(), []);
@@ -500,6 +500,14 @@ export function HomeLotterySection() {
       });
       return;
     }
+    if (!vaultPubkeys) {
+      setPhase({
+        kind: "error",
+        message:
+          "Lottery config still loading. Wait a moment and try again, or refresh the page.",
+      });
+      return;
+    }
     const count = clampTicketCountForPayWith(
       ticketCount,
       payWith,
@@ -509,7 +517,7 @@ export function HomeLotterySection() {
       setTicketCount(count);
     }
     setPhase({ kind: "busy", label: "Confirm in your wallet…" });
-    const sendOpts = lotteryWalletSendOptsFromApi(sendTransaction);
+    const sendOpts = lotteryWalletSendOptsForBrowser(wallet, sendTransaction);
     try {
       const sig =
         payWith === "SOL"
@@ -575,6 +583,7 @@ export function HomeLotterySection() {
     nowSec,
     sendTransaction,
     wallet,
+    vaultPubkeys,
   ]);
 
   const countdownCells = countdown?.parts

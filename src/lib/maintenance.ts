@@ -59,6 +59,7 @@ export function isMaintenanceApiAllowlist(pathname: string): boolean {
   return (
     pathname === "/api/lottery/crank" ||
     pathname.startsWith("/api/lottery/crank/") ||
+    pathname.startsWith("/api/lottery/") ||
     pathname === "/api/ticker-prices"
   );
 }

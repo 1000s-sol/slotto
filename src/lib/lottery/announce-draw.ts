@@ -48,6 +48,7 @@ async function claimAndPost(
   } catch (e) {
     console.warn("[lottery announce] post failed, releasing claim:", e);
     await prisma.lotteryDrawAnnouncement.delete({ where }).catch(() => {});
+    throw e;
   }
 }
 

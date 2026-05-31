@@ -1,7 +1,7 @@
 "use client";
 
 import { BN } from "@coral-xyz/anchor";
-import { useAnchorWallet, useWallet } from "@solana/wallet-adapter-react";
+import { useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import {
   Connection,
@@ -40,7 +40,8 @@ import {
 } from "@/components/admin/project-token-draw-allocator";
 import { ensureTeamTokenAta } from "@/lib/lottery/ensure-team-token-ata";
 import { formatLotteryAdminError } from "@/lib/lottery/user-facing-error";
-import { lotteryWalletSendOptsFromApi } from "@/lib/lottery/lottery-wallet-client";
+import { lotteryWalletSendOptsForBrowser } from "@/lib/lottery/lottery-wallet-client";
+import { useLotteryWallet } from "@/lib/lottery/use-lottery-wallet";
 import { sendTransactionViaWallet } from "@/lib/lottery/wallet-send-transaction";
 import { splMintDraftToOnChainArg } from "@/lib/lottery/project-tokens-for-draw";
 import {
@@ -91,7 +92,7 @@ export function LotteryOpsPanel({
   drawLoading,
   onLiveDrawChange,
 }: LotteryOpsPanelProps) {
-  const wallet = useAnchorWallet();
+  const wallet = useLotteryWallet();
   const { connected, publicKey, sendTransaction } = useWallet();
   const { setVisible } = useWalletModal();
 
@@ -125,8 +126,11 @@ export function LotteryOpsPanel({
   const cluster = lotteryCluster();
   const clusterLabel = lotteryClusterLabel(cluster);
   const walletSendOpts = useMemo(
-    () => lotteryWalletSendOptsFromApi(sendTransaction),
-    [sendTransaction],
+    () =>
+      wallet
+        ? lotteryWalletSendOptsForBrowser(wallet, sendTransaction)
+        : undefined,
+    [wallet, sendTransaction],
   );
   /**
    * Used only to build the transaction (no network for `.transaction()`) and for
@@ -445,13 +449,16 @@ export function LotteryOpsPanel({
         return;
       }
 
+      if (activeSpl.length > 0) {
+        await adminSaveSplRowsForDrawAction(drawId, activeSpl);
+      }
       await adminRepairDrawSplFromChainAction(drawId);
 
-      try {
-        await adminAnnounceDrawLiveAction(drawId, seedLamports, closeTs);
-      } catch (announceErr) {
-        console.warn("[lottery announce] live post failed:", announceErr);
-      }
+      const announce = await adminAnnounceDrawLiveAction(
+        drawId,
+        seedLamports,
+        closeTs,
+      );
 
       await refreshConfig();
       await onLiveDrawChange();
@@ -459,9 +466,12 @@ export function LotteryOpsPanel({
         skippedTeamAta.length > 0
           ? ` Team ATA skipped for ${skippedTeamAta.join(", ")} (mint not found on server RPC — usually devnet server + mainnet tokens; SPL buys disabled until cluster is mainnet).`
           : "";
+      const xNote = announce.ok
+        ? " Posted draw-live to @slottogg_."
+        : ` X post not sent: ${announce.reason}`;
       setPhase({
         kind: "ok",
-        message: `Draw #${drawId} created on ${serverClusterLabel ?? clusterLabel}${activeSpl.length ? ` with ${activeSpl.length} SPL mint(s)` : ""}.${ataNote}`,
+        message: `Draw #${drawId} created on ${serverClusterLabel ?? clusterLabel}${activeSpl.length ? ` with ${activeSpl.length} SPL mint(s)` : ""}.${ataNote}${xNote}`,
         signature: sig,
         draw: draw.toBase58(),
       });
