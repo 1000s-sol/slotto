@@ -2,6 +2,7 @@ import { PublicKey } from "@solana/web3.js";
 
 export type TokenBalanceSnapshot = {
   amount: string;
+  totalAmount: string;
   decimals: number;
   ata: string;
 };
@@ -22,5 +23,8 @@ export async function fetchTokenBalanceClient(
   if (!res.ok) {
     throw new Error(json.error ?? "Could not read token balance");
   }
-  return json;
+  return {
+    ...json,
+    totalAmount: json.totalAmount ?? json.amount,
+  };
 }

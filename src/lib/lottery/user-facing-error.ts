@@ -206,6 +206,12 @@ export function formatLotteryBuyError(
   }
 
   if (payingSpl && isInsufficientSplToken(text)) {
+    if (
+      text.toLowerCase().includes("accountnotinitialized") ||
+      text.toLowerCase().includes("3012")
+    ) {
+      return "Your wallet does not have a token account ready for this mint yet. Open your wallet, view this token, then try again (a small transfer can create the account).";
+    }
     return "Insufficient token balance. Connect a wallet that holds this token, or buy the token first.";
   }
 

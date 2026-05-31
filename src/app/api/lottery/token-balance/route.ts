@@ -1,13 +1,13 @@
-import { getAssociatedTokenAddressSync } from "@solana/spl-token";
 import { PublicKey } from "@solana/web3.js";
 import { NextResponse } from "next/server";
 
 import { withLotteryServerRpc } from "@/lib/lottery/server-rpc";
+import { fetchWalletMintBalance } from "@/lib/lottery/wallet-mint-balance";
 import { clientIp, isLikelyBase58Pubkey, rateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
-/** SPL token balance for a wallet ATA (server RPC — browser public RPC 403s). */
+/** SPL token balance for a wallet (server RPC — browser public RPC 403s). */
 export async function GET(request: Request) {
   const ip = clientIp(request);
   const limited = rateLimit(`lottery-bal:${ip}`, 120, 60_000);
@@ -29,21 +29,9 @@ export async function GET(request: Request) {
   try {
     const ownerPk = new PublicKey(owner);
     const mintPk = new PublicKey(mint);
-    const ata = getAssociatedTokenAddressSync(mintPk, ownerPk);
-
-    const result = await withLotteryServerRpc(async (connection) => {
-      try {
-        const bal = await connection.getTokenAccountBalance(ata, "confirmed");
-        return {
-          amount: bal.value.amount,
-          decimals: bal.value.decimals,
-          ata: ata.toBase58(),
-        };
-      } catch {
-        return { amount: "0", decimals: 0, ata: ata.toBase58() };
-      }
-    });
-
+    const result = await withLotteryServerRpc((connection) =>
+      fetchWalletMintBalance(connection, ownerPk, mintPk),
+    );
     return NextResponse.json(result);
   } catch (e) {
     const message = e instanceof Error ? e.message : "balance lookup failed";
