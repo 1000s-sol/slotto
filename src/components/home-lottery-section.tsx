@@ -672,8 +672,16 @@ export function HomeLotterySection() {
         <p className="text-sm text-muted">Loading on-chain draw…</p>
       ) : !draw ? (
         <p className="rounded-2xl border border-border bg-bg-elevated/70 p-6 text-sm text-muted">
-          No lottery draw on this network yet. An admin can create one from the
-          admin panel.
+          No active draw. The next round will be announced on{" "}
+          <a
+            href={X_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-semibold text-accent-cyan hover:underline"
+          >
+            X
+          </a>
+          .
         </p>
       ) : (
         <>
