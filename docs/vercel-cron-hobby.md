@@ -1,45 +1,33 @@
-# Settlement on Vercel Hobby (no frequent built-in cron)
+# Lottery settlement cron (Vercel Hobby)
 
-Vercel **Hobby** only allows cron jobs **once per day**. A `*/2 * * * *` entry in `vercel.json` will fail deploy or never run often enough for lottery settlement.
+Vercel **Hobby** only allows built-in cron **once per day**, which is not enough to settle draws after `sales_close_ts`.
 
-Pick **one** approach:
+**Recommended:** GitHub Actions (in-repo) — see `.github/workflows/lottery-crank.yml`.
 
-## A — Public homepage crank (simplest for the space)
+## GitHub Actions (secure, no public crank)
 
-Vercel env:
+1. Add repo secret **`CRON_SECRET`** — same value as on Vercel (`CRON_SECRET` or `LOTTERY_CRON_SECRET`).
+2. Optional repo variable **`LOTTERY_CRANK_URL`** if not using `https://www.slotto.gg/api/lottery/crank`.
+3. Workflow runs every **5 minutes** (GitHub’s minimum for schedules) and on **workflow_dispatch** (manual).
+4. On Vercel, keep:
+   - `NEXT_PUBLIC_LOTTERY_PUBLIC_CRANK_ENABLED` **unset or `false`**
+   - `LOTTERY_PUBLIC_CRANK_ENABLED` **unset or `false`**
+   - `CRON_SECRET` set (API route rejects unauthenticated calls)
 
-```
-NEXT_PUBLIC_LOTTERY_PUBLIC_CRANK_ENABLED=true
-LOTTERY_PUBLIC_CRANK_ENABLED=true
-```
+The workflow calls `GET /api/lottery/crank` with `Authorization: Bearer <CRON_SECRET>`. Visitors cannot trigger the keeper.
 
-Visitors on the site trigger throttled keeper settlement (4s cooldown per draw). Fine when you expect traffic during the draw.
+## Not recommended for production
 
-## B — External cron (keeps public crank off)
+**Public homepage crank** (`NEXT_PUBLIC_LOTTERY_PUBLIC_CRANK_ENABLED=true`) lets any visitor spend keeper SOL and influence settlement timing. It was only a fallback when no scheduler exists. Use GitHub Actions instead.
 
-Use [cron-job.org](https://cron-job.org), GitHub Actions, or similar to `GET` every 2–5 minutes:
+## Other options
 
-```
-https://www.slotto.gg/api/lottery/crank
-Authorization: Bearer <CRON_SECRET>
-```
+| Option | Notes |
+|--------|--------|
+| **Vercel Pro** | Restore `vercel.json` with `*/2 * * * *` if you upgrade. |
+| **External cron** | cron-job.org etc. — same HTTP call as GitHub Actions. |
+| **Manual** | `npm run lottery:settle -- <drawId>` or `npm run lottery:keeper` locally. |
 
-Leave `NEXT_PUBLIC_LOTTERY_PUBLIC_CRANK_ENABLED` unset or `false`.
+## Tomorrow’s space
 
-## C — Vercel Pro
-
-Pro allows per-minute `vercel.json` crons. Restore:
-
-```json
-{
-  "crons": [{ "path": "/api/lottery/crank", "schedule": "*/2 * * * *" }]
-}
-```
-
-## D — Manual / local keeper during testing
-
-```bash
-npm run lottery:keeper
-# or
-npm run lottery:settle -- <drawId>
-```
+The draw runs **30 days**; settlement only matters **after sales close**. GitHub cron does not need to be live for the launch stream itself. You can enable the workflow when the draw is created, or trigger **workflow_dispatch** once after close for testing.
