@@ -29,10 +29,28 @@ function isBrowserSafeRpcUrl(url: string): boolean {
     if (u.searchParams.has("api-key") || u.searchParams.has("api_key")) {
       return false;
     }
+    const host = u.hostname.toLowerCase();
+    // Helius (and similar) require api-key=; bare host always returns 403 in the browser.
+    if (host.includes("helius-rpc.com")) {
+      return false;
+    }
     return true;
   } catch {
     return false;
   }
+}
+
+/** Helius / RPC auth failures — retry public cluster endpoint when configured. */
+export function isRpcAuthError(message: string): boolean {
+  const lower = message.toLowerCase();
+  return (
+    lower.includes("401") ||
+    lower.includes("403") ||
+    lower.includes("access forbidden") ||
+    lower.includes("invalid api key") ||
+    lower.includes("-32401") ||
+    lower.includes("unauthorized")
+  );
 }
 
 function pickBrowserRpc(candidate: string | undefined, cluster: LotteryCluster): string | null {
@@ -78,11 +96,11 @@ export function resolveLotteryRpcUrl(): string {
   return DEFAULT_RPC[cluster];
 }
 
-/** Public devnet RPC fallback when Helius auth fails on Vercel. */
-export function lotteryPublicRpcFallback(): string | null {
+/** Public cluster RPC when Helius auth fails (devnet or mainnet). */
+export function lotteryPublicRpcFallback(): string {
   return resolveLotteryClusterEnv() === "devnet"
     ? LOTTERY_PUBLIC_DEVNET_RPC
-    : null;
+    : LOTTERY_PUBLIC_MAINNET_RPC;
 }
 
 export function resolveLotteryCluster(): LotteryCluster {

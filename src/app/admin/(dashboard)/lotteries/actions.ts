@@ -1,7 +1,5 @@
 "use server";
 
-import { Connection } from "@solana/web3.js";
-
 import { currentAdminAddress } from "@/lib/admin-session";
 import { fetchDrawById } from "@/lib/lottery/chain";
 import {
@@ -11,10 +9,8 @@ import {
 import { lotteryProgramId } from "@/lib/lottery/config";
 import { globalConfigPda } from "@/lib/lottery/pdas";
 import { createLotteryReadOnlyProgram } from "@/lib/lottery/program";
-import {
-  resolveLotteryCluster,
-  resolveLotteryRpcUrl,
-} from "@/lib/lottery/rpc-url";
+import { resolveLotteryCluster } from "@/lib/lottery/rpc-url";
+import { withLotteryServerRpc } from "@/lib/lottery/server-rpc";
 import {
   appendDrawSplMintRow,
   batchUpdateDrawSplMintRows,
@@ -92,9 +88,10 @@ export async function adminDrawExistsOnServerAction(
 ): Promise<boolean> {
   await requireAdmin();
   if (!Number.isFinite(drawId) || drawId < 0) return false;
-  const connection = new Connection(resolveLotteryRpcUrl(), "confirmed");
-  const draw = await fetchDrawById(connection, lotteryProgramId(), drawId);
-  return draw != null;
+  return withLotteryServerRpc(async (connection) => {
+    const draw = await fetchDrawById(connection, lotteryProgramId(), drawId);
+    return draw != null;
+  });
 }
 
 /** Read global config via server RPC (matches `LOTTERY_CLUSTER` / Helius). */
@@ -102,28 +99,30 @@ export async function adminFetchGlobalConfigAction(): Promise<AdminGlobalConfigV
   await requireAdmin();
   const programId = lotteryProgramId();
   const globalConfig = globalConfigPda(programId);
-  const connection = new Connection(resolveLotteryRpcUrl(), "confirmed");
-  const info = await connection.getAccountInfo(globalConfig);
-  if (!info) return null;
+  return withLotteryServerRpc(async (connection) => {
+    const info = await connection.getAccountInfo(globalConfig);
+    if (!info) return null;
 
-  const program = createLotteryReadOnlyProgram(connection);
-  const cfg = await program.account.globalConfig.fetch(globalConfig);
-  return {
-    globalConfigPda: globalConfig.toBase58(),
-    authority: cfg.authority.toBase58(),
-    teamVault: cfg.teamVault.toBase58(),
-    buxVault: cfg.buxVault.toBase58(),
-    setupVault: cfg.setupVault.toBase58(),
-    nextDrawId: cfg.nextDrawId.toString(),
-  };
+    const program = createLotteryReadOnlyProgram(connection);
+    const cfg = await program.account.globalConfig.fetch(globalConfig);
+    return {
+      globalConfigPda: globalConfig.toBase58(),
+      authority: cfg.authority.toBase58(),
+      teamVault: cfg.teamVault.toBase58(),
+      buxVault: cfg.buxVault.toBase58(),
+      setupVault: cfg.setupVault.toBase58(),
+      nextDrawId: cfg.nextDrawId.toString(),
+    };
+  });
 }
 
 /** Active draw using server RPC (matches `LOTTERY_CLUSTER`, not browser wallet RPC). */
 export async function adminFetchInProgressDrawAction(): Promise<LotteryDrawViewJson | null> {
   await requireAdmin();
-  const connection = new Connection(resolveLotteryRpcUrl(), "confirmed");
-  const draw = await fetchInProgressDraw(connection, lotteryProgramId());
-  return draw ? lotteryDrawViewToJson(draw) : null;
+  return withLotteryServerRpc(async (connection) => {
+    const draw = await fetchInProgressDraw(connection, lotteryProgramId());
+    return draw ? lotteryDrawViewToJson(draw) : null;
+  });
 }
 
 export async function adminLoadSplCatalogAction(): Promise<SplMintDraft[]> {

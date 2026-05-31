@@ -13,20 +13,11 @@ import { createLotteryProgram } from "./program";
 import type { SlottoLotteryProgram } from "./program";
 
 import {
+  isRpcAuthError,
   lotteryPublicRpcFallback,
   resolveLotteryRpcUrl,
 } from "@/lib/lottery/rpc-url";
 import type { CrankTriggerResult } from "./trigger-crank-action";
-
-function isRpcAuthError(message: string): boolean {
-  const lower = message.toLowerCase();
-  return (
-    lower.includes("401") ||
-    lower.includes("invalid api key") ||
-    lower.includes("-32401") ||
-    lower.includes("unauthorized")
-  );
-}
 
 async function crankOnRpc(
   rpcUrl: string,
@@ -143,7 +134,7 @@ async function crankDrawOnce(
   } catch (e) {
     const message = e instanceof Error ? e.message : "Crank failed";
 
-    if (fallbackRpc && isRpcAuthError(message) && primaryRpc !== fallbackRpc) {
+    if (isRpcAuthError(message) && primaryRpc !== fallbackRpc) {
       console.warn(
         "[lottery crank] RPC auth failed on",
         primaryRpc.replace(/api-key=[^&]+/, "api-key=***"),

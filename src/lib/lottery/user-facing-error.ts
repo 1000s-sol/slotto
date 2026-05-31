@@ -250,6 +250,16 @@ export function formatLotteryBuyError(
 export function formatLotteryAdminError(error: unknown): string {
   const text = combinedErrorText(error);
   if (
+    text.includes("403") ||
+    text.toLowerCase().includes("access forbidden")
+  ) {
+    return (
+      "RPC returned 403 Access forbidden. On Vercel: fix HELIUS_API_KEY or set LOTTERY_RPC_URL=https://api.mainnet-beta.solana.com. " +
+      "In the browser: set NEXT_PUBLIC_SOLANA_BROWSER_RPC_URL to that public URL (never https://mainnet.helius-rpc.com without api-key). " +
+      "Reconnect Phantom on Mainnet Beta and hard-refresh."
+    );
+  }
+  if (
     text.includes("ConstraintSeeds") ||
     text.includes("seeds constraint was violated") ||
     text.includes("Error Number: 2006")
