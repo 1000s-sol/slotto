@@ -99,8 +99,8 @@ export async function updateDrawSplMintRow(
     if (data.displayCap > row.onChainCap) {
       throw new Error("display_cap cannot exceed on-chain cap");
     }
-    if (data.displayCap < row.displayCap) {
-      throw new Error("display_cap can only be raised during a live draw");
+    if (data.displayCap < 0) {
+      throw new Error("display_cap must be non-negative");
     }
   }
   return prisma.lotteryDrawSplMint.update({

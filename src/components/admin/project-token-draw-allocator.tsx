@@ -139,9 +139,14 @@ export function ProjectTokenDrawAllocator({
   const enabledCount = tokens.filter((t) => enabled[t.mint]).length;
 
   const patchSettings = (mint: string, patch: Partial<ProjectTokenDrawSettings>) => {
+    const cur = settings[mint] ?? DEFAULT_SETTINGS;
+    const merged = { ...cur, ...patch };
+    if (patch.displayCap !== undefined || patch.onChainCap !== undefined) {
+      merged.displayCap = Math.min(merged.displayCap, merged.onChainCap);
+    }
     onSettingsChange({
       ...settings,
-      [mint]: { ...(settings[mint] ?? DEFAULT_SETTINGS), ...patch },
+      [mint]: merged,
     });
   };
 

@@ -449,6 +449,7 @@ export function LotteryOpsPanel({
       if (activeSpl.length > 0) {
         await adminSaveSplRowsForDrawAction(drawId, activeSpl);
       }
+      // Sync mint list from chain but preserve UI caps saved above (displayCap ≠ on-chain cap).
       await adminRepairDrawSplFromChainAction(drawId);
 
       const announce = await adminAnnounceDrawLiveAction(
