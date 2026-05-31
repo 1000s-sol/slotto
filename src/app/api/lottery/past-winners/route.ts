@@ -6,6 +6,7 @@ import {
   fetchSettledDrawPrizeLamports,
   lotteryDrawViewToJson,
 } from "@/lib/lottery/draws";
+import { isPastWinnerDrawVisible } from "@/lib/lottery/past-winners-filter";
 import { withLotteryServerRpc } from "@/lib/lottery/server-rpc";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 
@@ -37,6 +38,7 @@ export async function GET(request: Request) {
       const out: PastWinnerApiRow[] = [];
       for (const draw of settled) {
         if (!draw.winner) continue;
+        if (!isPastWinnerDrawVisible(draw.drawId)) continue;
         const prizeLamports = await fetchSettledDrawPrizeLamports(
           connection,
           draw,
