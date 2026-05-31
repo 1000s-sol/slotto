@@ -1,19 +1,12 @@
 import { timingSafeEqual } from "node:crypto";
 
-import { Connection } from "@solana/web3.js";
 import { NextResponse } from "next/server";
 
-import {
-  crankAllPendingDraws,
-  crankDraw,
-} from "@/lib/lottery/crank-draw";
+import { fetchDrawIdsNeedingCrank } from "@/lib/lottery/crank-draw";
 import { lotteryProgramId } from "@/lib/lottery/config";
-import {
-  keypairToAnchorWallet,
-  loadLotteryKeeperKeypair,
-} from "@/lib/lottery/keeper-wallet";
-import { createLotteryProgram } from "@/lib/lottery/program";
-import { resolveLotteryRpcUrl } from "@/lib/lottery/rpc-url";
+import { loadLotteryKeeperKeypair } from "@/lib/lottery/keeper-wallet";
+import { withLotteryServerRpc } from "@/lib/lottery/server-rpc";
+import { runTriggerLotteryCrank } from "@/lib/lottery/trigger-lottery-crank-impl";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -37,8 +30,6 @@ function constantTimeEqual(a: string, b: string): boolean {
 function authorized(request: Request): boolean {
   const secret = cronSecret();
   if (!secret) {
-    // Fail closed in production: an unset cron secret must NOT mean "open".
-    // Allow only outside production so local dev can hit the route.
     return process.env.NODE_ENV !== "production";
   }
   const auth = request.headers.get("authorization") ?? "";
@@ -50,12 +41,11 @@ async function handleCrank(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const payer = loadLotteryKeeperKeypair();
-  if (!payer) {
+  if (!loadLotteryKeeperKeypair()) {
     return NextResponse.json(
       {
         error:
-          "Keeper keypair not configured (LOTTERY_KEEPER_WALLET or LOTTERY_TEST_WALLET)",
+          "Keeper keypair not configured (LOTTERY_KEEPER_SECRET_KEY on Vercel)",
       },
       { status: 503 },
     );
@@ -63,12 +53,6 @@ async function handleCrank(request: Request) {
 
   const url = new URL(request.url);
   const drawIdParam = url.searchParams.get("drawId");
-  const connection = new Connection(resolveLotteryRpcUrl(), "confirmed");
-  const programId = lotteryProgramId();
-  const program = createLotteryProgram(
-    connection,
-    keypairToAnchorWallet(payer),
-  );
 
   try {
     if (drawIdParam !== null) {
@@ -76,30 +60,39 @@ async function handleCrank(request: Request) {
       if (!Number.isFinite(drawId) || drawId < 0) {
         return NextResponse.json({ error: "Invalid drawId" }, { status: 400 });
       }
-      const result = await crankDraw(
-        connection,
-        program,
-        programId,
-        drawId,
-        payer,
-      );
-      return NextResponse.json({ ok: true, results: [result] });
+      const result = await runTriggerLotteryCrank(drawId);
+      return NextResponse.json({
+        ok: result.ok,
+        results: [{ drawId, ...result }],
+      });
     }
 
-    const results = await crankAllPendingDraws(
-      connection,
-      program,
-      programId,
-      payer,
+    const ids = await withLotteryServerRpc((connection) =>
+      fetchDrawIdsNeedingCrank(connection, lotteryProgramId()),
     );
-    return NextResponse.json({ ok: true, results });
+
+    if (ids.length === 0) {
+      return NextResponse.json({ ok: true, results: [], message: "No draws need crank" });
+    }
+
+    const results = [];
+    for (const drawId of ids) {
+      const result = await runTriggerLotteryCrank(drawId);
+      results.push({ drawId, ...result });
+    }
+
+    return NextResponse.json({
+      ok: results.every((r) => r.ok),
+      results,
+    });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Crank failed";
+    console.error("[lottery crank route]", message);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
-/** Vercel cron uses GET; manual / UI triggers may use POST. */
+/** Vercel cron uses GET; GitHub Actions / manual triggers may use POST. */
 export async function GET(request: Request) {
   return handleCrank(request);
 }

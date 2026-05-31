@@ -136,9 +136,7 @@ async function crankDrawOnce(
 
     if (isRpcAuthError(message) && primaryRpc !== fallbackRpc) {
       console.warn(
-        "[lottery crank] RPC auth failed on",
-        primaryRpc.replace(/api-key=[^&]+/, "api-key=***"),
-        "— retrying public devnet",
+        "[lottery crank] RPC auth failed on primary — retrying public cluster fallback",
       );
       try {
         return await crankOnRpc(fallbackRpc, drawId, payer);

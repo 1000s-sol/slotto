@@ -220,15 +220,39 @@ export async function crankDraw(
         );
       }
       actions.push("settle (switchboard)");
-      const { signature, winningTicketId } = await settleDrawWithSwitchboard(
-        connection,
-        program,
-        programId,
-        drawId,
-        randomnessAccount,
-      );
-      signatures.push(signature);
-      actions.push(`winning ticket #${winningTicketId}`);
+      try {
+        const { signature, winningTicketId } = await settleDrawWithSwitchboard(
+          connection,
+          program,
+          programId,
+          drawId,
+          randomnessAccount,
+        );
+        signatures.push(signature);
+        actions.push(`winning ticket #${winningTicketId}`);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        const lower = msg.toLowerCase();
+        if (
+          lower.includes("not resolved yet") ||
+          lower.includes("not ready to reveal") ||
+          lower.includes("randomness value missing") ||
+          lower.includes("randomness not resolved")
+        ) {
+          actions.push(`settle waiting (${msg})`);
+          draw = (await fetchDrawById(connection, programId, drawId))!;
+          return {
+            drawId,
+            initialState,
+            finalState: stateLabel(draw.state),
+            actions,
+            signatures,
+            winner: draw.winner,
+            winningTicketId: draw.winningTicketId,
+          };
+        }
+        throw e;
+      }
     } else {
       const clockInfo = await connection.getAccountInfo(SYSVAR_CLOCK_PUBKEY);
       if (!clockInfo || clockInfo.data.length < 40) {
