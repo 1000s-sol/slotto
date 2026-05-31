@@ -339,8 +339,10 @@ export function FaqContent() {
         </FaqItem>
         <FaqItem question="How much does a SOL ticket cost?">
           <p>
-            <strong className="text-foreground">0.01 SOL per ticket</strong> (+ 0.0005 SOL
-            platform fee). 90% of the ticket price goes to the prize pot.
+            <strong className="text-foreground">0.0105 SOL per ticket</strong> in
+            total — <strong className="text-foreground">0.01 SOL</strong> ticket price
+            plus a <strong className="text-foreground">0.0005 SOL</strong> platform fee.
+            Ninety percent of the 0.01 SOL ticket portion goes to the prize pot.
           </p>
         </FaqItem>
         <FaqItem question="Do SOL tickets increase the live jackpot?">
@@ -373,8 +375,17 @@ export function FaqContent() {
         </FaqItem>
         <FaqItem question="Is there a discount for SPL tickets?">
           <p>
-            SPL purchases receive a 5% discount and are dynamically priced at time of
-            purchase.
+            Featured tokens with <strong className="text-foreground">live pricing</strong>{" "}
+            are quoted at about 95% of the SOL ticket notional (roughly a 5% discount vs
+            paying in SOL at the same moment). Fixed-price SPL rows use the price set for
+            that draw.
+          </p>
+        </FaqItem>
+        <FaqItem question="What is the SLOTTO FREE ENTRY token?">
+          <p>
+            A separate giveaway SPL token (when enabled on a draw) that lets holders buy
+            one ticket for one whole token instead of SOL or project tokens. It only
+            appears in Pay with if your connected wallet holds at least one token.
           </p>
         </FaqItem>
       </FaqSection>
@@ -417,8 +428,10 @@ export function FaqContent() {
         </FaqItem>
         <FaqItem question="When is the winner picked?">
           <p>
-            Shortly after sales close. The draw moves through sales close, randomness
-            request, settle, and the winner is paid in SOL automatically.
+            Shortly after sales close. Slotto&apos;s automated keeper completes the
+            on-chain steps — close sales, request Switchboard verifiable randomness, then
+            settle — and pays the winner in SOL. This usually finishes within a few
+            minutes of close.
           </p>
         </FaqItem>
         <FaqItem question="How is the winner chosen?">
@@ -496,8 +509,9 @@ export function FaqContent() {
       <FaqSection id="fees" title="Fees & transparency">
         <FaqItem question="What is the platform fee?">
           <p>
-            <strong className="text-foreground">0.0005 SOL per ticket</strong>, shown at
-            checkout. This covers platform operations.
+            <strong className="text-foreground">0.0005 SOL per SOL ticket</strong> (part
+            of the 0.0105 SOL total at checkout). SPL buys also include a small SOL
+            network-fee component for the transaction. Fees cover platform operations.
           </p>
         </FaqItem>
         <FaqItem question="Are there other fees?">
@@ -541,20 +555,25 @@ export function FaqContent() {
       <FaqSection id="trust" title="Trust & edge cases">
         <FaqItem question="What if no tickets are sold?">
           <p>
-            The draw can be refunded — seed SOL returns to the configured refund wallet.
-            No winner is drawn.
+            The draw is refunded automatically — seed SOL returns to the configured refund
+            wallet and no winner is drawn. Slotto&apos;s keeper runs this after sales
+            close; you do not need to submit a transaction.
           </p>
         </FaqItem>
         <FaqItem question="What if sales close but the draw hasn't settled yet?">
           <p>
-            Settlement is permissionless — anyone can trigger it after close. The UI may
-            show a settling state briefly while the draw completes on-chain.
+            That is normal for a short window after close. Slotto runs an automated keeper
+            that submits the required on-chain transactions (close → randomness → settle).
+            The homepage may show a settling state while that finishes — usually within a
+            few minutes. Players do not need to do anything; the winner and payout are
+            determined by the program and Switchboard VRF, not by manual admin action.
           </p>
         </FaqItem>
         <FaqItem question="Is the lottery provably fair?">
           <p>
-            Winner selection uses verifiable on-chain randomness. Every ticket has an
-            equal, transparent chance to win.
+            Yes. On mainnet, winner selection uses Switchboard verifiable randomness tied
+            to the draw on-chain. Every ticket ID has an equal chance; ticket ownership
+            and the settle transaction are public on Solscan.
           </p>
         </FaqItem>
       </FaqSection>

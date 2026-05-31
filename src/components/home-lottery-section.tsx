@@ -54,6 +54,7 @@ import {
 } from "@/lib/lottery/draws";
 import { fetchLotteryStateClient } from "@/lib/lottery/fetch-lottery-state-client";
 import { fetchTokenBalanceClient } from "@/lib/lottery/fetch-token-balance-client";
+import { fetchWalletSolBalanceClient } from "@/lib/lottery/fetch-wallet-sol-balance-client";
 import {
   clampTicketCountForPayWith,
   maxBuyableTicketsForPayWith,
@@ -313,8 +314,7 @@ export function HomeLotterySection() {
       return;
     }
     let cancelled = false;
-    void connection
-      .getBalance(wallet.publicKey, "confirmed")
+    void fetchWalletSolBalanceClient(wallet.publicKey)
       .then((lamports) => {
         if (!cancelled) setWalletLamports(lamports);
       })
@@ -324,7 +324,7 @@ export function HomeLotterySection() {
     return () => {
       cancelled = true;
     };
-  }, [connection, connected, wallet?.publicKey, phase.kind]);
+  }, [connected, wallet?.publicKey, phase.kind]);
 
   // Holder-gate the free-entry option: only surface it when the connected
   // wallet actually holds ≥1 token. Re-checks after each buy (phase.kind).
@@ -843,11 +843,11 @@ export function HomeLotterySection() {
 
             {connected && wallet?.publicKey && payWith === "SOL" ? (
               <p className="mt-3 text-xs text-muted">
-                Connected wallet balance (mainnet RPC):{" "}
+                Connected wallet balance:{" "}
                 <span className="font-mono text-foreground">
                   {walletLamports !== null
                     ? `${(walletLamports / 1e9).toFixed(4)} SOL`
-                    : "…"}
+                    : "loading…"}
                 </span>
                 {walletLamports !== null && !hasEnoughSolForBuy ? (
                   <span className="text-amber-200/90">
