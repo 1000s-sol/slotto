@@ -1,4 +1,5 @@
 import { saveProjectImageFile } from "@/lib/project-image-upload";
+import { isSafeHttpsOrRelativeUrl } from "@/lib/safe-url";
 
 /**
  * Prefer a new file upload; otherwise use the URL field (trimmed), or null if empty.
@@ -19,5 +20,8 @@ export async function resolveProjectImageFromForm(
     }
   }
   const urlStr = String(formData.get(urlFieldName) ?? "").trim();
+  if (urlStr && !isSafeHttpsOrRelativeUrl(urlStr)) {
+    return { url: null, error: "Image URL must be an https:// link." };
+  }
   return { url: urlStr || null };
 }

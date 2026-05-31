@@ -220,6 +220,15 @@ export function formatLotteryBuyError(
   }
 
   if (
+    text.includes("SplQuotedPriceTooLow") ||
+    text.includes("SplQuotedPriceTooHigh") ||
+    text.toLowerCase().includes("price is below the minimum band") ||
+    text.toLowerCase().includes("price exceeds on-chain max")
+  ) {
+    return "Token price moved — refresh the page to get the latest ticket price, then try again.";
+  }
+
+  if (
     text.includes("TicketChunkNotInitialized") ||
     text.includes("ticket chunk not initialized")
   ) {

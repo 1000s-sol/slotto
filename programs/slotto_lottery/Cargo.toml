@@ -18,6 +18,9 @@ cpi = ["no-entrypoint"]
 default = ["_anchor_init_if_needed"]
 _anchor_init_if_needed = ["anchor-lang/init-if-needed"]
 idl-build = ["anchor-lang/idl-build", "anchor-lang/init-if-needed", "anchor-spl/idl-build"]
+# Devnet / integration ONLY. Enables the deterministic VRF stub for local testing.
+# NEVER enable this for the mainnet build — settlement randomness would be predictable.
+stub-vrf = []
 anchor-debug = []
 custom-heap = []
 custom-panic = []

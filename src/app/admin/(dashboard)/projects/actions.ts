@@ -14,9 +14,28 @@ import {
 import { validateCollectionsJson } from "@/lib/project-collections";
 import { isValidSlug, normalizeSlugInput, slugifyName } from "@/lib/project-slug";
 import { prisma } from "@/lib/prisma";
+import { sanitizeOptionalUrl } from "@/lib/safe-url";
 
 function str(formData: FormData, key: string) {
   return String(formData.get(key) ?? "").trim();
+}
+
+/** Validate the three external link fields; returns sanitized values or an error. */
+function parseProjectLinks(formData: FormData):
+  | { ok: true; discordUrl: string | null; twitterUrl: string | null; websiteUrl: string | null }
+  | { ok: false; message: string } {
+  const discord = sanitizeOptionalUrl(str(formData, "discordUrl"), "Discord URL");
+  if (discord.error) return { ok: false, message: discord.error };
+  const twitter = sanitizeOptionalUrl(str(formData, "twitterUrl"), "X/Twitter URL");
+  if (twitter.error) return { ok: false, message: twitter.error };
+  const website = sanitizeOptionalUrl(str(formData, "websiteUrl"), "Website URL");
+  if (website.error) return { ok: false, message: website.error };
+  return {
+    ok: true,
+    discordUrl: discord.url,
+    twitterUrl: twitter.url,
+    websiteUrl: website.url,
+  };
 }
 
 async function assertAdmin(): Promise<ProjectFormState | null> {
@@ -64,6 +83,9 @@ export async function createProjectAction(
   const tokenRes = await resolveProjectTokenFromForm(formData);
   if (tokenRes.error) return { ok: false, message: tokenRes.error };
 
+  const links = parseProjectLinks(formData);
+  if (!links.ok) return { ok: false, message: links.message };
+
   const published = formData.get("published") === "on";
 
   const admin = await prisma.adminWallet.findFirst({
@@ -84,9 +106,9 @@ export async function createProjectAction(
         ? (collectionsParsed.meUrls as unknown as Prisma.InputJsonValue)
         : undefined,
     marketplaces: Prisma.JsonNull,
-    discordUrl: str(formData, "discordUrl") || null,
-    twitterUrl: str(formData, "twitterUrl") || null,
-    websiteUrl: str(formData, "websiteUrl") || null,
+    discordUrl: links.discordUrl,
+    twitterUrl: links.twitterUrl,
+    websiteUrl: links.websiteUrl,
     tokenMint: tokenRes.tokenMint,
     tokenLiquid: tokenRes.tokenLiquid,
     tokenImageUrl: tokenRes.tokenImageUrl,
@@ -161,6 +183,9 @@ export async function updateProjectAction(
   });
   if (tokenRes.error) return { ok: false, message: tokenRes.error };
 
+  const links = parseProjectLinks(formData);
+  if (!links.ok) return { ok: false, message: links.message };
+
   const newBanner = bannerRes.url;
   const newListing = listingRes.url;
 
@@ -181,9 +206,9 @@ export async function updateProjectAction(
             ? (collectionsParsed.meUrls as unknown as Prisma.InputJsonValue)
             : Prisma.JsonNull,
         marketplaces: Prisma.JsonNull,
-        discordUrl: str(formData, "discordUrl") || null,
-        twitterUrl: str(formData, "twitterUrl") || null,
-        websiteUrl: str(formData, "websiteUrl") || null,
+        discordUrl: links.discordUrl,
+        twitterUrl: links.twitterUrl,
+        websiteUrl: links.websiteUrl,
         tokenMint: tokenRes.tokenMint,
         tokenLiquid: tokenRes.tokenLiquid,
         tokenImageUrl: tokenRes.tokenImageUrl,

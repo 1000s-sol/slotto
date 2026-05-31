@@ -11,7 +11,7 @@ use anchor_spl::token::{self, Mint, Token, TokenAccount};
 mod switchboard_randomness;
 use switchboard_randomness::{
     is_switchboard_randomness_owner, read_switchboard_randomness_value,
-    winning_ticket_from_vrf_bytes,
+    switchboard_randomness_is_unrevealed, winning_ticket_from_vrf_bytes,
 };
 
 declare_id!("6mYYxtJ4NPH1oNJoy2CpJGQq6XiWCsu8iB5y6ior6TMq");
@@ -114,6 +114,13 @@ pub const MAX_SPL_TICKETS_PER_BUY: u32 = 256;
 
 /// Per SPL ticket: **0.0005** SOL total fee (lamports), paid like the non-pot slice of a SOL ticket.
 pub const LAMPORTS_SPL_TICKET_FEE_TOTAL: u64 = 500_000;
+
+/// Liquid-dynamic SPL pricing band, in basis points of the row's reference price.
+/// A buy-time quote must fall within `[reference * FLOOR_BPS, reference * CEIL_BPS] / 10_000`.
+/// Blocks ~zero-cost ticket farming while still allowing the token price to drift;
+/// use `update_spl_reference_price` to re-anchor after a large market move.
+pub const LIQUID_PRICE_FLOOR_BPS: u64 = 2_500;
+pub const LIQUID_PRICE_CEIL_BPS: u64 = 40_000;
 
 #[program]
 pub mod slotto_lottery {
@@ -298,9 +305,10 @@ pub mod slotto_lottery {
             .checked_add(count)
             .ok_or(error!(ErrorCode::ArithmeticOverflow))?;
 
-        let (pot, team, setup) = sol_ticket_lamports_splits(count)?;
+        let (pot, team, bux, setup) = sol_ticket_lamports_splits(count)?;
         let total = pot
             .checked_add(team)
+            .and_then(|s| s.checked_add(bux))
             .and_then(|s| s.checked_add(setup))
             .ok_or(error!(ErrorCode::ArithmeticOverflow))?;
 
@@ -331,6 +339,11 @@ pub mod slotto_lottery {
             &prize_vault_info,
             &ctx.accounts.team_vault.to_account_info(),
             team,
+        )?;
+        transfer_prize_vault_lamports(
+            &prize_vault_info,
+            &ctx.accounts.bux_vault.to_account_info(),
+            bux,
         )?;
         transfer_prize_vault_lamports(
             &prize_vault_info,
@@ -531,7 +544,17 @@ pub mod slotto_lottery {
         require_keys_eq!(draw.vrf_request, Pubkey::default(), ErrorCode::VrfAlreadyRequested);
 
         if ctx.remaining_accounts.is_empty() {
-            draw.vrf_request = VRF_STUB_MARKER;
+            // Deterministic stub: devnet/integration only. A mainnet build (without
+            // the `stub-vrf` feature) must never accept this — the winner would be
+            // grindable via the settle clock hash.
+            #[cfg(not(feature = "stub-vrf"))]
+            {
+                return Err(error!(ErrorCode::StubVrfDisabled));
+            }
+            #[cfg(feature = "stub-vrf")]
+            {
+                draw.vrf_request = VRF_STUB_MARKER;
+            }
         } else {
             require_eq!(
                 ctx.remaining_accounts.len(),
@@ -543,10 +566,60 @@ pub mod slotto_lottery {
                 is_switchboard_randomness_owner(randomness.owner),
                 ErrorCode::InvalidRandomnessAccount
             );
+            // Reject an already-revealed randomness account: if its value were known
+            // at request time, the caller could pick a winning account. The legit
+            // keeper binds a freshly-committed (unrevealed) account here and reveals
+            // it later during settle.
+            {
+                let data = randomness.try_borrow_data()?;
+                require!(
+                    switchboard_randomness_is_unrevealed(&data)?,
+                    ErrorCode::RandomnessAlreadyRevealed
+                );
+            }
             draw.vrf_request = randomness.key();
         }
 
         draw.state = DrawState::VrfRequested as u8;
+        Ok(())
+    }
+
+    /// **Authority-only recovery:** if a draw is stuck in **VrfRequested** (e.g. a junk
+    /// randomness account was bound and never resolves), reset it back to **SalesClosed**
+    /// so the keeper can re-run `request_vrf` with a fresh randomness account. Never
+    /// usable once **Settled**, so it cannot rewind a completed draw.
+    pub fn reset_vrf(ctx: Context<ResetVrf>) -> Result<()> {
+        let mut draw = ctx.accounts.draw.load_mut()?;
+        require!(
+            draw.state == DrawState::VrfRequested as u8,
+            ErrorCode::WrongDrawState
+        );
+        draw.vrf_request = Pubkey::default();
+        draw.state = DrawState::SalesClosed as u8;
+        Ok(())
+    }
+
+    /// **Authority-only:** re-anchor a liquid-dynamic SPL row's reference price while the
+    /// draw is still **Selling** (used after a large market move so buy-time quotes keep
+    /// falling inside the accepted band). No effect on fixed-price rows.
+    pub fn update_spl_reference_price(
+        ctx: Context<UpdateSplReferencePrice>,
+        mint: Pubkey,
+        new_price_per_ticket: u64,
+    ) -> Result<()> {
+        require!(new_price_per_ticket > 0, ErrorCode::InvalidSplPrice);
+        let mut draw = ctx.accounts.draw.load_mut()?;
+        require!(
+            draw.state == DrawState::Selling as u8,
+            ErrorCode::WrongDrawState
+        );
+        let idx = find_spl_row_index_in_table(&draw.spl_mint_rows, draw.spl_count, &mint)
+            .ok_or(ErrorCode::MintNotInDraw)?;
+        require!(
+            draw.spl_mint_rows[idx].pricing_mode == SPL_PRICING_LIQUID_DYNAMIC,
+            ErrorCode::InvalidSplPricingMode
+        );
+        draw.spl_mint_rows[idx].price_per_ticket = new_price_per_ticket;
         Ok(())
     }
 
@@ -578,17 +651,25 @@ pub mod slotto_lottery {
             AccountInfo<'static>,
             u32,
         ) = if vrf_request == VRF_STUB_MARKER {
-            require_eq!(
-                ctx.remaining_accounts.len(),
-                2,
-                ErrorCode::SettleAccountsWrongLen
-            );
-            let chunk_account: AccountInfo<'static> =
-                unsafe { core::mem::transmute(ctx.remaining_accounts[0].clone()) };
-            let winner_account: AccountInfo<'static> =
-                unsafe { core::mem::transmute(ctx.remaining_accounts[1].clone()) };
-            let winning_ticket_id = stub_settle_winning_ticket_id(&draw_key, slot, ts, n)?;
-            (chunk_account, winner_account, winning_ticket_id)
+            #[cfg(not(feature = "stub-vrf"))]
+            {
+                let _ = (slot, ts);
+                return Err(error!(ErrorCode::StubVrfDisabled));
+            }
+            #[cfg(feature = "stub-vrf")]
+            {
+                require_eq!(
+                    ctx.remaining_accounts.len(),
+                    2,
+                    ErrorCode::SettleAccountsWrongLen
+                );
+                let chunk_account: AccountInfo<'static> =
+                    unsafe { core::mem::transmute(ctx.remaining_accounts[0].clone()) };
+                let winner_account: AccountInfo<'static> =
+                    unsafe { core::mem::transmute(ctx.remaining_accounts[1].clone()) };
+                let winning_ticket_id = stub_settle_winning_ticket_id(&draw_key, slot, ts, n)?;
+                (chunk_account, winner_account, winning_ticket_id)
+            }
         } else {
             require_eq!(
                 ctx.remaining_accounts.len(),
@@ -619,11 +700,14 @@ pub mod slotto_lottery {
         let chunk_idx = ticket_chunk_index(winning_ticket_id);
         let slot_in_chunk = ticket_slot_in_chunk(winning_ticket_id);
 
-        let (expected_chunk, _) = Pubkey::find_program_address(
-            &[b"tickets", draw_key.as_ref(), &chunk_idx.to_le_bytes()],
+        // Match the buy path's validation: PDA key + program ownership + length,
+        // not just the derived key (M6).
+        require_ticket_chunk_initialized(
             ctx.program_id,
-        );
-        require_keys_eq!(chunk_account.key(), expected_chunk);
+            &chunk_account,
+            &draw_key,
+            chunk_idx,
+        )?;
 
         let owner = {
             let data = chunk_account.try_borrow_data()?;
@@ -751,8 +835,8 @@ pub(crate) fn find_spl_row_index_in_table(
     None
 }
 
-/// Per-ticket SOL splits for `count` tickets: (prize vault, team, setup).
-pub(crate) fn sol_ticket_lamports_splits(count: u32) -> Result<(u64, u64, u64)> {
+/// Per-ticket SOL splits for `count` tickets: (prize vault, team, bux, setup).
+pub(crate) fn sol_ticket_lamports_splits(count: u32) -> Result<(u64, u64, u64, u64)> {
     let c = count as u64;
     let pot = LAMPORTS_SOL_TICKET_POT
         .checked_mul(c)
@@ -760,10 +844,13 @@ pub(crate) fn sol_ticket_lamports_splits(count: u32) -> Result<(u64, u64, u64)> 
     let team = LAMPORTS_SOL_TICKET_TEAM
         .checked_mul(c)
         .ok_or(error!(ErrorCode::ArithmeticOverflow))?;
+    let bux = LAMPORTS_SOL_TICKET_BUX
+        .checked_mul(c)
+        .ok_or(error!(ErrorCode::ArithmeticOverflow))?;
     let setup = LAMPORTS_SOL_TICKET_SETUP
         .checked_mul(c)
         .ok_or(error!(ErrorCode::ArithmeticOverflow))?;
-    Ok((pot, team, setup))
+    Ok((pot, team, bux, setup))
 }
 
 /// **Total** SPL setup fee lamports (`LAMPORTS_SPL_TICKET_FEE_TOTAL * count`). No team vault payment.
@@ -795,8 +882,11 @@ pub struct SplMintRow {
 
 fn spl_validate_mint_arg(row: &SplMintArg) -> Result<()> {
     match row.pricing_mode {
-        SPL_PRICING_FIXED => require!(row.price_per_ticket > 0, ErrorCode::InvalidSplPrice),
-        SPL_PRICING_LIQUID_DYNAMIC => {}
+        // Liquid rows now also require a positive reference so the buy-time band
+        // (see `spl_resolve_price_per_ticket`) has a floor to anchor against.
+        SPL_PRICING_FIXED | SPL_PRICING_LIQUID_DYNAMIC => {
+            require!(row.price_per_ticket > 0, ErrorCode::InvalidSplPrice)
+        }
         _ => return Err(error!(ErrorCode::InvalidSplPricingMode)),
     }
     Ok(())
@@ -822,9 +912,14 @@ fn spl_resolve_price_per_ticket(row: &SplMintRow, quoted: u64) -> Result<u64> {
         }
         SPL_PRICING_LIQUID_DYNAMIC => {
             require!(quoted > 0, ErrorCode::InvalidSplQuotedPrice);
-            if row.price_per_ticket > 0 {
-                require!(quoted <= row.price_per_ticket, ErrorCode::SplQuotedPriceTooHigh);
-            }
+            // Reference is guaranteed > 0 at create/add time. Enforce a band so a
+            // buyer cannot quote ~1 base unit and farm jackpot odds for nothing.
+            require!(row.price_per_ticket > 0, ErrorCode::InvalidSplPrice);
+            let reference = row.price_per_ticket as u128;
+            let floor = (reference * LIQUID_PRICE_FLOOR_BPS as u128 / 10_000) as u64;
+            let ceil = (reference * LIQUID_PRICE_CEIL_BPS as u128 / 10_000) as u64;
+            require!(quoted >= floor.max(1), ErrorCode::SplQuotedPriceTooLow);
+            require!(quoted <= ceil, ErrorCode::SplQuotedPriceTooHigh);
             Ok(quoted)
         }
         _ => Err(error!(ErrorCode::InvalidSplPricingMode)),
@@ -1173,6 +1268,26 @@ pub struct RequestVrf<'info> {
 }
 
 #[derive(Accounts)]
+pub struct ResetVrf<'info> {
+    #[account(constraint = authority.key() == global_config.authority @ ErrorCode::Unauthorized)]
+    pub authority: Signer<'info>,
+    #[account(seeds = [b"global_config"], bump = global_config.bump)]
+    pub global_config: Account<'info, GlobalConfig>,
+    #[account(mut)]
+    pub draw: AccountLoader<'info, Draw>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateSplReferencePrice<'info> {
+    #[account(constraint = authority.key() == global_config.authority @ ErrorCode::Unauthorized)]
+    pub authority: Signer<'info>,
+    #[account(seeds = [b"global_config"], bump = global_config.bump)]
+    pub global_config: Account<'info, GlobalConfig>,
+    #[account(mut)]
+    pub draw: AccountLoader<'info, Draw>,
+}
+
+#[derive(Accounts)]
 pub struct SettleDraw<'info> {
     #[account(mut)]
     pub draw: AccountLoader<'info, Draw>,
@@ -1239,6 +1354,8 @@ pub enum ErrorCode {
     InvalidSplQuotedPrice,
     #[msg("quoted SPL price exceeds on-chain max")]
     SplQuotedPriceTooHigh,
+    #[msg("quoted SPL price is below the minimum band for this mint")]
+    SplQuotedPriceTooLow,
     #[msg("draw id counter overflow")]
     DrawIdOverflow,
     #[msg("draw is not accepting ticket sales")]
@@ -1303,6 +1420,10 @@ pub enum ErrorCode {
     WinnerMismatch,
     #[msg("draw must be Settled to withdraw SPL")]
     InvalidDrawStateForWithdrawSpl,
+    #[msg("VRF stub is disabled on this build — a Switchboard randomness account is required")]
+    StubVrfDisabled,
+    #[msg("randomness account has already been revealed; bind a fresh one")]
+    RandomnessAlreadyRevealed,
 }
 
 #[cfg(test)]
@@ -1350,14 +1471,13 @@ mod tests {
 
     #[test]
     fn sol_ticket_lamports_splits_bulk() {
-        let (pot, team, setup) = sol_ticket_lamports_splits(3).unwrap();
+        let (pot, team, bux, setup) = sol_ticket_lamports_splits(3).unwrap();
         assert_eq!(pot, LAMPORTS_SOL_TICKET_POT * 3);
         assert_eq!(team, LAMPORTS_SOL_TICKET_TEAM * 3);
+        assert_eq!(bux, LAMPORTS_SOL_TICKET_BUX * 3);
         assert_eq!(setup, LAMPORTS_SOL_TICKET_SETUP * 3);
-        assert_eq!(
-            pot + team + setup,
-            LAMPORTS_SOL_TICKET_TOTAL * 3 - LAMPORTS_SOL_TICKET_BUX * 3
-        );
+        // All four slices now sum to the full per-ticket total (BUX included).
+        assert_eq!(pot + team + bux + setup, LAMPORTS_SOL_TICKET_TOTAL * 3);
     }
 
     #[test]

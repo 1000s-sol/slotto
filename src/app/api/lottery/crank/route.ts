@@ -1,3 +1,5 @@
+import { timingSafeEqual } from "node:crypto";
+
 import { Connection } from "@solana/web3.js";
 import { NextResponse } from "next/server";
 
@@ -25,11 +27,22 @@ function cronSecret(): string | undefined {
   );
 }
 
+function constantTimeEqual(a: string, b: string): boolean {
+  const ab = Buffer.from(a);
+  const bb = Buffer.from(b);
+  if (ab.length !== bb.length) return false;
+  return timingSafeEqual(ab, bb);
+}
+
 function authorized(request: Request): boolean {
   const secret = cronSecret();
-  if (!secret) return true;
-  const auth = request.headers.get("authorization");
-  return auth === `Bearer ${secret}`;
+  if (!secret) {
+    // Fail closed in production: an unset cron secret must NOT mean "open".
+    // Allow only outside production so local dev can hit the route.
+    return process.env.NODE_ENV !== "production";
+  }
+  const auth = request.headers.get("authorization") ?? "";
+  return constantTimeEqual(auth, `Bearer ${secret}`);
 }
 
 async function handleCrank(request: Request) {

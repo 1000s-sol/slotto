@@ -81,6 +81,18 @@ async function crankOnRpc(
   };
 }
 
+/**
+ * Per-draw throttle for the public crank. This action is callable by any
+ * visitor (the homepage triggers it so draws settle without wallet popups), so
+ * we (a) collapse concurrent calls for the same draw into one in-flight run and
+ * (b) enforce a short cooldown between runs. This caps keeper RPC/tx work under
+ * spam. Best-effort per server instance — the durable fix is an authenticated
+ * cron worker.
+ */
+const inFlightCrank = new Map<number, Promise<CrankTriggerResult>>();
+const lastCrankAt = new Map<number, number>();
+const CRANK_COOLDOWN_MS = 4_000;
+
 /** Server-only: close_sales → request_vrf → settle for one draw. */
 export async function runTriggerLotteryCrank(
   drawId: number,
@@ -89,6 +101,30 @@ export async function runTriggerLotteryCrank(
     return { ok: false, error: "Invalid draw id" };
   }
 
+  const existing = inFlightCrank.get(drawId);
+  if (existing) return existing;
+
+  const last = lastCrankAt.get(drawId) ?? 0;
+  if (Date.now() - last < CRANK_COOLDOWN_MS) {
+    // Benign no-op: another crank just ran for this draw (common when many
+    // viewers settle the same draw at once). Don't surface an error or trigger
+    // UI backoff — the next poll picks up the new on-chain state.
+    return { ok: true };
+  }
+
+  const run = crankDrawOnce(drawId);
+  inFlightCrank.set(drawId, run);
+  try {
+    return await run;
+  } finally {
+    inFlightCrank.delete(drawId);
+    lastCrankAt.set(drawId, Date.now());
+  }
+}
+
+async function crankDrawOnce(
+  drawId: number,
+): Promise<CrankTriggerResult> {
   const payer = loadLotteryKeeperKeypair();
   if (!payer) {
     console.error("[lottery crank] LOTTERY_KEEPER_SECRET_KEY not configured");

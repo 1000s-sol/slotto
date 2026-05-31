@@ -18,6 +18,25 @@ pub fn is_switchboard_randomness_owner(owner: &Pubkey) -> bool {
     *owner == ON_DEMAND_MAINNET_PID || *owner == ON_DEMAND_DEVNET_PID
 }
 
+/// True when the randomness account has NOT been revealed yet (no reveal slot,
+/// zero value). Used at `request_vrf` to reject pre-revealed accounts whose value
+/// is already public (and therefore grindable by the caller).
+pub fn switchboard_randomness_is_unrevealed(data: &[u8]) -> Result<bool> {
+    require!(
+        data.len() >= RANDOMNESS_ACCOUNT_MIN_LEN,
+        crate::ErrorCode::InvalidRandomnessAccount
+    );
+    let reveal_slot = u64::from_le_bytes(
+        data[144..152]
+            .try_into()
+            .map_err(|_| error!(crate::ErrorCode::InvalidRandomnessAccount))?,
+    );
+    let value: [u8; 32] = data[152..184]
+        .try_into()
+        .map_err(|_| error!(crate::ErrorCode::InvalidRandomnessAccount))?;
+    Ok(reveal_slot == 0 && value == [0u8; 32])
+}
+
 /// Read revealed 32-byte value after Switchboard reveal (matches SDK `get_value` rules).
 pub fn read_switchboard_randomness_value(
     data: &[u8],
