@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 
+import { resolveAuthUrl } from "@/lib/auth-url";
+
 export const dynamic = "force-dynamic";
 
 /** Lets the profile UI explain missing OAuth env before signIn() throws. */
@@ -9,6 +11,7 @@ export async function GET() {
     process.env.ADMIN_DASHBOARD_SECRET?.trim();
   return NextResponse.json({
     authSecret: Boolean(secret && secret.length >= 16),
+    authUrl: resolveAuthUrl(),
     discord: Boolean(
       process.env.AUTH_DISCORD_ID?.trim() &&
         process.env.AUTH_DISCORD_SECRET?.trim(),

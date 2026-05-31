@@ -36,7 +36,7 @@ Product spec: [onchain-lottery-v1-spec.md](./onchain-lottery-v1-spec.md). Devnet
 | `NEXT_PUBLIC_SLOTTO_LOTTERY_PROGRAM_ID` | Yes | After deploy (Phase 3) |
 | `ADMIN_DASHBOARD_SECRET` | Yes | |
 | `LOTTERY_KEEPER_SECRET_KEY` | Yes | Mainnet-funded keeper |
-| `AUTH_URL` | Yes | `https://www.slotto.gg` |
+| `AUTH_URL` | Yes | `https://slotto.gg` (must match Discord/X redirect URIs; do not use `*.vercel.app`) |
 | `AUTH_DISCORD_*` / `AUTH_TWITTER_*` | Yes | OAuth redirect URLs for production |
 | `DISCORD_BOT_TOKEN` | Yes | |
 | `BLOB_READ_WRITE_TOKEN` | If using uploads | |

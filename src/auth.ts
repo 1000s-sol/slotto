@@ -11,10 +11,13 @@ import {
   readProfileSessionCookie,
   setProfileSessionCookie,
 } from "@/lib/profile-session";
+import { ensureAuthUrlEnv } from "@/lib/auth-url";
 import {
   linkDiscordToProfile,
   linkTwitterToProfile,
 } from "@/lib/user-profile-db";
+
+ensureAuthUrlEnv();
 
 function authSecret(): string | undefined {
   const s =
