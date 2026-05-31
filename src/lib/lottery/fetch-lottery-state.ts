@@ -7,6 +7,7 @@ import { createLotteryReadOnlyProgram } from "./program";
 import {
   fetchInProgressDraw,
   fetchLatestSettledDraw,
+  fetchSettledDrawPrizeLamports,
   lotteryDrawViewToJson,
   type LotteryDrawViewJson,
 } from "./draws";
@@ -14,6 +15,7 @@ import {
 export type LotteryStateSnapshot = {
   activeDraw: LotteryDrawViewJson | null;
   settledDraw: LotteryDrawViewJson | null;
+  settledDrawPrizeLamports: number | null;
   jackpotLamports: number | null;
   nowSec: number;
   teamVault: string;
@@ -29,6 +31,7 @@ export async function fetchLotteryState(
   const inProgress = await fetchInProgressDraw(connection, programId);
   let jackpotLamports: number | null = null;
   let settledDraw: LotteryDrawViewJson | null = null;
+  let settledDrawPrizeLamports: number | null = null;
 
   if (inProgress) {
     if (inProgress.state === DrawState.Selling) {
@@ -39,7 +42,13 @@ export async function fetchLotteryState(
     }
   } else {
     const settled = await fetchLatestSettledDraw(connection, programId);
-    settledDraw = settled ? lotteryDrawViewToJson(settled) : null;
+    if (settled) {
+      settledDraw = lotteryDrawViewToJson(settled);
+      settledDrawPrizeLamports = await fetchSettledDrawPrizeLamports(
+        connection,
+        settled,
+      );
+    }
   }
 
   const nowSec = await chainUnixTs(connection);
@@ -52,6 +61,7 @@ export async function fetchLotteryState(
   return {
     activeDraw: inProgress ? lotteryDrawViewToJson(inProgress) : null,
     settledDraw,
+    settledDrawPrizeLamports,
     jackpotLamports,
     nowSec,
     teamVault: cfg.teamVault.toBase58(),

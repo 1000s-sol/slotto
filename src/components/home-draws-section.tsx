@@ -1,19 +1,15 @@
 "use client";
 
-import { useConnection } from "@solana/wallet-adapter-react";
-import { LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { DrawState } from "@/lib/lottery/constants";
-import { lotteryProgramId, solscanAccountUrl } from "@/lib/lottery/config";
+import { solscanAccountUrl } from "@/lib/lottery/config";
 import { drawNeedsSettlement } from "@/lib/lottery/draw-settlement";
 import {
-  fetchPastSettledDraws,
-  fetchSettledDrawPrizeLamports,
   formatDrawDateLabel,
   lotteryDrawViewFromJson,
 } from "@/lib/lottery/draws";
 import { fetchLotteryStateClient } from "@/lib/lottery/fetch-lottery-state-client";
+import { fetchPastWinnersClient } from "@/lib/lottery/fetch-past-winners-client";
 import type { LotteryDrawView } from "@/lib/lottery/chain";
 import { fetchDrawEntrantsClient } from "@/lib/lottery/fetch-draw-entrants-client";
 import { DiscordLogo } from "@/components/discord-logo";
@@ -104,8 +100,6 @@ function WalletCell({ address }: { address: string }) {
 type Tab = "current" | "past";
 
 export function HomeDrawsSection() {
-  const { connection } = useConnection();
-  const programId = useMemo(() => lotteryProgramId(), []);
   const [tab, setTab] = useState<Tab>("current");
   const [tokens, setTokens] = useState<Record<string, TokenMeta>>({});
   const [paidWith, setPaidWith] = useState<Record<string, string[]>>({});
@@ -161,7 +155,7 @@ export function HomeDrawsSection() {
       setInProgressDraw(null);
       setEntrants([]);
     }
-  }, [programId]);
+  }, []);
 
   const needsSettlement = Boolean(
     inProgressDraw && drawNeedsSettlement(inProgressDraw, nowSec),
@@ -175,30 +169,36 @@ export function HomeDrawsSection() {
   }, []);
 
   const refreshPast = useCallback(async () => {
-    const settled = await fetchPastSettledDraws(connection, programId);
-    const rows: PastDraw[] = [];
-    for (const draw of settled) {
-      if (!draw.winner) continue;
-      const holders = await fetchDrawEntrantsClient(draw.drawId);
-      const winnerRow = holders.find((h) => h.wallet === draw.winner);
-      const socials = await fetchWalletSocialsClient(
-        holders.map((h) => h.wallet),
-      );
-      const winnerSocial = socials[draw.winner];
-      const prizeLamports = await fetchSettledDrawPrizeLamports(connection, draw);
-      rows.push({
-        drawNumber: draw.drawId,
-        date: formatDrawDateLabel(draw.salesCloseTs),
-        winnerWallet: draw.winner,
-        discord: winnerSocial?.discord ?? null,
-        x: winnerSocial?.x ?? null,
-        prizeSol: prizeLamports / LAMPORTS_PER_SOL,
-        ticketsBought: winnerRow?.tickets ?? 0,
-        totalTickets: draw.totalTickets,
-      });
+    try {
+      const settled = await fetchPastWinnersClient();
+      const rows: PastDraw[] = [];
+      for (const draw of settled) {
+        let ticketsBought = 0;
+        try {
+          const holders = await fetchDrawEntrantsClient(draw.drawId);
+          ticketsBought =
+            holders.find((h) => h.wallet === draw.winner)?.tickets ?? 0;
+        } catch {
+          // Entrants are optional for past winners; winner wallet is on-chain.
+        }
+        const socials = await fetchWalletSocialsClient([draw.winner]);
+        const winnerSocial = socials[draw.winner];
+        rows.push({
+          drawNumber: draw.drawId,
+          date: formatDrawDateLabel(draw.salesCloseTs),
+          winnerWallet: draw.winner,
+          discord: winnerSocial?.discord ?? null,
+          x: winnerSocial?.x ?? null,
+          prizeSol: draw.prizeLamports / 1_000_000_000,
+          ticketsBought,
+          totalTickets: draw.totalTickets,
+        });
+      }
+      setPastDraws(rows);
+    } catch {
+      setPastDraws([]);
     }
-    setPastDraws(rows.sort((a, b) => b.drawNumber - a.drawNumber));
-  }, [connection, programId]);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;

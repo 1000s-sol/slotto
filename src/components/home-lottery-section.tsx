@@ -48,7 +48,7 @@ import { lotteryWalletSendOptsForBrowser } from "@/lib/lottery/lottery-wallet-cl
 import { useLotteryWallet } from "@/lib/lottery/use-lottery-wallet";
 import { formatLotteryBuyError } from "@/lib/lottery/user-facing-error";
 import {
-  fetchWinnerPrizeLamports,
+  estimatePotFromTicketsLamports,
   formatSolFromLamports,
   lotteryDrawViewFromJson,
 } from "@/lib/lottery/draws";
@@ -208,11 +208,11 @@ export function HomeLotterySection() {
           : null;
         setSettledDraw(settled);
         if (settled?.winner) {
-          const [prize, socials] = await Promise.all([
-            fetchWinnerPrizeLamports(connection, settled.winner, settled),
-            fetchWalletSocialsClient([settled.winner]),
-          ]);
-          setWinnerPrizeLamports(prize);
+          setWinnerPrizeLamports(
+            state.settledDrawPrizeLamports ??
+              estimatePotFromTicketsLamports(settled.totalTickets),
+          );
+          const socials = await fetchWalletSocialsClient([settled.winner]);
           setWinnerSocial(socials[settled.winner] ?? null);
         } else {
           setWinnerPrizeLamports(null);
@@ -227,7 +227,7 @@ export function HomeLotterySection() {
         e instanceof Error ? e.message : e,
       );
     }
-  }, [connection]);
+  }, []);
 
   useAutoSettleDraw(activeDraw, nowSec, refresh, (result) => {
     // Settlement runs on the server keeper with no visitor interaction, so any
