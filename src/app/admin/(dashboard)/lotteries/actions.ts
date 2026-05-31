@@ -9,7 +9,10 @@ import {
 import { lotteryProgramId } from "@/lib/lottery/config";
 import { globalConfigPda } from "@/lib/lottery/pdas";
 import { createLotteryReadOnlyProgram } from "@/lib/lottery/program";
-import { resolveLotteryCluster } from "@/lib/lottery/rpc-url";
+import {
+  resolveLotteryCluster,
+  resolvePublicSolanaRpcUrl,
+} from "@/lib/lottery/rpc-url";
 import { withLotteryServerRpc } from "@/lib/lottery/server-rpc";
 import {
   appendDrawSplMintRow,
@@ -63,6 +66,12 @@ export type AdminGlobalConfigView = {
   setupVault: string;
   nextDrawId: string;
 };
+
+/** Safe browser/wallet RPC endpoint (no Helius api-key; used by admin signing). */
+export async function adminFetchWalletRpcEndpointAction(): Promise<string> {
+  await requireAdmin();
+  return resolvePublicSolanaRpcUrl();
+}
 
 /** Cluster the server uses for lottery reads/crank (from actual RPC URL, not env label alone). */
 export async function adminFetchServerLotteryClusterAction(): Promise<{

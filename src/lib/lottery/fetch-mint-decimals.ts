@@ -6,6 +6,7 @@ import {
   resolveLotteryClusterEnv,
   resolveLotteryRpcUrl,
 } from "./rpc-url";
+import { lotteryRpcErrorText } from "./user-facing-error";
 
 function metadataRpcUrl(): string {
   const explicit = process.env.LOTTERY_METADATA_RPC_URL?.trim();
@@ -27,7 +28,7 @@ export async function fetchMintDecimals(mint: string): Promise<number> {
   try {
     info = await read(primaryUrl);
   } catch (e) {
-    const message = e instanceof Error ? e.message : String(e);
+    const message = lotteryRpcErrorText(e);
     const fallback = LOTTERY_PUBLIC_MAINNET_RPC;
     if (primaryUrl !== fallback && isRpcAuthError(message)) {
       info = await read(fallback);

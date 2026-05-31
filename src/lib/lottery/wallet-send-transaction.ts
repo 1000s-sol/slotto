@@ -15,6 +15,8 @@ export type WalletSendTransaction = (
 export type LotteryWalletSendOpts = {
   sendTransaction?: WalletSendTransaction;
   adapter?: WalletAdapter | null;
+  /** Admin / recovery: skip RPC simulate when provider returns 403 on preflight. */
+  skipPreflight?: boolean;
 };
 
 function errorText(error: unknown): string {
@@ -64,7 +66,7 @@ export async function sendTransactionViaWallet(
 
   try {
     const signature = await opts.sendTransaction(tx, connection, {
-      skipPreflight: false,
+      skipPreflight: opts.skipPreflight ?? false,
     });
     await connection.confirmTransaction(
       { signature, blockhash, lastValidBlockHeight },

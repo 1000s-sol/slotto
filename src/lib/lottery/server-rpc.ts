@@ -1,5 +1,6 @@
 import { Connection } from "@solana/web3.js";
 
+import { lotteryRpcErrorText } from "./user-facing-error";
 import {
   isRpcAuthError,
   lotteryPublicRpcFallback,
@@ -15,7 +16,7 @@ export async function withLotteryServerRpc<T>(
   try {
     return await fn(primary);
   } catch (e) {
-    const message = e instanceof Error ? e.message : String(e);
+    const message = lotteryRpcErrorText(e);
     const fallbackUrl = lotteryPublicRpcFallback();
     if (fallbackUrl !== primaryUrl && isRpcAuthError(message)) {
       const fallback = new Connection(fallbackUrl, "confirmed");

@@ -8,6 +8,7 @@ import {
 } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import {
+  Connection,
   LAMPORTS_PER_SOL,
   PublicKey,
 } from "@solana/web3.js";
@@ -104,6 +105,9 @@ export function LotteryOpsPanel({
     null,
   );
   const [serverRpcEnvMismatch, setServerRpcEnvMismatch] = useState(false);
+  const [walletRpcEndpoint, setWalletRpcEndpoint] = useState<string | null>(
+    null,
+  );
 
   const [teamVault, setTeamVault] = useState(LOTTERY_TEAM_VAULT);
   const [buxVault, setBuxVault] = useState(LOTTERY_BUX_VAULT);
@@ -121,9 +125,35 @@ export function LotteryOpsPanel({
   const cluster = lotteryCluster();
   const clusterLabel = lotteryClusterLabel(cluster);
   const walletSendOpts = useMemo(
-    () => ({ sendTransaction }),
+    () => ({ sendTransaction, skipPreflight: true }),
     [sendTransaction],
   );
+  const signingConnection = useMemo(() => {
+    if (!walletRpcEndpoint) return connection;
+    return new Connection(walletRpcEndpoint, "confirmed");
+  }, [connection, walletRpcEndpoint]);
+  const walletRpcHost = useMemo(() => {
+    if (!walletRpcEndpoint) return null;
+    try {
+      return new URL(walletRpcEndpoint).host;
+    } catch {
+      return walletRpcEndpoint;
+    }
+  }, [walletRpcEndpoint]);
+
+  useEffect(() => {
+    let cancelled = false;
+    adminFetchWalletRpcEndpointAction()
+      .then((endpoint) => {
+        if (!cancelled) setWalletRpcEndpoint(endpoint);
+      })
+      .catch(() => {
+        if (!cancelled) setWalletRpcEndpoint(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const refreshConfig = useCallback(async () => {
     if (!wallet) return;
     const [serverCluster, cfg] = await Promise.all([
@@ -189,12 +219,12 @@ export function LotteryOpsPanel({
     if (!wallet || !publicKey) return;
     setPhase({ kind: "busy", label: "Confirm initialize in Phantom…" });
     try {
-      const program = createLotteryProgram(connection, wallet);
+      const program = createLotteryProgram(signingConnection, wallet);
       const team = new PublicKey(teamVault.trim());
       const bux = new PublicKey(buxVault.trim());
       const setup = new PublicKey(setupVault.trim());
       const sig = await sendTransactionViaWallet(
-        connection,
+        signingConnection,
         wallet,
         () =>
           program.methods
@@ -220,7 +250,7 @@ export function LotteryOpsPanel({
       });
     }
   }, [
-    connection,
+    signingConnection,
     globalConfig,
     publicKey,
     refreshConfig,
@@ -228,6 +258,7 @@ export function LotteryOpsPanel({
     setupVault,
     teamVault,
     wallet,
+    walletSendOpts,
   ]);
 
   const onCreateDraw = useCallback(async () => {
@@ -279,7 +310,7 @@ export function LotteryOpsPanel({
         });
         return;
       }
-      const program = createLotteryProgram(connection, wallet);
+      const program = createLotteryProgram(signingConnection, wallet);
 
       const openTs = parseDatetimeLocal(salesOpen);
       const closeTs = parseDatetimeLocal(salesClose);
@@ -359,19 +390,6 @@ export function LotteryOpsPanel({
         return;
       }
 
-      const walletProgram = createLotteryReadOnlyProgram(connection);
-      const walletCfg = await walletProgram.account.globalConfig.fetch(
-        globalConfig,
-      );
-      const walletNextDrawId = Number(walletCfg.nextDrawId);
-      if (walletNextDrawId !== drawId) {
-        setPhase({
-          kind: "error",
-          message: `Wallet RPC says the next draw is #${walletNextDrawId}, but the server (Vercel LOTTERY_CLUSTER) says #${drawId}. Phantom must be on ${clusterLabel} and Vercel must use the same cluster — you cannot create draw #${drawId} on mainnet while the UI/server still reads devnet (next id 10).`,
-        });
-        return;
-      }
-
       const draw = drawPda(programId, drawId);
       const prizeVault = prizeVaultPda(programId, draw);
       const ticketChunk0 = ticketChunkPda(programId, draw, 0);
@@ -381,7 +399,7 @@ export function LotteryOpsPanel({
         label: `Confirm create_draw #${drawId} in Phantom…`,
       });
       const sig = await sendTransactionViaWallet(
-        connection,
+        signingConnection,
         wallet,
         () =>
           program.methods
@@ -415,7 +433,7 @@ export function LotteryOpsPanel({
           label: `Ensuring team ATA for ${row.symbol}…`,
         });
         await ensureTeamTokenAta(
-          connection,
+          signingConnection,
           wallet,
           programId,
           mintPk,
@@ -471,7 +489,7 @@ export function LotteryOpsPanel({
     }
   }, [
     config,
-    connection,
+    signingConnection,
     globalConfig,
     isOnChainAuthority,
     liveDraw,
@@ -533,6 +551,12 @@ export function LotteryOpsPanel({
             </span>
           ) : null}
         </p>
+        {walletRpcHost ? (
+          <p className="mt-2 text-muted">
+            Wallet RPC{" "}
+            <span className="font-mono text-foreground">{walletRpcHost}</span>
+          </p>
+        ) : null}
         <p className="mt-2 text-muted">
           Global config PDA{" "}
           <a

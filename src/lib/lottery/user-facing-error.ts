@@ -56,6 +56,11 @@ function combinedErrorText(error: unknown): string {
   return errorStrings(error).join("\n");
 }
 
+/** Full RPC / on-chain error text (nested logs, causes). Used for retry detection. */
+export function lotteryRpcErrorText(error: unknown): string {
+  return combinedErrorText(error);
+}
+
 function parseRetrySeconds(text: string): number | null {
   const patterns = [
     /try again in (\d+)\s*seconds?/i,
