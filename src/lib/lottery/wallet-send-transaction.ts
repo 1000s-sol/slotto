@@ -41,6 +41,26 @@ export type LotteryWalletSendOpts = {
   ) => Promise<bigint>;
 };
 
+/** Thrown when broadcast succeeded but confirmation polling failed (tx may still have landed). */
+export class WalletSendError extends Error {
+  readonly signature?: string;
+
+  constructor(message: string, signature?: string) {
+    super(message);
+    this.name = "WalletSendError";
+    this.signature = signature;
+  }
+}
+
+export function walletSendErrorSignature(error: unknown): string | undefined {
+  if (error instanceof WalletSendError) return error.signature;
+  if (error && typeof error === "object" && "signature" in error) {
+    const s = (error as { signature?: unknown }).signature;
+    return typeof s === "string" ? s : undefined;
+  }
+  return undefined;
+}
+
 function errorText(error: unknown): string {
   if (error instanceof Error) return error.message;
   if (typeof error === "string") return error;
@@ -85,18 +105,23 @@ export async function sendTransactionViaWallet(
     if (opts?.confirmSignature) {
       const result = await opts.confirmSignature(signature);
       if (!result.confirmed) {
-        throw new Error(
+        throw new WalletSendError(
           result.error
             ? `Transaction not confirmed: ${result.error}`
             : "Transaction not confirmed.",
+          signature,
         );
       }
       return signature;
     }
-    await connection.confirmTransaction(
-      { signature, blockhash, lastValidBlockHeight },
-      "confirmed",
-    );
+    try {
+      await connection.confirmTransaction(
+        { signature, blockhash, lastValidBlockHeight },
+        "confirmed",
+      );
+    } catch (e) {
+      throw new WalletSendError(errorText(e), signature);
+    }
     return signature;
   };
 

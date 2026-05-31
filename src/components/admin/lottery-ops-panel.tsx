@@ -42,7 +42,7 @@ import { ensureTeamTokenAta } from "@/lib/lottery/ensure-team-token-ata";
 import { formatLotteryAdminError } from "@/lib/lottery/user-facing-error";
 import { lotteryWalletSendOptsForAdmin } from "@/lib/lottery/lottery-admin-wallet-client";
 import { useLotteryWallet } from "@/lib/lottery/use-lottery-wallet";
-import { sendTransactionViaWallet } from "@/lib/lottery/wallet-send-transaction";
+import { sendTransactionViaWallet, walletSendErrorSignature } from "@/lib/lottery/wallet-send-transaction";
 import { splMintDraftToOnChainArg } from "@/lib/lottery/project-tokens-for-draw";
 import {
   adminAnnounceDrawLiveAction,
@@ -393,28 +393,41 @@ export function LotteryOpsPanel({
         kind: "busy",
         label: `Confirm create_draw #${drawId} in Phantom…`,
       });
-      const sig = await sendTransactionViaWallet(
-        signingConnection,
-        wallet,
-        () =>
-          program.methods
-            .createDraw(
-              new BN(openTs),
-              new BN(closeTs),
-              refundKey,
-              new BN(seedLamports),
-              splArgs,
-            )
-            .accountsPartial({
-              authority: publicKey,
-              globalConfig,
-              draw,
-              prizeVault,
-              ticketChunk0,
-            })
-            .transaction(),
-        walletSendOpts,
-      );
+      let sig: string;
+      let rpcConfirmHiccup = false;
+      try {
+        sig = await sendTransactionViaWallet(
+          signingConnection,
+          wallet,
+          () =>
+            program.methods
+              .createDraw(
+                new BN(openTs),
+                new BN(closeTs),
+                refundKey,
+                new BN(seedLamports),
+                splArgs,
+              )
+              .accountsPartial({
+                authority: publicKey,
+                globalConfig,
+                draw,
+                prizeVault,
+                ticketChunk0,
+              })
+              .transaction(),
+          walletSendOpts,
+        );
+      } catch (e) {
+        const partialSig = walletSendErrorSignature(e);
+        const existsOnChain = await adminDrawExistsOnServerAction(drawId);
+        if (existsOnChain) {
+          sig = partialSig ?? "";
+          rpcConfirmHiccup = true;
+        } else {
+          throw e;
+        }
+      }
 
       const skippedTeamAta: string[] = [];
       for (const row of activeSpl) {
@@ -467,10 +480,13 @@ export function LotteryOpsPanel({
       const xNote = announce.ok
         ? " Posted draw-live to @slottogg_."
         : ` X post not sent: ${announce.reason}`;
+      const rpcNote = rpcConfirmHiccup
+        ? " Draw is on-chain; RPC confirmation polling hit a transient error."
+        : "";
       setPhase({
         kind: "ok",
-        message: `Draw #${drawId} created on ${serverClusterLabel ?? clusterLabel}${activeSpl.length ? ` with ${activeSpl.length} SPL mint(s)` : ""}.${ataNote}${xNote}`,
-        signature: sig,
+        message: `Draw #${drawId} created on ${serverClusterLabel ?? clusterLabel}${activeSpl.length ? ` with ${activeSpl.length} SPL mint(s)` : ""}.${ataNote}${xNote}${rpcNote}`,
+        signature: sig || undefined,
         draw: draw.toBase58(),
       });
     } catch (e) {

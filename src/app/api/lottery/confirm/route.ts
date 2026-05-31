@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { withLotteryServerRpc } from "@/lib/lottery/server-rpc";
+import { lotteryRpcErrorText } from "@/lib/lottery/user-facing-error";
 
 export const dynamic = "force-dynamic";
 
@@ -20,23 +21,31 @@ export async function POST(request: Request) {
   try {
     const result = await withLotteryServerRpc(async (connection) => {
       const deadline = Date.now() + 60_000;
+      let lastPollError: string | null = null;
       while (Date.now() < deadline) {
-        const status = await connection.getSignatureStatus(signature, {
-          searchTransactionHistory: true,
-        });
-        const value = status.value;
-        if (value) {
-          if (value.err) {
-            return { confirmed: false, error: JSON.stringify(value.err) };
+        try {
+          const status = await connection.getSignatureStatus(signature, {
+            searchTransactionHistory: true,
+          });
+          const value = status.value;
+          if (value) {
+            if (value.err) {
+              return { confirmed: false, error: JSON.stringify(value.err) };
+            }
+            const level = value.confirmationStatus;
+            if (level === "confirmed" || level === "finalized") {
+              return { confirmed: true, error: null };
+            }
           }
-          const level = value.confirmationStatus;
-          if (level === "confirmed" || level === "finalized") {
-            return { confirmed: true, error: null };
-          }
+        } catch (e) {
+          lastPollError = lotteryRpcErrorText(e);
         }
         await new Promise((r) => setTimeout(r, 2000));
       }
-      return { confirmed: false, error: "Confirmation timed out" };
+      return {
+        confirmed: false,
+        error: lastPollError ?? "Confirmation timed out",
+      };
     });
     return NextResponse.json(result);
   } catch (e) {
