@@ -44,11 +44,14 @@ curl -X POST https://slotto.gg/api/maintenance/lock
 
 ## Link previews (Discord, X, iMessage)
 
-Root layout sets Open Graph / Twitter to `public/brand/slotto-tickets.png` (on-site overlay still uses `public/maintenance/slotto-v2-coming-soon.png`).
+Root layout sets Open Graph / Twitter to `public/brand/slotto-tickets.png` with the live product title and description (on-site overlay still uses `public/maintenance/slotto-v2-coming-soon.png`).
+
 Optional: `NEXT_PUBLIC_SITE_URL=https://slotto.gg` on Vercel (defaults to slotto.gg).
+
+Official draw tweets use `https://slotto.gg` by default (`LOTTERY_ANNOUNCE_SITE_URL` to override). Preview `*.vercel.app` URLs in `NEXT_PUBLIC_SITE_URL` do not affect tweet links.
 
 After deploy, platforms cache previews — use [Twitter Card Validator](https://cards-dev.twitter.com/validator) or Discord’s embed debugger to refresh.
 
 ## Launch
 
-Set `MAINTENANCE_MODE=false` (or remove it) and redeploy. Restore default metadata title/description when going public if desired.
+Set `MAINTENANCE_MODE=false` (or remove it) and redeploy.

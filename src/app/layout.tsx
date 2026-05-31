@@ -8,6 +8,7 @@ import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { PriceTicker } from "@/components/price-ticker";
 import { SolanaWalletProvider } from "@/components/solana/solana-wallet-provider";
+import { rootSiteMetadata } from "@/lib/site-metadata";
 
 const zenDots = localFont({
   src: "../fonts/ZenDots-Regular.ttf",
@@ -33,42 +34,7 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const siteUrl =
-  process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://slotto.gg";
-
-const shareImage = "/brand/slotto-tickets.png";
-
-export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl),
-  title: {
-    default: "Slotto V2 is coming",
-    template: "%s · Slotto",
-  },
-  description:
-    "Working on improvements and upgrades. slotto.gg will be back soon.",
-  openGraph: {
-    type: "website",
-    siteName: "Slotto",
-    title: "Slotto V2 is coming",
-    description:
-      "Working on improvements and upgrades. slotto.gg will be back soon.",
-    images: [
-      {
-        url: shareImage,
-        width: 1254,
-        height: 1254,
-        alt: "Slotto — monthly lottery on Solana",
-      },
-    ],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Slotto V2 is coming",
-    description:
-      "Working on improvements and upgrades. slotto.gg will be back soon.",
-    images: [shareImage],
-  },
-};
+export const metadata: Metadata = rootSiteMetadata;
 
 export default function RootLayout({
   children,

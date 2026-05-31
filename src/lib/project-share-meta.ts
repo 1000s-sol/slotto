@@ -1,9 +1,6 @@
 import { headers } from "next/headers";
 
-/** Site origin for absolute Open Graph / Twitter image URLs */
-export function getSiteUrl(): string {
-  return process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://slotto.gg";
-}
+import { SITE_SHARE_IMAGE, getSiteUrl } from "@/lib/site-metadata";
 
 /** Prefer the request host so og:url matches the link being shared */
 export async function getRequestSiteUrl(): Promise<string> {
@@ -16,7 +13,7 @@ export async function getRequestSiteUrl(): Promise<string> {
   return getSiteUrl();
 }
 
-const DEFAULT_SHARE_IMAGE = "/brand/slotto-tickets.png";
+const DEFAULT_SHARE_IMAGE = SITE_SHARE_IMAGE;
 const DESCRIPTION_MAX = 200;
 
 /** Hosts that block hotlinking — unusable for Discord / X / iMessage previews */

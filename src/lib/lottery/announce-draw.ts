@@ -1,7 +1,7 @@
 import { Prisma } from "@prisma/client";
 
+import { getAnnounceSiteUrl } from "@/lib/site-metadata";
 import { prisma } from "@/lib/prisma";
-import { getSiteUrl } from "@/lib/project-share-meta";
 
 import { formatSolFromLamports } from "./draws";
 import { postTweet, xPostingConfigured } from "@/lib/x/post-tweet";
@@ -76,7 +76,7 @@ export async function announceDrawLive(opts: {
 }): Promise<void> {
   if (!xPostingConfigured()) return;
 
-  const siteUrl = getSiteUrl();
+  const siteUrl = getAnnounceSiteUrl();
   const lines = [`🎰 Slotto draw #${opts.drawId} is LIVE!`];
   if (opts.seedLamports && opts.seedLamports > 0) {
     lines.push(`Seed jackpot: ${formatSolFromLamports(opts.seedLamports)} SOL`);
@@ -99,7 +99,7 @@ export async function announceDrawEnded(opts: {
 }): Promise<void> {
   if (!xPostingConfigured()) return;
 
-  const siteUrl = getSiteUrl();
+  const siteUrl = getAnnounceSiteUrl();
   let text: string;
 
   if (opts.refunded || !opts.winner) {

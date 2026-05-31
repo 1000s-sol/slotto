@@ -5,8 +5,10 @@ import { useEffect, useId, useState } from "react";
 import { solscanTxUrl } from "@/lib/lottery/config";
 
 /** Public site origin (inlined at build via NEXT_PUBLIC_*). */
+import { getSiteUrl } from "@/lib/site-metadata";
+
 function siteUrl(): string {
-  return process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://slotto.gg";
+  return getSiteUrl();
 }
 
 export type PurchaseSuccessDetails = {
