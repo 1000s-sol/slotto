@@ -13,11 +13,17 @@ import { createLotteryProgram } from "./program";
 import type { SlottoLotteryProgram } from "./program";
 
 import {
-  isRpcAuthError,
+  isRpcFallbackError,
+  isRpcRateLimitError,
   lotteryPublicRpcFallback,
   resolveLotteryRpcUrl,
 } from "@/lib/lottery/rpc-url";
+import { lotteryRpcErrorText } from "@/lib/lottery/user-facing-error";
 import type { CrankTriggerResult } from "./trigger-crank-action";
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 async function crankOnRpc(
   rpcUrl: string,
@@ -132,17 +138,20 @@ async function crankDrawOnce(
   try {
     return await crankOnRpc(primaryRpc, drawId, payer);
   } catch (e) {
-    const message = e instanceof Error ? e.message : "Crank failed";
+    const message = lotteryRpcErrorText(e);
 
-    if (isRpcAuthError(message) && primaryRpc !== fallbackRpc) {
+    if (isRpcRateLimitError(message)) {
+      await sleep(2500);
+    }
+
+    if (isRpcFallbackError(message) && primaryRpc !== fallbackRpc) {
       console.warn(
-        "[lottery crank] RPC auth failed on primary — retrying public cluster fallback",
+        "[lottery crank] primary RPC failed — retrying public cluster fallback",
       );
       try {
         return await crankOnRpc(fallbackRpc, drawId, payer);
       } catch (retryErr) {
-        const retryMsg =
-          retryErr instanceof Error ? retryErr.message : "Crank failed";
+        const retryMsg = lotteryRpcErrorText(retryErr);
         console.error("[lottery crank] draw", drawId, retryMsg);
         return { ok: false, error: retryMsg };
       }

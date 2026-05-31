@@ -32,16 +32,35 @@ jobs:
             exit 1
           fi
           URL="${LOTTERY_CRANK_URL:-https://www.slotto.gg/api/lottery/crank}"
-          echo "GET ${URL}"
-          HTTP=$(curl -sS -w "\n%{http_code}" -X GET \
-            -H "Authorization: Bearer ${CRON_SECRET}" \
-            -H "Accept: application/json" \
-            --max-time 120 \
-            "${URL}")
-          BODY=$(echo "$HTTP" | head -n -1)
-          CODE=$(echo "$HTTP" | tail -n 1)
-          echo "$BODY"
-          if [ "$CODE" -lt 200 ] || [ "$CODE" -ge 300 ]; then
+          MAX_ATTEMPTS=3
+          ATTEMPT=1
+          while [ "$ATTEMPT" -le "$MAX_ATTEMPTS" ]; do
+            echo "GET ${URL} (attempt ${ATTEMPT}/${MAX_ATTEMPTS})"
+            HTTP=$(curl -sS -w "\n%{http_code}" -X GET \
+              -H "Authorization: Bearer ${CRON_SECRET}" \
+              -H "Accept: application/json" \
+              --max-time 120 \
+              "${URL}")
+            BODY=$(echo "$HTTP" | head -n -1)
+            CODE=$(echo "$HTTP" | tail -n 1)
+            echo "$BODY"
+            if [ "$CODE" -ge 200 ] && [ "$CODE" -lt 300 ]; then
+              if echo "$BODY" | grep -q '"retry"[[:space:]]*:[[:space:]]*true'; then
+                if [ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ]; then
+                  echo "Rate limited — waiting 30s before retry" >&2
+                  sleep 30
+                  ATTEMPT=$((ATTEMPT + 1))
+                  continue
+                fi
+              fi
+              exit 0
+            fi
+            if [ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ]; then
+              echo "HTTP ${CODE} — waiting 30s before retry" >&2
+              sleep 30
+              ATTEMPT=$((ATTEMPT + 1))
+              continue
+            fi
             echo "HTTP ${CODE}" >&2
             exit 22
-          fi
+          done

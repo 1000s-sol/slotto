@@ -5,8 +5,10 @@ import { NextResponse } from "next/server";
 import { fetchDrawIdsNeedingCrank } from "@/lib/lottery/crank-draw";
 import { lotteryProgramId } from "@/lib/lottery/config";
 import { loadLotteryKeeperKeypair } from "@/lib/lottery/keeper-wallet";
+import { isRpcRateLimitError } from "@/lib/lottery/rpc-url";
 import { withLotteryServerRpc } from "@/lib/lottery/server-rpc";
 import { runTriggerLotteryCrank } from "@/lib/lottery/trigger-lottery-crank-impl";
+import { lotteryRpcErrorText } from "@/lib/lottery/user-facing-error";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -86,8 +88,14 @@ async function handleCrank(request: Request) {
       results,
     });
   } catch (e) {
-    const message = e instanceof Error ? e.message : "Crank failed";
+    const message = lotteryRpcErrorText(e);
     console.error("[lottery crank route]", message);
+    if (isRpcRateLimitError(message)) {
+      return NextResponse.json(
+        { ok: false, error: message, retry: true },
+        { status: 200 },
+      );
+    }
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
