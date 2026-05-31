@@ -60,11 +60,21 @@ export async function buySplTickets(
   const required = quotedPricePerTicket * BigInt(count);
 
   let held = BigInt(0);
-  try {
-    const bal = await connection.getTokenAccountBalance(buyerToken, "confirmed");
-    held = BigInt(bal.value.amount);
-  } catch {
-    held = BigInt(0); // No associated token account yet — treat as zero balance.
+  if (sendOpts?.fetchTokenBalance) {
+    try {
+      held = await sendOpts.fetchTokenBalance(wallet.publicKey, mint);
+    } catch {
+      throw new BuyPreflightError(
+        `Could not verify your ${label} balance. Refresh the page and try again.`,
+      );
+    }
+  } else {
+    try {
+      const bal = await connection.getTokenAccountBalance(buyerToken, "confirmed");
+      held = BigInt(bal.value.amount);
+    } catch {
+      // Browser RPC often 403 — skip hard fail; Phantom will reject if underfunded.
+    }
   }
   if (held < required) {
     throw new BuyPreflightError(

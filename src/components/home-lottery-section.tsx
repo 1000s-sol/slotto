@@ -5,7 +5,6 @@ import {
   useWallet,
 } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
-import { getAssociatedTokenAddressSync } from "@solana/spl-token";
 import { PublicKey } from "@solana/web3.js";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -54,6 +53,7 @@ import {
   lotteryDrawViewFromJson,
 } from "@/lib/lottery/draws";
 import { fetchLotteryStateClient } from "@/lib/lottery/fetch-lottery-state-client";
+import { fetchTokenBalanceClient } from "@/lib/lottery/fetch-token-balance-client";
 import {
   clampTicketCountForPayWith,
   maxBuyableTicketsForPayWith,
@@ -334,16 +334,11 @@ export function HomeLotterySection() {
       return;
     }
     let cancelled = false;
-    const ata = getAssociatedTokenAddressSync(
-      new PublicKey(FREE_ENTRY_MINT),
-      wallet.publicKey,
-    );
-    void connection
-      .getTokenAccountBalance(ata, "confirmed")
-      .then((bal) => {
+    void fetchTokenBalanceClient(wallet.publicKey, new PublicKey(FREE_ENTRY_MINT))
+      .then((snap) => {
         if (!cancelled) {
           setHoldsFreeEntry(
-            BigInt(bal.value.amount) >= BigInt(FREE_ENTRY_PRICE_PER_TICKET),
+            BigInt(snap.amount) >= BigInt(FREE_ENTRY_PRICE_PER_TICKET),
           );
         }
       })
@@ -353,7 +348,7 @@ export function HomeLotterySection() {
     return () => {
       cancelled = true;
     };
-  }, [connection, connected, wallet?.publicKey, phase.kind]);
+  }, [connected, wallet?.publicKey, phase.kind]);
 
   useEffect(() => {
     if (!activeDraw) {

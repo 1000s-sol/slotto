@@ -1,5 +1,7 @@
 import type { AnchorWallet } from "@solana/wallet-adapter-react";
+import { PublicKey } from "@solana/web3.js";
 
+import { fetchTokenBalanceClient } from "./fetch-token-balance-client";
 import type { LotteryWalletSendOpts } from "./wallet-send-transaction";
 
 async function fetchServerBlockhash(): Promise<{
@@ -62,6 +64,10 @@ export function lotteryWalletSendOptsForBrowser(
     confirmSignature: confirmSignatureOnServer,
     signAndSendRaw: true,
     broadcastRawTransaction: broadcastSignedTransactionOnServer,
+    fetchTokenBalance: async (owner: PublicKey, mint: PublicKey) => {
+      const snap = await fetchTokenBalanceClient(owner, mint);
+      return BigInt(snap.amount);
+    },
   };
 }
 

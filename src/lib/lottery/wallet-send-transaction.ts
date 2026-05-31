@@ -1,6 +1,7 @@
 import type { AnchorWallet } from "@solana/wallet-adapter-react";
 import type {
   Connection,
+  PublicKey,
   Transaction,
   TransactionSignature,
 } from "@solana/web3.js";
@@ -33,6 +34,11 @@ export type LotteryWalletSendOpts = {
   ) => Promise<{ confirmed: boolean; error: string | null }>;
   /** Skip RPC simulate when provider returns 403 on preflight. */
   skipPreflight?: boolean;
+  /** SPL balance via server RPC (browser public RPC 403s token reads). */
+  fetchTokenBalance?: (
+    owner: PublicKey,
+    mint: PublicKey,
+  ) => Promise<bigint>;
 };
 
 function errorText(error: unknown): string {
