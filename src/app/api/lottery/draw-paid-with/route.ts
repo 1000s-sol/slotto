@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
-import { Connection } from "@solana/web3.js";
 
 import { lotteryProgramId } from "@/lib/lottery/config";
 import { fetchDrawPaidWithMints } from "@/lib/lottery/draw-paid-with";
-import { resolveLotteryRpcUrl } from "@/lib/lottery/rpc-url";
+import { withLotteryServerRpc } from "@/lib/lottery/server-rpc";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
@@ -28,11 +27,8 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Invalid drawId" }, { status: 400 });
   }
   try {
-    const connection = new Connection(resolveLotteryRpcUrl(), "confirmed");
-    const paidWith = await fetchDrawPaidWithMints(
-      connection,
-      lotteryProgramId(),
-      drawId,
+    const paidWith = await withLotteryServerRpc((connection) =>
+      fetchDrawPaidWithMints(connection, lotteryProgramId(), drawId),
     );
     return NextResponse.json(
       { paidWith },

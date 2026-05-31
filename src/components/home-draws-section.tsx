@@ -15,7 +15,7 @@ import {
 } from "@/lib/lottery/draws";
 import { fetchLotteryStateClient } from "@/lib/lottery/fetch-lottery-state-client";
 import type { LotteryDrawView } from "@/lib/lottery/chain";
-import { fetchDrawEntrants } from "@/lib/lottery/ticket-holders";
+import { fetchDrawEntrantsClient } from "@/lib/lottery/fetch-draw-entrants-client";
 import { DiscordLogo } from "@/components/discord-logo";
 import { SocialProfileCell } from "@/components/social-profile-cell";
 import { fetchWalletSocialsClient } from "@/lib/fetch-wallet-social-client";
@@ -142,7 +142,7 @@ export function HomeDrawsSection() {
       setDrawAddress(draw.draw.toBase58());
       setTotalTickets(draw.totalTickets);
       setDrawState(draw.state);
-      const holders = await fetchDrawEntrants(connection, programId, draw);
+      const holders = await fetchDrawEntrantsClient(draw.drawId);
       const socials = await fetchWalletSocialsClient(
         holders.map((h) => h.wallet),
       );
@@ -161,7 +161,7 @@ export function HomeDrawsSection() {
       setInProgressDraw(null);
       setEntrants([]);
     }
-  }, [connection, programId]);
+  }, [programId]);
 
   const needsSettlement = Boolean(
     inProgressDraw && drawNeedsSettlement(inProgressDraw, nowSec),
@@ -179,7 +179,7 @@ export function HomeDrawsSection() {
     const rows: PastDraw[] = [];
     for (const draw of settled) {
       if (!draw.winner) continue;
-      const holders = await fetchDrawEntrants(connection, programId, draw);
+      const holders = await fetchDrawEntrantsClient(draw.drawId);
       const winnerRow = holders.find((h) => h.wallet === draw.winner);
       const socials = await fetchWalletSocialsClient(
         holders.map((h) => h.wallet),
@@ -443,7 +443,9 @@ function CurrentDrawTable({
                   colSpan={7}
                   className="px-5 py-8 text-center text-sm text-muted"
                 >
-                  No tickets sold yet.
+                  {totalTickets > 0
+                    ? "Loading entrant details…"
+                    : "No tickets sold yet."}
                 </td>
               </tr>
             ) : (
