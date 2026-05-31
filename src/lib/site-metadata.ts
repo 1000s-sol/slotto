@@ -43,10 +43,6 @@ export const rootSiteMetadata: Metadata = {
     template: `%s · ${SITE_NAME}`,
   },
   description: SITE_DESCRIPTION,
-  icons: {
-    icon: [{ url: "/brand/slotto-logo.png", type: "image/png" }],
-    apple: [{ url: SITE_SHARE_IMAGE, type: "image/png" }],
-  },
   openGraph: {
     type: "website",
     siteName: SITE_NAME,

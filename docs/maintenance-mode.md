@@ -46,6 +46,8 @@ curl -X POST https://slotto.gg/api/maintenance/lock
 
 Root layout sets Open Graph / Twitter to `public/brand/slotto-tickets.png` with the live product title and description (on-site overlay still uses `public/maintenance/slotto-v2-coming-soon.png`).
 
+To swap the embed card image, replace that file or drop a new PNG at the same path and redeploy. Recommended size: square, at least 1200×1200 px. Favicon is separate: `src/app/icon.png` (do not change via layout metadata).
+
 Optional: `NEXT_PUBLIC_SITE_URL=https://slotto.gg` on Vercel (defaults to slotto.gg).
 
 Official draw tweets use `https://slotto.gg` by default (`LOTTERY_ANNOUNCE_SITE_URL` to override). Preview `*.vercel.app` URLs in `NEXT_PUBLIC_SITE_URL` do not affect tweet links.
