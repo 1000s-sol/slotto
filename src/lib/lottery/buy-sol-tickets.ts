@@ -3,7 +3,11 @@ import { Connection, PublicKey } from "@solana/web3.js";
 
 import { MAX_SOL_TICKETS_PER_BUY } from "./constants";
 import type { LotteryDrawView } from "./chain";
-import { buildBuySolTicketsTransaction, preflightBuySolTickets } from "./preflight-buy-sol";
+import {
+  buildBuySolTicketsTransaction,
+  preflightBuySolTickets,
+  type LotteryVaultPubkeys,
+} from "./preflight-buy-sol";
 import {
   sendTransactionViaWallet,
   type LotteryWalletSendOpts,
@@ -15,6 +19,7 @@ export async function buySolTickets(
   programId: PublicKey,
   draw: LotteryDrawView,
   count: number,
+  vaults: LotteryVaultPubkeys,
   sendOpts?: LotteryWalletSendOpts,
   nowSec?: number,
 ): Promise<string> {
@@ -41,6 +46,7 @@ export async function buySolTickets(
         programId,
         draw,
         count,
+        vaults,
       ),
     sendOpts,
   );

@@ -40,11 +40,13 @@ import {
 } from "@/components/admin/project-token-draw-allocator";
 import { ensureTeamTokenAta } from "@/lib/lottery/ensure-team-token-ata";
 import { formatLotteryAdminError } from "@/lib/lottery/user-facing-error";
+import { lotteryWalletSendOptsFromApi } from "@/lib/lottery/lottery-wallet-client";
 import { sendTransactionViaWallet } from "@/lib/lottery/wallet-send-transaction";
 import { splMintDraftToOnChainArg } from "@/lib/lottery/project-tokens-for-draw";
 import {
   adminAnnounceDrawLiveAction,
   adminBuildSplMintDraftsForCreateDrawAction,
+  adminRepairDrawSplFromChainAction,
   adminDrawExistsOnServerAction,
   adminConfirmSignatureAction,
   adminFetchGlobalConfigAction,
@@ -123,11 +125,7 @@ export function LotteryOpsPanel({
   const cluster = lotteryCluster();
   const clusterLabel = lotteryClusterLabel(cluster);
   const walletSendOpts = useMemo(
-    () => ({
-      sendTransaction,
-      fetchBlockhash: adminFetchRecentBlockhashAction,
-      confirmSignature: adminConfirmSignatureAction,
-    }),
+    () => lotteryWalletSendOptsFromApi(sendTransaction),
     [sendTransaction],
   );
   /**
@@ -447,14 +445,13 @@ export function LotteryOpsPanel({
         return;
       }
 
-      if (activeSpl.length > 0) {
-        await adminSaveSplRowsForDrawAction(drawId, activeSpl);
-      }
+      await adminRepairDrawSplFromChainAction(drawId);
 
-      // Official @slottogg_ "draw is live" post (no-op unless X posting is on).
-      void adminAnnounceDrawLiveAction(drawId, seedLamports, closeTs).catch(
-        () => {},
-      );
+      try {
+        await adminAnnounceDrawLiveAction(drawId, seedLamports, closeTs);
+      } catch (announceErr) {
+        console.warn("[lottery announce] live post failed:", announceErr);
+      }
 
       await refreshConfig();
       await onLiveDrawChange();

@@ -19,6 +19,12 @@ export class BuyPreflightError extends Error {
   }
 }
 
+export type LotteryVaultPubkeys = {
+  teamVault: PublicKey;
+  buxVault: PublicKey;
+  setupVault: PublicKey;
+};
+
 /** Build an unsigned `buy_sol_tickets` transaction (for simulation). */
 export async function buildBuySolTicketsTransaction(
   connection: Connection,
@@ -26,10 +32,10 @@ export async function buildBuySolTicketsTransaction(
   programId: PublicKey,
   draw: LotteryDrawView,
   count: number,
+  vaults: LotteryVaultPubkeys,
 ) {
   const program = createLotteryProgram(connection, wallet);
   const globalConfig = globalConfigPda(programId);
-  const cfg = await program.account.globalConfig.fetch(globalConfig);
 
   const base = draw.totalTickets;
   const chunkIndices = ticketChunkIndicesForRange(base, count);
@@ -46,16 +52,13 @@ export async function buildBuySolTicketsTransaction(
       draw: draw.draw,
       prizeVault: draw.prizeVault,
       globalConfig,
-      teamVault: cfg.teamVault,
-      buxVault: cfg.buxVault,
-      setupVault: cfg.setupVault,
+      teamVault: vaults.teamVault,
+      buxVault: vaults.buxVault,
+      setupVault: vaults.setupVault,
     })
     .remainingAccounts(remainingAccounts)
     .transaction();
 
-  const { blockhash } = await connection.getLatestBlockhash("confirmed");
-  tx.recentBlockhash = blockhash;
-  tx.feePayer = wallet.publicKey;
   return tx;
 }
 
@@ -93,13 +96,18 @@ export async function preflightBuySolTickets(
     );
   }
 
-  const balance = await connection.getBalance(wallet.publicKey, "confirmed");
   const required =
     count * LAMPORTS_PER_SOL_TICKET + LAMPORTS_SOL_BUY_FEE_BUFFER;
-  if (balance < required) {
-    throw new BuyPreflightError(
-      `Need ~${(required / 1e9).toFixed(4)} SOL for ${count} ticket(s) + network fee (connected wallet has ${(balance / 1e9).toFixed(4)} SOL on Slotto mainnet RPC). If Phantom still says insufficient SOL, switch Phantom to Mainnet Beta and reconnect.`,
-    );
+  try {
+    const balance = await connection.getBalance(wallet.publicKey, "confirmed");
+    if (balance < required) {
+      throw new BuyPreflightError(
+        `Need ~${(required / 1e9).toFixed(4)} SOL for ${count} ticket(s) + network fee (wallet has ${(balance / 1e9).toFixed(4)} SOL).`,
+      );
+    }
+  } catch (e) {
+    if (e instanceof BuyPreflightError) throw e;
+    // Browser cannot read balance on public RPC (403); Phantom will reject if underfunded.
   }
 
   // RPC simulation of unsigned legacy txs is unreliable (false InsufficientFundsForRent

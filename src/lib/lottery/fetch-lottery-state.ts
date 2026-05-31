@@ -2,6 +2,8 @@ import { Connection, PublicKey } from "@solana/web3.js";
 
 import { chainUnixTs, fetchJackpotLamports } from "./chain";
 import { DrawState } from "./constants";
+import { globalConfigPda } from "./pdas";
+import { createLotteryReadOnlyProgram } from "./program";
 import {
   fetchInProgressDraw,
   fetchLatestSettledDraw,
@@ -14,6 +16,9 @@ export type LotteryStateSnapshot = {
   settledDraw: LotteryDrawViewJson | null;
   jackpotLamports: number | null;
   nowSec: number;
+  teamVault: string;
+  buxVault: string;
+  setupVault: string;
 };
 
 /** Server-side snapshot for homepage (one RPC pass, no browser Helius spam). */
@@ -39,10 +44,18 @@ export async function fetchLotteryState(
 
   const nowSec = await chainUnixTs(connection);
 
+  const program = createLotteryReadOnlyProgram(connection);
+  const cfg = await program.account.globalConfig.fetch(
+    globalConfigPda(programId),
+  );
+
   return {
     activeDraw: inProgress ? lotteryDrawViewToJson(inProgress) : null,
     settledDraw,
     jackpotLamports,
     nowSec,
+    teamVault: cfg.teamVault.toBase58(),
+    buxVault: cfg.buxVault.toBase58(),
+    setupVault: cfg.setupVault.toBase58(),
   };
 }

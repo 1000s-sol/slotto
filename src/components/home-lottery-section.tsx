@@ -46,6 +46,7 @@ import {
   isFreeEntryMint,
 } from "@/lib/lottery/free-entry";
 import { drawNeedsSettlement } from "@/lib/lottery/draw-settlement";
+import { lotteryWalletSendOptsFromApi } from "@/lib/lottery/lottery-wallet-client";
 import { formatLotteryBuyError } from "@/lib/lottery/user-facing-error";
 import {
   fetchWinnerPrizeLamports,
@@ -122,6 +123,11 @@ export function HomeLotterySection() {
   const programId = useMemo(() => lotteryProgramId(), []);
 
   const [activeDraw, setActiveDraw] = useState<LotteryDrawView | null>(null);
+  const [vaultPubkeys, setVaultPubkeys] = useState<{
+    teamVault: PublicKey;
+    buxVault: PublicKey;
+    setupVault: PublicKey;
+  } | null>(null);
   const [settledDraw, setSettledDraw] = useState<LotteryDrawView | null>(null);
   const [jackpotLamports, setJackpotLamports] = useState<number | null>(null);
   const [winnerPrizeLamports, setWinnerPrizeLamports] = useState<number | null>(
@@ -180,6 +186,11 @@ export function HomeLotterySection() {
     try {
       const state = await fetchLotteryStateClient();
       setNowSec(state.nowSec);
+      setVaultPubkeys({
+        teamVault: new PublicKey(state.teamVault),
+        buxVault: new PublicKey(state.buxVault),
+        setupVault: new PublicKey(state.setupVault),
+      });
 
       if (state.activeDraw) {
         const inProgress = lotteryDrawViewFromJson(state.activeDraw);
@@ -474,6 +485,7 @@ export function HomeLotterySection() {
   const canSubmit =
     buyable &&
     Boolean(wallet) &&
+    Boolean(vaultPubkeys) &&
     phase.kind !== "busy" &&
     hasEnoughSolForBuy &&
     (payWith === "SOL" || Boolean(selectedSpl?.buyable));
@@ -497,7 +509,7 @@ export function HomeLotterySection() {
       setTicketCount(count);
     }
     setPhase({ kind: "busy", label: "Confirm in your wallet…" });
-    const sendOpts = { sendTransaction };
+    const sendOpts = lotteryWalletSendOptsFromApi(sendTransaction);
     try {
       const sig =
         payWith === "SOL"
@@ -507,6 +519,7 @@ export function HomeLotterySection() {
               programId,
               activeDraw,
               count,
+              vaultPubkeys,
               sendOpts,
               nowSec ?? undefined,
             )
@@ -530,6 +543,7 @@ export function HomeLotterySection() {
                 mint,
                 count,
                 quoted,
+                vaultPubkeys,
                 sendOpts,
                 splLabel,
               );

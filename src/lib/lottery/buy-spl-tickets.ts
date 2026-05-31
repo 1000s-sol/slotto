@@ -13,7 +13,7 @@ import {
   MAX_SOL_TICKETS_PER_BUY,
 } from "./constants";
 import { globalConfigPda, ticketChunkPda } from "./pdas";
-import { BuyPreflightError } from "./preflight-buy-sol";
+import { BuyPreflightError, type LotteryVaultPubkeys } from "./preflight-buy-sol";
 import { createLotteryProgram } from "./program";
 import { splBaseUnitsToUi } from "./spl-price";
 import { ticketChunkIndicesForRange } from "./ticket-chunks";
@@ -30,6 +30,7 @@ export async function buySplTickets(
   mint: PublicKey,
   count: number,
   quotedPricePerTicket: bigint,
+  vaults: LotteryVaultPubkeys,
   sendOpts?: LotteryWalletSendOpts,
   tokenLabel?: string,
 ): Promise<string> {
@@ -39,9 +40,7 @@ export async function buySplTickets(
 
   const program = createLotteryProgram(connection, wallet);
   const globalConfig = globalConfigPda(programId);
-  const cfg = await program.account.globalConfig.fetch(globalConfig);
-
-  const teamVault = cfg.teamVault;
+  const teamVault = vaults.teamVault;
 
   const buyerToken = getAssociatedTokenAddressSync(
     mint,
@@ -73,11 +72,15 @@ export async function buySplTickets(
     );
   }
 
-  const solBalance = await connection.getBalance(wallet.publicKey, "confirmed");
-  if (solBalance < LAMPORTS_SOL_BUY_FEE_BUFFER) {
-    throw new BuyPreflightError(
-      `This wallet needs a little SOL for the network fee (about ${(LAMPORTS_SOL_BUY_FEE_BUFFER / 1e9).toFixed(4)} SOL). Add some SOL and try again.`,
-    );
+  try {
+    const solBalance = await connection.getBalance(wallet.publicKey, "confirmed");
+    if (solBalance < LAMPORTS_SOL_BUY_FEE_BUFFER) {
+      throw new BuyPreflightError(
+        `This wallet needs a little SOL for the network fee (about ${(LAMPORTS_SOL_BUY_FEE_BUFFER / 1e9).toFixed(4)} SOL). Add some SOL and try again.`,
+      );
+    }
+  } catch (e) {
+    if (e instanceof BuyPreflightError) throw e;
   }
   const teamToken = getAssociatedTokenAddressSync(
     mint,
@@ -109,7 +112,7 @@ export async function buySplTickets(
         teamVault,
         buyerToken,
         teamToken,
-        setupVault: cfg.setupVault,
+        setupVault: vaults.setupVault,
       })
       .remainingAccounts(remainingAccounts)
       .transaction(),

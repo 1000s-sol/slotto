@@ -57,7 +57,7 @@ export function mergeSplMintsForBuyUi(
   for (const chain of chainRows) {
     const db = dbByMint.get(chain.mint);
     const displayCap = db?.displayCap ?? chain.cap;
-    const published = db?.published ?? false;
+    const published = db?.published ?? true;
     const purchasesLocked = db?.purchasesLocked ?? false;
     const effectiveCap = Math.min(chain.cap, displayCap);
     const remaining = splTicketsRemaining({

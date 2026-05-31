@@ -35,11 +35,20 @@ export function isRpcAuthError(message: string): boolean {
   );
 }
 
+/** Public Solana endpoints 403 browser traffic — only usable as a last resort. */
+function isPublicSolanaEndpoint(url: string): boolean {
+  const lower = url.toLowerCase();
+  return (
+    lower.includes("api.mainnet-beta.solana.com") ||
+    lower.includes("api.devnet.solana.com")
+  );
+}
+
 /**
  * Browser / wallet adapter RPC.
- * Prefer an explicitly configured browser RPC (Helius works in-browser with a key);
- * fall back to the public cluster endpoint. Public Solana RPC 403s browser traffic,
- * so set NEXT_PUBLIC_SOLANA_RPC_URL to a real provider for the public site.
+ * Public Solana RPC (api.mainnet-beta.solana.com) returns 403 for browser/XHR/ws
+ * traffic, so prefer ANY configured provider URL (e.g. Helius with a key) over it.
+ * Only falls back to the public endpoint when nothing else is configured.
  */
 export function resolvePublicSolanaRpcUrl(): string {
   const cluster = resolveLotteryClusterEnv();
@@ -47,6 +56,14 @@ export function resolvePublicSolanaRpcUrl(): string {
     process.env.NEXT_PUBLIC_SOLANA_BROWSER_RPC_URL,
     process.env.NEXT_PUBLIC_SOLANA_RPC_URL,
   ];
+  // First pass: a real provider (non-public) on the right cluster.
+  for (const c of candidates) {
+    const url = c?.trim();
+    if (url && lotteryClusterFromRpc(url) === cluster && !isPublicSolanaEndpoint(url)) {
+      return url;
+    }
+  }
+  // Second pass: any configured URL on the right cluster.
   for (const c of candidates) {
     const url = c?.trim();
     if (url && lotteryClusterFromRpc(url) === cluster) return url;

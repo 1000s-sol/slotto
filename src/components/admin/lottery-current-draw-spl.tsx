@@ -15,8 +15,12 @@ import {
   adminFetchDrawSplRowsAction,
   adminFetchProjectTokensForDrawAction,
   adminMintsExistOnClusterAction,
+  adminPostDrawLiveTweetAction,
+  adminRepairDrawSplFromChainAction,
   adminSaveSplRowsForDrawAction,
 } from "@/app/admin/(dashboard)/lotteries/actions";
+import { splDbMintsMatchChain } from "@/lib/lottery/sync-draw-spl-from-chain";
+import { lotteryWalletSendOptsFromApi } from "@/lib/lottery/lottery-wallet-client";
 import { ensureTeamTokenAta } from "@/lib/lottery/ensure-team-token-ata";
 import { DrawState } from "@/lib/lottery/constants";
 import type { LotteryDrawView, SplMintRowView } from "@/lib/lottery/chain";
@@ -85,7 +89,7 @@ export function LotteryCurrentDrawSpl({
   const { sendTransaction } = useWallet();
   const programId = useMemo(() => lotteryProgramId(), []);
   const walletSendOpts = useMemo(
-    () => ({ sendTransaction }),
+    () => lotteryWalletSendOptsFromApi(sendTransaction),
     [sendTransaction],
   );
 
@@ -119,10 +123,19 @@ export function LotteryCurrentDrawSpl({
 
   const loadRows = useCallback(async () => {
     let db = await adminFetchDrawSplRowsAction(draw.drawId);
+    const chainMints = draw.splMints.map((m) => m.mint);
 
-    if (db.length === 0 && draw.splMints.length > 0) {
-      const drafts = chainRowsToDrafts(draw.splMints, []);
-      await adminSaveSplRowsForDrawAction(draw.drawId, drafts);
+    if (
+      chainMints.length > 0 &&
+      !splDbMintsMatchChain(
+        db.map((r) => r.mint),
+        chainMints,
+      )
+    ) {
+      await adminRepairDrawSplFromChainAction(draw.drawId);
+      db = await adminFetchDrawSplRowsAction(draw.drawId);
+    } else if (db.length === 0 && chainMints.length > 0) {
+      await adminRepairDrawSplFromChainAction(draw.drawId);
       db = await adminFetchDrawSplRowsAction(draw.drawId);
     }
 
@@ -329,9 +342,41 @@ export function LotteryCurrentDrawSpl({
       id="current-draw-spl"
       className="space-y-4 rounded-2xl border border-border bg-bg-elevated/70 p-6"
     >
-      <h2 className="text-lg font-semibold">
-        Edit draw #{drawId} — SPL settings
-      </h2>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-lg font-semibold">
+          Edit draw #{drawId} — SPL settings
+        </h2>
+        <button
+          type="button"
+          disabled={busy}
+          className="rounded-lg border border-border px-3 py-1.5 text-sm hover:bg-bg-elevated disabled:opacity-50"
+          onClick={async () => {
+            setBusy(true);
+            setMsg(null);
+            try {
+              const res = await adminPostDrawLiveTweetAction(
+                drawId,
+                undefined,
+                draw.salesCloseTs,
+              );
+              if (res.ok) {
+                setMsgTone("ok");
+                setMsg("Posted draw-live to @slottogg_ (or already claimed).");
+              } else {
+                setMsgTone("error");
+                setMsg(res.reason);
+              }
+            } catch (e) {
+              setMsgTone("error");
+              setMsg(e instanceof Error ? e.message : "X post failed");
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          Post draw live to X
+        </button>
+      </div>
       {!selling ? (
         <p className="text-sm text-amber-100">
           Draw is not in Selling state; you can still update published/lock and UI

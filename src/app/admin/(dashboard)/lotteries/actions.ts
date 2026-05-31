@@ -11,6 +11,7 @@ import { globalConfigPda } from "@/lib/lottery/pdas";
 import { createLotteryReadOnlyProgram } from "@/lib/lottery/program";
 import {
   resolveLotteryCluster,
+  resolveLotteryRpcUrl,
   resolvePublicSolanaRpcUrl,
 } from "@/lib/lottery/rpc-url";
 import { withLotteryServerRpc } from "@/lib/lottery/server-rpc";
@@ -29,6 +30,7 @@ import {
   type LotteryDrawViewJson,
 } from "@/lib/lottery/draws";
 import { mintsExistOnCluster } from "@/lib/lottery/mints-on-cluster";
+import { syncDrawSplRowsFromChain } from "@/lib/lottery/sync-draw-spl-from-chain";
 import {
   buildSplMintDraftsForCreateDraw,
   fetchPublishedProjectTokens,
@@ -226,6 +228,40 @@ export async function adminSaveSplRowsForDrawAction(
     throw new Error("Invalid draw id");
   }
   await saveSplRowsForDraw(onChainDrawId, rows);
+  return { ok: true };
+}
+
+/** Sync Postgres SPL rows from on-chain draw (fixes stale devnet DB after create). */
+export async function adminRepairDrawSplFromChainAction(
+  onChainDrawId: number,
+): Promise<{ ok: true; count: number }> {
+  await requireAdmin();
+  if (!Number.isFinite(onChainDrawId) || onChainDrawId < 0) {
+    throw new Error("Invalid draw id");
+  }
+  const { Connection } = await import("@solana/web3.js");
+  const connection = new Connection(resolveLotteryRpcUrl(), "confirmed");
+  const drafts = await syncDrawSplRowsFromChain(
+    connection,
+    lotteryProgramId(),
+    onChainDrawId,
+  );
+  return { ok: true, count: drafts.length };
+}
+
+/** Re-post @slottogg_ draw-live tweet (idempotent claim). */
+export async function adminPostDrawLiveTweetAction(
+  drawId: number,
+  seedLamports?: number,
+  salesCloseTs?: number,
+): Promise<{ ok: true } | { ok: false; reason: string }> {
+  await requireAdmin();
+  const { announceDrawLive } = await import("@/lib/lottery/announce-draw");
+  const { xPostingConfigured } = await import("@/lib/x/post-tweet");
+  if (!xPostingConfigured()) {
+    return { ok: false, reason: "X posting not configured on Vercel" };
+  }
+  await announceDrawLive({ drawId, seedLamports, salesCloseTs });
   return { ok: true };
 }
 

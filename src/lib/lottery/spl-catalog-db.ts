@@ -5,33 +5,6 @@ import { prisma } from "@/lib/prisma";
 import type { SplMintDraft } from "./spl-types";
 
 export async function loadSplCatalogForNewDraw(): Promise<SplMintDraft[]> {
-  const latest = await prisma.lotteryDrawSplMint.findFirst({
-    orderBy: { onChainDrawId: "desc" },
-  });
-
-  if (latest) {
-    const rows = await prisma.lotteryDrawSplMint.findMany({
-      where: { onChainDrawId: latest.onChainDrawId },
-      orderBy: { mint: "asc" },
-    });
-    if (rows.length > 0) {
-      return rows.map((r) => ({
-        mint: r.mint,
-        symbol: r.symbol ?? "",
-        label: r.symbol ?? r.mint.slice(0, 8),
-        mintDecimals: r.mintDecimals,
-        priceUi: "",
-        pricePerTicket: r.pricePerTicket,
-        onChainCap: r.onChainCap,
-        displayCap: r.displayCap,
-        published: r.published,
-        purchasesLocked: r.purchasesLocked,
-        pricingMode: "fixed",
-        enabled: true,
-      }));
-    }
-  }
-
   const catalog = await prisma.lotterySplCatalogEntry.findMany({
     orderBy: [{ sortOrder: "asc" }, { symbol: "asc" }],
   });
