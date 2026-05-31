@@ -8,6 +8,7 @@ import {
   FREE_ENTRY_SYMBOL,
 } from "./free-entry";
 import { pricingModeFromChain } from "./spl-types";
+import { normalizeSplDisplayCap } from "./spl-display-cap";
 import { saveSplRowsForDraw } from "./spl-catalog-db";
 import { prisma } from "@/lib/prisma";
 import type { SplMintDraft } from "./spl-types";
@@ -57,8 +58,8 @@ export async function syncDrawSplRowsFromChain(
         pricePerTicket: m.pricePerTicket,
         onChainCap: m.cap,
         displayCap: prev
-          ? Math.min(prev.displayCap, m.cap)
-          : Math.min(FREE_ENTRY_CAP, m.cap),
+          ? normalizeSplDisplayCap(prev.displayCap, m.cap)
+          : normalizeSplDisplayCap(m.cap, m.cap),
         published: prev?.published ?? true,
         purchasesLocked: prev?.purchasesLocked ?? false,
         enabled: true,
@@ -80,8 +81,8 @@ export async function syncDrawSplRowsFromChain(
       pricePerTicket: m.pricePerTicket,
       onChainCap: m.cap,
       displayCap: prev
-        ? Math.min(prev.displayCap, m.cap)
-        : Math.min(defaultDisplayCap, m.cap),
+        ? normalizeSplDisplayCap(prev.displayCap, m.cap)
+        : normalizeSplDisplayCap(defaultDisplayCap, m.cap),
       published: prev?.published ?? cat?.defaultPublished ?? true,
       purchasesLocked: prev?.purchasesLocked ?? false,
       enabled: true,

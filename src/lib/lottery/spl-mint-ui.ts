@@ -1,5 +1,6 @@
 import type { SplMintRowView } from "./chain";
 import { MAX_SOL_TICKETS_PER_BUY } from "./constants";
+import { normalizeSplDisplayCap } from "./spl-display-cap";
 import type { SplMintUiRow } from "./spl-types";
 
 /** SPL tickets still available for this mint (display cap minus on-chain sold). */
@@ -56,7 +57,10 @@ export function mergeSplMintsForBuyUi(
 
   for (const chain of chainRows) {
     const db = dbByMint.get(chain.mint);
-    const displayCap = db?.displayCap ?? chain.cap;
+    const displayCap = normalizeSplDisplayCap(
+      db?.displayCap ?? chain.cap,
+      db?.onChainCap ?? chain.cap,
+    );
     const published = db?.published ?? true;
     const purchasesLocked = db?.purchasesLocked ?? false;
     const effectiveCap = Math.min(chain.cap, displayCap);

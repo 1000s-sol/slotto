@@ -13,6 +13,7 @@ import {
 } from "./free-entry";
 import { SPL_PRICING_FIXED, SPL_PRICING_LIQUID_DYNAMIC } from "./spl-pricing";
 import type { SplMintDraft } from "./spl-types";
+import { normalizeSplDisplayCap } from "./spl-display-cap";
 import { splBaseUnitsToUi, splUiAmountToBaseUnits } from "./spl-price";
 
 export type ProjectTokenForDraw = {
@@ -111,7 +112,10 @@ export async function buildSplMintDraftsForCreateDraw(
       priceUi,
       pricePerTicket,
       onChainCap: s.onChainCap,
-      displayCap: Math.min(s.displayCap, s.onChainCap),
+      displayCap: normalizeSplDisplayCap(
+        Math.min(s.displayCap, s.onChainCap),
+        s.onChainCap,
+      ),
       published: s.published,
       purchasesLocked: false,
       enabled: true,

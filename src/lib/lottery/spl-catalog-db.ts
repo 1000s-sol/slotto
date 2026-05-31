@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 import type { SplMintDraft } from "./spl-types";
+import { normalizeSplDisplayCap } from "./spl-display-cap";
 
 export async function loadSplCatalogForNewDraw(): Promise<SplMintDraft[]> {
   const catalog = await prisma.lotterySplCatalogEntry.findMany({
@@ -16,7 +17,7 @@ export async function loadSplCatalogForNewDraw(): Promise<SplMintDraft[]> {
     priceUi: "",
     pricePerTicket: c.pricePerTicket,
     onChainCap: c.defaultOnChainCap,
-    displayCap: c.defaultDisplayCap,
+    displayCap: normalizeSplDisplayCap(c.defaultDisplayCap, c.defaultOnChainCap),
     published: c.defaultPublished,
     purchasesLocked: false,
     pricingMode: "fixed",
@@ -37,7 +38,7 @@ export async function saveSplRowsForDraw(
           onChainDrawId,
           mint: r.mint,
           onChainCap: r.onChainCap,
-          displayCap: Math.min(r.displayCap, r.onChainCap),
+          displayCap: normalizeSplDisplayCap(r.displayCap, r.onChainCap),
           published: r.published,
           purchasesLocked: r.purchasesLocked,
           symbol: r.symbol || null,
@@ -54,7 +55,7 @@ export async function saveSplRowsForDraw(
           mintDecimals: r.mintDecimals,
           pricePerTicket: r.pricePerTicket,
           defaultOnChainCap: r.onChainCap,
-          defaultDisplayCap: r.displayCap,
+          defaultDisplayCap: normalizeSplDisplayCap(r.displayCap, r.onChainCap),
           defaultPublished: r.published,
           sortOrder: i,
         },
@@ -64,7 +65,7 @@ export async function saveSplRowsForDraw(
           mintDecimals: r.mintDecimals,
           pricePerTicket: r.pricePerTicket,
           defaultOnChainCap: r.onChainCap,
-          defaultDisplayCap: r.displayCap,
+          defaultDisplayCap: normalizeSplDisplayCap(r.displayCap, r.onChainCap),
           defaultPublished: r.published,
           sortOrder: i,
         },
@@ -78,6 +79,20 @@ export async function fetchSplMintRowsForDraw(onChainDrawId: number) {
     where: { onChainDrawId },
     orderBy: { mint: "asc" },
   });
+}
+
+/** Fix draw rows where UI cap was never set (still 500/500). Persists 60 to Postgres. */
+export async function healDrawSplDisplayCaps(onChainDrawId: number): Promise<number> {
+  const rows = await fetchSplMintRowsForDraw(onChainDrawId);
+  let healed = 0;
+  for (const r of rows) {
+    const normalized = normalizeSplDisplayCap(r.displayCap, r.onChainCap);
+    if (normalized !== r.displayCap) {
+      await updateDrawSplMintRow(onChainDrawId, r.mint, { displayCap: normalized });
+      healed += 1;
+    }
+  }
+  return healed;
 }
 
 export async function updateDrawSplMintRow(
@@ -142,7 +157,7 @@ export async function appendDrawSplMintRow(
       onChainDrawId,
       mint: row.mint,
       onChainCap: row.onChainCap,
-      displayCap: Math.min(row.displayCap, row.onChainCap),
+      displayCap: normalizeSplDisplayCap(row.displayCap, row.onChainCap),
       published: row.published,
       purchasesLocked: row.purchasesLocked,
       symbol: row.symbol || null,

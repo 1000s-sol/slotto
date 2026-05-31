@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 
 import { lotteryProgramId } from "@/lib/lottery/config";
 import { fetchDrawById } from "@/lib/lottery/chain";
-import { fetchSplMintRowsForDraw } from "@/lib/lottery/spl-catalog-db";
+import { fetchSplMintRowsForDraw, healDrawSplDisplayCaps } from "@/lib/lottery/spl-catalog-db";
 import { resolveLotteryRpcUrl } from "@/lib/lottery/rpc-url";
 import {
   splDbMintsMatchChain,
@@ -33,6 +33,8 @@ export async function GET(request: Request) {
       await syncDrawSplRowsFromChain(connection, programId, drawId);
       rows = await fetchSplMintRowsForDraw(drawId);
     }
+    await healDrawSplDisplayCaps(drawId);
+    rows = await fetchSplMintRowsForDraw(drawId);
   }
 
   return NextResponse.json({ rows });
