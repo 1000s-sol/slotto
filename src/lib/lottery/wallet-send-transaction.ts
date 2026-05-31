@@ -38,7 +38,7 @@ export type LotteryWalletSendOpts = {
   fetchTokenBalance?: (
     owner: PublicKey,
     mint: PublicKey,
-  ) => Promise<bigint>;
+  ) => Promise<{ ata: bigint; total: bigint }>;
 };
 
 /** Thrown when broadcast succeeded but confirmation polling failed (tx may still have landed). */

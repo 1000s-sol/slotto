@@ -66,7 +66,10 @@ export function lotteryWalletSendOptsForBrowser(
     broadcastRawTransaction: broadcastSignedTransactionOnServer,
     fetchTokenBalance: async (owner: PublicKey, mint: PublicKey) => {
       const snap = await fetchTokenBalanceClient(owner, mint);
-      return BigInt(snap.amount);
+      return {
+        ata: BigInt(snap.amount),
+        total: BigInt(snap.totalAmount),
+      };
     },
   };
 }

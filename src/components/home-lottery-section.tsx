@@ -338,7 +338,7 @@ export function HomeLotterySection() {
       .then((snap) => {
         if (!cancelled) {
           setHoldsFreeEntry(
-            BigInt(snap.amount) >= BigInt(FREE_ENTRY_PRICE_PER_TICKET),
+            BigInt(snap.totalAmount) >= BigInt(FREE_ENTRY_PRICE_PER_TICKET),
           );
         }
       })

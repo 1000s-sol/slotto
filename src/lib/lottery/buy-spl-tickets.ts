@@ -59,10 +59,13 @@ export async function buySplTickets(
   const decimals = chainRow?.decimals ?? 0;
   const required = quotedPricePerTicket * BigInt(count);
 
-  let held = BigInt(0);
+  let ataHeld = BigInt(0);
+  let totalHeld = BigInt(0);
   if (sendOpts?.fetchTokenBalance) {
     try {
-      held = await sendOpts.fetchTokenBalance(wallet.publicKey, mint);
+      const bal = await sendOpts.fetchTokenBalance(wallet.publicKey, mint);
+      ataHeld = bal.ata;
+      totalHeld = bal.total;
     } catch {
       throw new BuyPreflightError(
         `Could not verify your ${label} balance. Refresh the page and try again.`,
@@ -71,14 +74,24 @@ export async function buySplTickets(
   } else {
     try {
       const bal = await connection.getTokenAccountBalance(buyerToken, "confirmed");
-      held = BigInt(bal.value.amount);
+      ataHeld = BigInt(bal.value.amount);
+      totalHeld = ataHeld;
     } catch {
       // Browser RPC often 403 — skip hard fail; Phantom will reject if underfunded.
     }
   }
-  if (held < required) {
+
+  const heldForTx = ataHeld;
+  const heldDisplay = totalHeld > ataHeld ? totalHeld : ataHeld;
+
+  if (heldForTx < required) {
+    if (totalHeld >= required) {
+      throw new BuyPreflightError(
+        `Your wallet holds ${splBaseUnitsToUi(totalHeld.toString(), decimals)} ${label}, but the token account used for ticket buys only has ${splBaseUnitsToUi(ataHeld.toString(), decimals)} ${label}. Open your wallet, select ${label}, and consolidate or receive tokens into your main account, then try again.`,
+      );
+    }
     throw new BuyPreflightError(
-      `You need ${splBaseUnitsToUi(required.toString(), decimals)} ${label} for ${count} ticket(s), but this wallet holds ${splBaseUnitsToUi(held.toString(), decimals)} ${label}. Add ${label} to your wallet and try again.`,
+      `You need ${splBaseUnitsToUi(required.toString(), decimals)} ${label} for ${count} ticket(s), but this wallet holds ${splBaseUnitsToUi(heldDisplay.toString(), decimals)} ${label}. Add ${label} to your wallet and try again.`,
     );
   }
 
