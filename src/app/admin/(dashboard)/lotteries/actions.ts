@@ -73,7 +73,7 @@ export async function adminFetchWalletRpcEndpointAction(): Promise<string> {
   return resolvePublicSolanaRpcUrl();
 }
 
-/** Recent blockhash via server public RPC (avoids browser/Phantom Helius 403). */
+/** Recent blockhash via server RPC (avoids browser public-RPC 403). */
 export async function adminFetchRecentBlockhashAction(): Promise<{
   blockhash: string;
   lastValidBlockHeight: number;
@@ -85,6 +85,39 @@ export async function adminFetchRecentBlockhashAction(): Promise<{
       blockhash: latest.blockhash,
       lastValidBlockHeight: latest.lastValidBlockHeight,
     };
+  });
+}
+
+/**
+ * Confirm a signature via server RPC (Helius) — the browser cannot poll public RPC (403).
+ * Polls signature status until confirmed/finalized or timeout.
+ */
+export async function adminConfirmSignatureAction(
+  signature: string,
+): Promise<{ confirmed: boolean; error: string | null }> {
+  await requireAdmin();
+  if (!signature || signature.length < 32) {
+    return { confirmed: false, error: "Invalid signature" };
+  }
+  return withLotteryServerRpc(async (connection) => {
+    const deadline = Date.now() + 60_000;
+    while (Date.now() < deadline) {
+      const status = await connection.getSignatureStatus(signature, {
+        searchTransactionHistory: true,
+      });
+      const value = status.value;
+      if (value) {
+        if (value.err) {
+          return { confirmed: false, error: JSON.stringify(value.err) };
+        }
+        const level = value.confirmationStatus;
+        if (level === "confirmed" || level === "finalized") {
+          return { confirmed: true, error: null };
+        }
+      }
+      await new Promise((r) => setTimeout(r, 2000));
+    }
+    return { confirmed: false, error: "Confirmation timed out" };
   });
 }
 

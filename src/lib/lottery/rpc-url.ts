@@ -14,6 +14,14 @@ const DEFAULT_RPC: Record<LotteryCluster, string> = {
 
 export { resolveLotteryClusterEnv };
 
+function heliusRpcUrl(cluster: LotteryCluster, apiKey: string): string {
+  const host =
+    cluster === "mainnet-beta"
+      ? "mainnet.helius-rpc.com"
+      : "devnet.helius-rpc.com";
+  return `https://${host}/?api-key=${apiKey}`;
+}
+
 /** Helius / RPC auth failures — retry public cluster endpoint when configured. */
 export function isRpcAuthError(message: string): boolean {
   const lower = message.toLowerCase();
@@ -28,28 +36,27 @@ export function isRpcAuthError(message: string): boolean {
 }
 
 /**
- * Browser / wallet adapter + admin signing.
- * Always the public cluster RPC — never Helius (Phantom + keyed URLs caused 403).
+ * Browser / wallet adapter RPC.
+ * Prefer an explicitly configured browser RPC (Helius works in-browser with a key);
+ * fall back to the public cluster endpoint. Public Solana RPC 403s browser traffic,
+ * so set NEXT_PUBLIC_SOLANA_RPC_URL to a real provider for the public site.
  */
 export function resolvePublicSolanaRpcUrl(): string {
   const cluster = resolveLotteryClusterEnv();
+  const candidates = [
+    process.env.NEXT_PUBLIC_SOLANA_BROWSER_RPC_URL,
+    process.env.NEXT_PUBLIC_SOLANA_RPC_URL,
+  ];
+  for (const c of candidates) {
+    const url = c?.trim();
+    if (url && lotteryClusterFromRpc(url) === cluster) return url;
+  }
   return DEFAULT_RPC[cluster];
-}
-
-/** Helius / keyed RPC caused 403 on Vercel — never use for lottery txs. */
-function isForbiddenLotteryRpc(url: string): boolean {
-  const lower = url.toLowerCase();
-  return (
-    lower.includes("helius-rpc.com") ||
-    lower.includes("api-key=") ||
-    lower.includes("api_key=")
-  );
 }
 
 /**
  * Server-side lottery (admin actions, crank, API).
- * Always public cluster RPC unless LOTTERY_RPC_URL is a safe non-Helius URL.
- * (Ignores LOTTERY_RPC_URL when it points at Helius — common Vercel misconfig.)
+ * LOTTERY_RPC_URL override > Helius (HELIUS_API_KEY) > public cluster endpoint.
  */
 export function resolveLotteryRpcUrl(): string {
   const cluster = resolveLotteryClusterEnv();
@@ -57,12 +64,13 @@ export function resolveLotteryRpcUrl(): string {
   const explicit =
     process.env.LOTTERY_RPC_URL?.trim() ||
     (cluster === "devnet" ? process.env.LOTTERY_DEVNET_RPC?.trim() : undefined);
-  if (
-    explicit &&
-    !isForbiddenLotteryRpc(explicit) &&
-    lotteryClusterFromRpc(explicit) === cluster
-  ) {
+  if (explicit && lotteryClusterFromRpc(explicit) === cluster) {
     return explicit;
+  }
+
+  const heliusKey = process.env.HELIUS_API_KEY?.trim();
+  if (heliusKey) {
+    return heliusRpcUrl(cluster, heliusKey);
   }
 
   return DEFAULT_RPC[cluster];

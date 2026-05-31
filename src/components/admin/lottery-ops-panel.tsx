@@ -14,10 +14,7 @@ import {
   lotteryCluster,
   lotteryClusterLabel,
 } from "@/lib/lottery/cluster";
-import {
-  LOTTERY_PUBLIC_DEVNET_RPC,
-  LOTTERY_PUBLIC_MAINNET_RPC,
-} from "@/lib/lottery/rpc-url";
+import { resolvePublicSolanaRpcUrl } from "@/lib/lottery/rpc-url";
 import {
   lotteryProgramId,
   solscanAccountUrl,
@@ -49,6 +46,7 @@ import {
   adminAnnounceDrawLiveAction,
   adminBuildSplMintDraftsForCreateDrawAction,
   adminDrawExistsOnServerAction,
+  adminConfirmSignatureAction,
   adminFetchGlobalConfigAction,
   adminFetchProjectTokensForDrawAction,
   adminFetchRecentBlockhashAction,
@@ -128,17 +126,17 @@ export function LotteryOpsPanel({
     () => ({
       sendTransaction,
       fetchBlockhash: adminFetchRecentBlockhashAction,
+      confirmSignature: adminConfirmSignatureAction,
     }),
     [sendTransaction],
   );
-  /** Public Solana RPC only — never Phantom/Helius (403 on sign-and-send). */
+  /**
+   * Used only to build the transaction (no network for `.transaction()`) and for
+   * any SPL ATA reads. Sending goes through Phantom; confirmation is server-side.
+   */
   const signingConnection = useMemo(() => {
-    const url =
-      cluster === "mainnet-beta"
-        ? LOTTERY_PUBLIC_MAINNET_RPC
-        : LOTTERY_PUBLIC_DEVNET_RPC;
-    return new Connection(url, "confirmed");
-  }, [cluster]);
+    return new Connection(resolvePublicSolanaRpcUrl(), "confirmed");
+  }, []);
   const walletRpcHost = useMemo(() => {
     try {
       return new URL(signingConnection.rpcEndpoint).host;

@@ -20,8 +20,15 @@ export type LotteryWalletSendOpts = {
   sendTransaction?: WalletSendTransaction;
   /** Admin: sign in Phantom, broadcast via our Connection (bypasses Phantom RPC 403). */
   signAndSendRaw?: boolean;
-  /** Admin: blockhash from server public RPC instead of browser Connection. */
+  /** Admin: blockhash from server RPC instead of browser Connection. */
   fetchBlockhash?: () => Promise<BlockhashBundle>;
+  /**
+   * Admin: confirm the signature server-side (Helius) instead of in the browser.
+   * Required when the browser RPC is public Solana (403s confirmation polling).
+   */
+  confirmSignature?: (
+    signature: string,
+  ) => Promise<{ confirmed: boolean; error: string | null }>;
   /** Admin / recovery: skip RPC simulate when provider returns 403 on preflight. */
   skipPreflight?: boolean;
 };
@@ -67,6 +74,17 @@ export async function sendTransactionViaWallet(
   tx.feePayer = wallet.publicKey;
 
   const confirm = async (signature: TransactionSignature) => {
+    if (opts?.confirmSignature) {
+      const result = await opts.confirmSignature(signature);
+      if (!result.confirmed) {
+        throw new Error(
+          result.error
+            ? `Transaction not confirmed: ${result.error}`
+            : "Transaction not confirmed.",
+        );
+      }
+      return signature;
+    }
     await connection.confirmTransaction(
       { signature, blockhash, lastValidBlockHeight },
       "confirmed",
