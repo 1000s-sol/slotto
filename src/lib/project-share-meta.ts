@@ -1,6 +1,6 @@
 import { headers } from "next/headers";
 
-import { SITE_SHARE_IMAGE, getSiteUrl } from "@/lib/site-metadata";
+import { getSiteUrl, siteShareImageUrl } from "@/lib/site-metadata";
 
 /** Prefer the request host so og:url matches the link being shared */
 export async function getRequestSiteUrl(): Promise<string> {
@@ -13,7 +13,6 @@ export async function getRequestSiteUrl(): Promise<string> {
   return getSiteUrl();
 }
 
-const DEFAULT_SHARE_IMAGE = SITE_SHARE_IMAGE;
 const DESCRIPTION_MAX = 200;
 
 /** Hosts that block hotlinking — unusable for Discord / X / iMessage previews */
@@ -65,7 +64,7 @@ export function projectShareImageUrl(
   listingImageUrl: string | null | undefined,
   siteUrl = getSiteUrl(),
 ): string {
-  const fallback = absoluteAssetUrl(DEFAULT_SHARE_IMAGE, siteUrl);
+  const fallback = siteShareImageUrl(siteUrl);
   const candidates = [bannerImageUrl?.trim(), listingImageUrl?.trim()].filter(Boolean) as string[];
 
   for (const raw of candidates) {

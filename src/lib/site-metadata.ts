@@ -3,6 +3,9 @@ import type { Metadata } from "next";
 /** Default Open Graph / Twitter card image (public/brand/slotto-tickets1.png). */
 export const SITE_SHARE_IMAGE = "/brand/slotto-tickets1.png";
 
+/** Bump when replacing the OG image so X/Discord/iMessage drop cached previews. */
+export const SITE_SHARE_IMAGE_VERSION = "20260531";
+
 export const SITE_NAME = "Slotto";
 
 export const SITE_TITLE = "Slotto — monthly lottery on Solana";
@@ -24,11 +27,15 @@ export function getAnnounceSiteUrl(): string {
   return process.env.LOTTERY_ANNOUNCE_SITE_URL?.trim() || "https://slotto.gg";
 }
 
-export function siteOpenGraphImages(siteUrl = getSiteUrl()) {
+export function siteShareImageUrl(siteUrl = getSiteUrl()): string {
   const base = siteUrl.replace(/\/$/, "");
+  return `${base}${SITE_SHARE_IMAGE}?v=${SITE_SHARE_IMAGE_VERSION}`;
+}
+
+export function siteOpenGraphImages(siteUrl = getSiteUrl()) {
   return [
     {
-      url: `${base}${SITE_SHARE_IMAGE}`,
+      url: siteShareImageUrl(siteUrl),
       width: 1254,
       height: 1254,
       alt: "Slotto — monthly lottery on Solana",
@@ -54,6 +61,6 @@ export const rootSiteMetadata: Metadata = {
     card: "summary_large_image",
     title: SITE_TITLE,
     description: SITE_DESCRIPTION,
-    images: [SITE_SHARE_IMAGE],
+    images: [siteShareImageUrl()],
   },
 };
