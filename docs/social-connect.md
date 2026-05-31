@@ -22,6 +22,8 @@ Users build a **profile** on `/profile` (Discord and/or X, plus optional Solana 
 AUTH_SECRET=<openssl rand -hex 32>
 AUTH_URL=https://slotto.gg
 
+Do **not** set `AUTH_URL` or `NEXTAUTH_URL` to `https://slotto.vercel.app` or `https://www.slotto.gg` on Production — use the apex domain below so Discord/X redirect URIs match (`https://slotto.gg/api/auth/callback/...`). If those vars are missing or point at `*.vercel.app`, the app falls back to `NEXT_PUBLIC_SITE_URL`.
+
 AUTH_DISCORD_ID=
 AUTH_DISCORD_SECRET=
 DISCORD_BOT_TOKEN=
