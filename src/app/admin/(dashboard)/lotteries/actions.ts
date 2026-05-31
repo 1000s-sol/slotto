@@ -198,6 +198,19 @@ export async function adminDrawExistsOnServerAction(
   });
 }
 
+/** True if an SPL mint row exists on the draw (post addSplMint verification). */
+export async function adminDrawHasSplMintAction(
+  drawId: number,
+  mint: string,
+): Promise<boolean> {
+  await requireAdmin();
+  if (!Number.isFinite(drawId) || drawId < 0 || !mint.trim()) return false;
+  return withLotteryServerRpc(async (connection) => {
+    const draw = await fetchDrawById(connection, lotteryProgramId(), drawId);
+    return draw?.splMints.some((m) => m.mint === mint) ?? false;
+  });
+}
+
 /** Read global config via server RPC (matches `LOTTERY_CLUSTER` / Helius). */
 export async function adminFetchGlobalConfigAction(): Promise<AdminGlobalConfigView | null> {
   await requireAdmin();

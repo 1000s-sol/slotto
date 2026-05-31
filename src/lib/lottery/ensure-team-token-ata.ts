@@ -19,14 +19,18 @@ export async function ensureTeamTokenAta(
   programId: PublicKey,
   mint: PublicKey,
   sendOpts?: LotteryWalletSendOpts,
+  teamVault?: PublicKey,
 ): Promise<string> {
   const program = createLotteryProgram(connection, wallet);
   const globalConfig = globalConfigPda(programId);
-  const cfg = await program.account.globalConfig.fetch(globalConfig);
-  const teamVault = cfg.teamVault;
+  let teamVaultPk = teamVault;
+  if (!teamVaultPk) {
+    const cfg = await program.account.globalConfig.fetch(globalConfig);
+    teamVaultPk = cfg.teamVault;
+  }
   const teamToken = getAssociatedTokenAddressSync(
     mint,
-    teamVault,
+    teamVaultPk,
     false,
     TOKEN_PROGRAM_ID,
   );
@@ -38,7 +42,7 @@ export async function ensureTeamTokenAta(
         authority: wallet.publicKey,
         globalConfig,
         mint,
-        teamVault,
+        teamVault: teamVaultPk,
         teamToken,
       })
       .transaction(),

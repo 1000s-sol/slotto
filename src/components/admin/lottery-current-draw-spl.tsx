@@ -10,7 +10,9 @@ import {
   adminAppendDrawSplMintDbAction,
   adminBatchUpdateDrawSplSettingsAction,
   adminBuildSplMintDraftsForCreateDrawAction,
+  adminDrawHasSplMintAction,
   adminFetchDrawSplRowsAction,
+  adminFetchGlobalConfigAction,
   adminFetchProjectTokensForDrawAction,
   adminMintsExistOnClusterAction,
   adminPostDrawLiveTweetAction,
@@ -25,6 +27,10 @@ import { DrawState } from "@/lib/lottery/constants";
 import type { LotteryDrawView, SplMintRowView } from "@/lib/lottery/chain";
 import { lotteryProgramId } from "@/lib/lottery/config";
 import { addSplMintToDraw } from "@/lib/lottery/add-spl-mint-to-draw";
+import { formatLotteryAdminError } from "@/lib/lottery/user-facing-error";
+import {
+  walletSendErrorSignature,
+} from "@/lib/lottery/wallet-send-transaction";
 import { pricingModeFromChain, type SplMintDraft } from "@/lib/lottery/spl-types";
 import {
   ProjectTokenDrawAllocator,
@@ -209,8 +215,11 @@ export function LotteryCurrentDrawSpl({
     setMsg(null);
     try {
       const onCluster = await adminMintsExistOnClusterAction(mints);
+      const cfg = await adminFetchGlobalConfigAction();
+      const teamVaultPk = cfg ? new PublicKey(cfg.teamVault) : undefined;
       const skipped: string[] = [];
       const created: string[] = [];
+      const rpcNoise: string[] = [];
       for (const m of chainMints) {
         const label =
           rows.find((r) => r.mint === m.mint)?.symbol ?? m.mint.slice(0, 8);
@@ -218,19 +227,38 @@ export function LotteryCurrentDrawSpl({
           skipped.push(label);
           continue;
         }
+        if (!teamVaultPk) {
+          skipped.push(`${label} (config unavailable)`);
+          continue;
+        }
         setMsg(`Creating team ATA for ${label}…`);
-        await ensureTeamTokenAta(
-          connection,
-          wallet,
-          programId,
-          new PublicKey(m.mint),
-          walletSendOpts,
-        );
-        created.push(label);
+        try {
+          await ensureTeamTokenAta(
+            connection,
+            wallet,
+            programId,
+            new PublicKey(m.mint),
+            walletSendOpts,
+            teamVaultPk,
+          );
+          created.push(label);
+        } catch (e) {
+          if (walletSendErrorSignature(e)) {
+            rpcNoise.push(label);
+            created.push(label);
+          } else {
+            skipped.push(`${label} (${formatLotteryAdminError(e)})`);
+          }
+        }
       }
       setMsgTone("ok");
       const parts: string[] = [];
       if (created.length) parts.push(`Team ATAs ready for ${created.join(", ")}.`);
+      if (rpcNoise.length) {
+        parts.push(
+          `RPC confirm noise for ${rpcNoise.join(", ")} — check Solscan if SPL buys fail.`,
+        );
+      }
       if (skipped.length) {
         parts.push(
           `Skipped ${skipped.join(", ")} (mint not on lottery cluster — set LOTTERY_CLUSTER=mainnet-beta on Vercel).`,
@@ -289,29 +317,47 @@ export function LotteryCurrentDrawSpl({
       const mintsOnCluster = await adminMintsExistOnClusterAction(
         drafts.map((d) => d.mint),
       );
+      const cfg = await adminFetchGlobalConfigAction();
+      const teamVaultPk = cfg ? new PublicKey(cfg.teamVault) : undefined;
 
       const added: string[] = [];
+      const ataWarnings: string[] = [];
       for (const draft of drafts) {
         const label = draft.symbol || draft.mint.slice(0, 8);
         setMsg(`Confirm add ${label} in wallet…`);
-        await addSplMintToDraw(
-          connection,
-          wallet,
-          programId,
-          new PublicKey(drawPk),
-          draft,
-          walletSendOpts,
-        );
-        await adminAppendDrawSplMintDbAction(drawId, draft);
-        if (mintsOnCluster[draft.mint]) {
-          setMsg(`Ensuring team ATA for ${label}…`);
-          await ensureTeamTokenAta(
+        try {
+          await addSplMintToDraw(
             connection,
             wallet,
             programId,
-            new PublicKey(draft.mint),
+            new PublicKey(drawPk),
+            draft,
             walletSendOpts,
           );
+        } catch (e) {
+          const onChain = await adminDrawHasSplMintAction(drawId, draft.mint);
+          if (!onChain) throw e;
+        }
+        await adminAppendDrawSplMintDbAction(drawId, draft);
+        if (mintsOnCluster[draft.mint] && teamVaultPk) {
+          setMsg(`Ensuring team ATA for ${label}…`);
+          try {
+            await ensureTeamTokenAta(
+              connection,
+              wallet,
+              programId,
+              new PublicKey(draft.mint),
+              walletSendOpts,
+              teamVaultPk,
+            );
+          } catch (e) {
+            const partial = walletSendErrorSignature(e);
+            if (partial) {
+              ataWarnings.push(`${label} (tx sent; confirm via Solscan if buys fail)`);
+            } else {
+              ataWarnings.push(`${label} (${formatLotteryAdminError(e)})`);
+            }
+          }
         }
         added.push(label);
       }
@@ -320,10 +366,14 @@ export function LotteryCurrentDrawSpl({
       setTokenSettings({});
       await refresh();
       setMsgTone("ok");
-      setMsg(`Added ${added.join(", ")} to draw #${drawId}.`);
+      const ataNote =
+        ataWarnings.length > 0
+          ? ` Team ATA step had RPC noise for: ${ataWarnings.join("; ")}.`
+          : "";
+      setMsg(`Added ${added.join(", ")} to draw #${drawId}.${ataNote}`);
     } catch (e) {
       setMsgTone("error");
-      setMsg(e instanceof Error ? e.message : "Add token failed");
+      setMsg(formatLotteryAdminError(e));
     } finally {
       setBusy(false);
     }
