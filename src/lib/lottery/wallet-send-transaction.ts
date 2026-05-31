@@ -11,10 +11,17 @@ export type WalletSendTransaction = (
   options?: { skipPreflight?: boolean },
 ) => Promise<TransactionSignature>;
 
+export type BlockhashBundle = {
+  blockhash: string;
+  lastValidBlockHeight: number;
+};
+
 export type LotteryWalletSendOpts = {
   sendTransaction?: WalletSendTransaction;
   /** Admin: sign in Phantom, broadcast via our Connection (bypasses Phantom RPC 403). */
   signAndSendRaw?: boolean;
+  /** Admin: blockhash from server public RPC instead of browser Connection. */
+  fetchBlockhash?: () => Promise<BlockhashBundle>;
   /** Admin / recovery: skip RPC simulate when provider returns 403 on preflight. */
   skipPreflight?: boolean;
 };
@@ -52,8 +59,9 @@ export async function sendTransactionViaWallet(
   opts?: LotteryWalletSendOpts,
 ): Promise<TransactionSignature> {
   const tx = await buildTransaction();
-  const { blockhash, lastValidBlockHeight } =
-    await connection.getLatestBlockhash("confirmed");
+  const { blockhash, lastValidBlockHeight } = opts?.fetchBlockhash
+    ? await opts.fetchBlockhash()
+    : await connection.getLatestBlockhash("confirmed");
 
   tx.recentBlockhash = blockhash;
   tx.feePayer = wallet.publicKey;

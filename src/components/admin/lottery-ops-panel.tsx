@@ -51,6 +51,7 @@ import {
   adminDrawExistsOnServerAction,
   adminFetchGlobalConfigAction,
   adminFetchProjectTokensForDrawAction,
+  adminFetchRecentBlockhashAction,
   adminFetchServerLotteryClusterAction,
   adminMintsExistOnClusterAction,
   adminSaveSplRowsForDrawAction,
@@ -128,6 +129,7 @@ export function LotteryOpsPanel({
       sendTransaction,
       skipPreflight: true,
       signAndSendRaw: true,
+      fetchBlockhash: adminFetchRecentBlockhashAction,
     }),
     [sendTransaction],
   );
@@ -292,6 +294,7 @@ export function LotteryOpsPanel({
     }
 
     setPhase({ kind: "busy", label: "Preparing draw (server)…" });
+    let step = "load config";
     try {
       const freshCfg = await adminFetchGlobalConfigAction();
       if (!freshCfg) {
@@ -327,6 +330,7 @@ export function LotteryOpsPanel({
         ? new PublicKey(seedRefund.trim())
         : publicKey;
 
+      step = "load project tokens";
       setPhase({ kind: "busy", label: "Loading project tokens…" });
       const tokens = await adminFetchProjectTokensForDrawAction();
       const splErr = validateProjectTokenDrawSettings(
@@ -339,11 +343,13 @@ export function LotteryOpsPanel({
         return;
       }
 
+      step = "build SPL rows";
       setPhase({ kind: "busy", label: "Building SPL ticket rows…" });
       const activeSpl = await adminBuildSplMintDraftsForCreateDrawAction(
         tokenEnabled,
         tokenSettings,
       );
+      step = "check mints";
       setPhase({ kind: "busy", label: "Checking mints on cluster…" });
       const mintsOnCluster = await adminMintsExistOnClusterAction(
         activeSpl.map((r) => r.mint),
@@ -360,6 +366,7 @@ export function LotteryOpsPanel({
       });
 
       // Re-read next_draw_id after server prep so PDAs match chain (avoids stale UI / devnet id).
+      step = "re-read config";
       const cfgBeforeSign = await adminFetchGlobalConfigAction();
       if (!cfgBeforeSign) {
         setPhase({
@@ -386,6 +393,7 @@ export function LotteryOpsPanel({
       const prizeVault = prizeVaultPda(programId, draw);
       const ticketChunk0 = ticketChunkPda(programId, draw, 0);
 
+      step = "sign and send";
       setPhase({
         kind: "busy",
         label: `Confirm create_draw #${drawId} in Phantom…`,
@@ -476,7 +484,7 @@ export function LotteryOpsPanel({
             : null;
       setPhase({
         kind: "error",
-        message: hint ? `${raw} ${hint}` : raw,
+        message: `Failed at step “${step}”: ${hint ? `${raw} ${hint}` : raw}`,
       });
     }
   }, [

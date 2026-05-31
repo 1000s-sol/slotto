@@ -259,8 +259,8 @@ export function formatLotteryAdminError(error: unknown): string {
     text.toLowerCase().includes("access forbidden")
   ) {
     return (
-      "RPC 403 (usually Phantom or Helius). Hard-refresh admin, reconnect Phantom on Mainnet Beta, and retry. " +
-      "If it persists, redeploy the latest build (admin now signs locally and sends via api.mainnet-beta.solana.com)."
+      "RPC 403 — Helius or Phantom blocked the call. Remove LOTTERY_RPC_URL if it contains helius on Vercel, redeploy, hard-refresh, retry. " +
+      "Admin uses api.mainnet-beta.solana.com only."
     );
   }
   if (

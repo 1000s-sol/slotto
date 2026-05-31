@@ -1,19 +1,11 @@
 import { Connection, PublicKey } from "@solana/web3.js";
 
-import {
-  isRpcAuthError,
-  LOTTERY_PUBLIC_MAINNET_RPC,
-  resolveLotteryClusterEnv,
-  resolveLotteryRpcUrl,
-} from "./rpc-url";
+import { isRpcAuthError, LOTTERY_PUBLIC_MAINNET_RPC } from "./rpc-url";
 import { lotteryRpcErrorText } from "./user-facing-error";
 
 function metadataRpcUrl(): string {
   const explicit = process.env.LOTTERY_METADATA_RPC_URL?.trim();
   if (explicit) return explicit;
-  if (resolveLotteryClusterEnv() === "mainnet-beta") {
-    return resolveLotteryRpcUrl();
-  }
   return LOTTERY_PUBLIC_MAINNET_RPC;
 }
 

@@ -73,6 +73,21 @@ export async function adminFetchWalletRpcEndpointAction(): Promise<string> {
   return resolvePublicSolanaRpcUrl();
 }
 
+/** Recent blockhash via server public RPC (avoids browser/Phantom Helius 403). */
+export async function adminFetchRecentBlockhashAction(): Promise<{
+  blockhash: string;
+  lastValidBlockHeight: number;
+}> {
+  await requireAdmin();
+  return withLotteryServerRpc(async (connection) => {
+    const latest = await connection.getLatestBlockhash("confirmed");
+    return {
+      blockhash: latest.blockhash,
+      lastValidBlockHeight: latest.lastValidBlockHeight,
+    };
+  });
+}
+
 /** Cluster the server uses for lottery reads/crank (from actual RPC URL, not env label alone). */
 export async function adminFetchServerLotteryClusterAction(): Promise<{
   cluster: "devnet" | "mainnet-beta";
