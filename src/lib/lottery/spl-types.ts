@@ -41,5 +41,6 @@ export type SplMintUiRow = {
   pricingMode: number;
   published: boolean;
   purchasesLocked: boolean;
+  lotteryBuySupported: boolean;
   buyable: boolean;
 };

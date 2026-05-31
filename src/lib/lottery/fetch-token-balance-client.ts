@@ -5,6 +5,7 @@ export type TokenBalanceSnapshot = {
   totalAmount: string;
   decimals: number;
   ata: string;
+  lotteryBuySupported?: boolean;
 };
 
 /** Read SPL balance via server RPC (avoids browser api.mainnet-beta.solana.com 403). */
