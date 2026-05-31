@@ -15,6 +15,8 @@ export type WalletSendTransaction = (
 export type LotteryWalletSendOpts = {
   sendTransaction?: WalletSendTransaction;
   adapter?: WalletAdapter | null;
+  /** Admin: sign in Phantom, broadcast via our Connection (bypasses Phantom RPC 403). */
+  signAndSendRaw?: boolean;
   /** Admin / recovery: skip RPC simulate when provider returns 403 on preflight. */
   skipPreflight?: boolean;
 };
@@ -42,8 +44,8 @@ function isWalletRejectedMessage(msg: string): boolean {
 }
 
 /**
- * Build and send via wallet-adapter `sendTransaction` (Phantom sign-and-send).
- * Does not fall back to signTransaction + sendRaw (that path triggers Blowfish warnings).
+ * Build and send via wallet. Default: wallet-adapter `sendTransaction` (Phantom sign-and-send).
+ * Admin (`signAndSendRaw`): sign in wallet, `sendRawTransaction` on our Connection (no Phantom RPC).
  */
 export async function sendTransactionViaWallet(
   connection: Connection,
@@ -58,6 +60,28 @@ export async function sendTransactionViaWallet(
   tx.recentBlockhash = blockhash;
   tx.feePayer = wallet.publicKey;
 
+  const confirm = async (signature: TransactionSignature) => {
+    await connection.confirmTransaction(
+      { signature, blockhash, lastValidBlockHeight },
+      "confirmed",
+    );
+    return signature;
+  };
+
+  if (opts?.signAndSendRaw && opts.adapter?.signTransaction) {
+    try {
+      const signed = await opts.adapter.signTransaction(tx);
+      const signature = await connection.sendRawTransaction(
+        signed.serialize(),
+        { skipPreflight: opts.skipPreflight ?? true, maxRetries: 3 },
+      );
+      return confirm(signature);
+    } catch (e) {
+      if (isWalletRejectedMessage(errorText(e))) throw e;
+      throw e;
+    }
+  }
+
   if (!opts?.sendTransaction) {
     throw new Error(
       "Wallet send is unavailable. Refresh the page and reconnect Phantom on Mainnet Beta.",
@@ -68,11 +92,7 @@ export async function sendTransactionViaWallet(
     const signature = await opts.sendTransaction(tx, connection, {
       skipPreflight: opts.skipPreflight ?? false,
     });
-    await connection.confirmTransaction(
-      { signature, blockhash, lastValidBlockHeight },
-      "confirmed",
-    );
-    return signature;
+    return confirm(signature);
   } catch (e) {
     if (isWalletRejectedMessage(errorText(e))) {
       throw e;

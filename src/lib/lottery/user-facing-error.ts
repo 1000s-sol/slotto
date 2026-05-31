@@ -259,9 +259,8 @@ export function formatLotteryAdminError(error: unknown): string {
     text.toLowerCase().includes("access forbidden")
   ) {
     return (
-      "RPC returned 403 Access forbidden. On Vercel: fix HELIUS_API_KEY or set LOTTERY_RPC_URL=https://api.mainnet-beta.solana.com. " +
-      "In the browser: set NEXT_PUBLIC_SOLANA_BROWSER_RPC_URL to that public URL (never https://mainnet.helius-rpc.com without api-key). " +
-      "Reconnect Phantom on Mainnet Beta and hard-refresh."
+      "RPC 403 (usually Phantom or Helius). Hard-refresh admin, reconnect Phantom on Mainnet Beta, and retry. " +
+      "If it persists, redeploy the latest build (admin now signs locally and sends via api.mainnet-beta.solana.com)."
     );
   }
   if (

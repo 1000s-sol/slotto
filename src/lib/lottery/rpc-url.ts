@@ -62,23 +62,18 @@ function pickBrowserRpc(candidate: string | undefined, cluster: LotteryCluster):
 }
 
 /**
- * Browser / wallet adapter RPC.
- * Never returns Helius (or other) URLs with `api-key=` — those belong in HELIUS_API_KEY
- * server-side only. Prefer `NEXT_PUBLIC_SOLANA_BROWSER_RPC_URL`, then a safe
- * `NEXT_PUBLIC_SOLANA_RPC_URL`, then the public cluster endpoint.
+ * Browser / wallet adapter + admin signing.
+ * Always the public cluster RPC — never Helius (Phantom + keyed URLs caused 403).
  */
 export function resolvePublicSolanaRpcUrl(): string {
   const cluster = resolveLotteryClusterEnv();
-  return (
-    pickBrowserRpc(process.env.NEXT_PUBLIC_SOLANA_BROWSER_RPC_URL, cluster) ??
-    pickBrowserRpc(process.env.NEXT_PUBLIC_SOLANA_RPC_URL, cluster) ??
-    DEFAULT_RPC[cluster]
-  );
+  return DEFAULT_RPC[cluster];
 }
 
 /**
- * Server-side lottery crank (Vercel server action / API).
- * Never uses `NEXT_PUBLIC_SOLANA_RPC_URL` — that URL often has a stale Helius key.
+ * Server-side lottery (admin actions, crank, API).
+ * Default: public cluster RPC. Helius only when LOTTERY_USE_HELIUS=true + HELIUS_API_KEY.
+ * Override anytime with LOTTERY_RPC_URL.
  */
 export function resolveLotteryRpcUrl(): string {
   const cluster = resolveLotteryClusterEnv();
@@ -89,7 +84,7 @@ export function resolveLotteryRpcUrl(): string {
   if (explicit) return explicit;
 
   const heliusKey = process.env.HELIUS_API_KEY?.trim();
-  if (heliusKey) {
+  if (process.env.LOTTERY_USE_HELIUS === "true" && heliusKey) {
     return heliusRpcUrl(cluster, heliusKey);
   }
 

@@ -1,11 +1,7 @@
 "use client";
 
 import { BN } from "@coral-xyz/anchor";
-import {
-  useAnchorWallet,
-  useConnection,
-  useWallet,
-} from "@solana/wallet-adapter-react";
+import { useAnchorWallet, useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import {
   Connection,
@@ -18,6 +14,10 @@ import {
   lotteryCluster,
   lotteryClusterLabel,
 } from "@/lib/lottery/cluster";
+import {
+  LOTTERY_PUBLIC_DEVNET_RPC,
+  LOTTERY_PUBLIC_MAINNET_RPC,
+} from "@/lib/lottery/rpc-url";
 import {
   lotteryProgramId,
   solscanAccountUrl,
@@ -52,7 +52,6 @@ import {
   adminFetchGlobalConfigAction,
   adminFetchProjectTokensForDrawAction,
   adminFetchServerLotteryClusterAction,
-  adminFetchWalletRpcEndpointAction,
   adminMintsExistOnClusterAction,
   adminSaveSplRowsForDrawAction,
 } from "@/app/admin/(dashboard)/lotteries/actions";
@@ -91,9 +90,9 @@ export function LotteryOpsPanel({
   drawLoading,
   onLiveDrawChange,
 }: LotteryOpsPanelProps) {
-  const { connection } = useConnection();
   const wallet = useAnchorWallet();
-  const { connected, publicKey, sendTransaction } = useWallet();
+  const { connected, publicKey, sendTransaction, wallet: walletAdapter } =
+    useWallet();
   const { setVisible } = useWalletModal();
 
   const programId = useMemo(() => lotteryProgramId(), []);
@@ -126,35 +125,29 @@ export function LotteryOpsPanel({
   const cluster = lotteryCluster();
   const clusterLabel = lotteryClusterLabel(cluster);
   const walletSendOpts = useMemo(
-    () => ({ sendTransaction, skipPreflight: true }),
-    [sendTransaction],
+    () => ({
+      sendTransaction,
+      skipPreflight: true,
+      signAndSendRaw: true,
+      adapter: walletAdapter?.adapter ?? null,
+    }),
+    [sendTransaction, walletAdapter],
   );
+  /** Public Solana RPC only — never Phantom/Helius (403 on sign-and-send). */
   const signingConnection = useMemo(() => {
-    if (!walletRpcEndpoint) return connection;
-    return new Connection(walletRpcEndpoint, "confirmed");
-  }, [connection, walletRpcEndpoint]);
+    const url =
+      cluster === "mainnet-beta"
+        ? LOTTERY_PUBLIC_MAINNET_RPC
+        : LOTTERY_PUBLIC_DEVNET_RPC;
+    return new Connection(url, "confirmed");
+  }, [cluster]);
   const walletRpcHost = useMemo(() => {
-    if (!walletRpcEndpoint) return null;
     try {
-      return new URL(walletRpcEndpoint).host;
+      return new URL(signingConnection.rpcEndpoint).host;
     } catch {
-      return walletRpcEndpoint;
+      return signingConnection.rpcEndpoint;
     }
-  }, [walletRpcEndpoint]);
-
-  useEffect(() => {
-    let cancelled = false;
-    adminFetchWalletRpcEndpointAction()
-      .then((endpoint) => {
-        if (!cancelled) setWalletRpcEndpoint(endpoint);
-      })
-      .catch(() => {
-        if (!cancelled) setWalletRpcEndpoint(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  }, [signingConnection]);
   const refreshConfig = useCallback(async () => {
     if (!wallet) return;
     const [serverCluster, cfg] = await Promise.all([
