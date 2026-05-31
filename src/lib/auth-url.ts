@@ -17,6 +17,19 @@ function siteIsCustomDomain(site: string): boolean {
   );
 }
 
+/** OAuth callbacks must match Discord/X portal entries (apex, no www). */
+function oauthOrigin(origin: string): string {
+  try {
+    const url = new URL(origin);
+    if (url.hostname.toLowerCase() === "www.slotto.gg") {
+      url.hostname = "slotto.gg";
+    }
+    return url.origin;
+  } catch {
+    return origin.replace(/\/$/, "");
+  }
+}
+
 /** Canonical origin for Auth.js OAuth redirects (no trailing slash). */
 export function resolveAuthUrl(): string {
   const site = getSiteUrl().replace(/\/$/, "");
@@ -29,22 +42,22 @@ export function resolveAuthUrl(): string {
 
   // Prefer NEXT_PUBLIC_SITE_URL when AUTH_URL is the same domain with/without www.
   if (explicit && customSite && hostKey(explicit) === hostKey(site)) {
-    return site;
+    return oauthOrigin(site);
   }
 
   // Honor an explicit custom-domain AUTH_URL for a different host.
   if (explicit && !explicit.includes(".vercel.app")) {
-    return explicit;
+    return oauthOrigin(explicit);
   }
 
   // Vercel often sets AUTH_URL / NEXTAUTH_URL to *.vercel.app — override for production.
   if (explicit.includes(".vercel.app") && customSite) {
-    return site;
+    return oauthOrigin(site);
   }
 
   if (explicit) return explicit;
 
-  if (customSite) return site;
+  if (customSite) return oauthOrigin(site);
 
   const vercel = process.env.VERCEL_URL?.trim();
   if (vercel) {
@@ -52,7 +65,7 @@ export function resolveAuthUrl(): string {
     return `https://${host}`;
   }
 
-  return site || "https://slotto.gg";
+  return oauthOrigin(site || "https://slotto.gg");
 }
 
 /** Normalize AUTH_URL / NEXTAUTH_URL before Auth.js reads them. */
