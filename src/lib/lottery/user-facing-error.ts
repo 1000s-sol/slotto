@@ -272,6 +272,12 @@ export function formatLotterySettlementError(error: unknown): string {
     return "Settlement already completed or duplicate crank — refresh the page.";
   }
   if (
+    text.includes("Public crank disabled") ||
+    text.includes("server cron")
+  ) {
+    return "Draw settlement runs automatically every few minutes. Refresh the page shortly.";
+  }
+  if (
     text.includes("Keeper not configured") ||
     text.includes("LOTTERY_KEEPER_SECRET_KEY")
   ) {

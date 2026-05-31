@@ -22,18 +22,40 @@ function heliusRpcUrl(cluster: LotteryCluster, apiKey: string): string {
   return `https://${host}/?api-key=${apiKey}`;
 }
 
+/** True when a URL is safe to embed in client JS (no extractable API keys). */
+function isBrowserSafeRpcUrl(url: string): boolean {
+  try {
+    const u = new URL(url);
+    if (u.searchParams.has("api-key") || u.searchParams.has("api_key")) {
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function pickBrowserRpc(candidate: string | undefined, cluster: LotteryCluster): string | null {
+  const url = candidate?.trim();
+  if (!url) return null;
+  if (lotteryClusterFromRpc(url) !== cluster) return null;
+  if (!isBrowserSafeRpcUrl(url)) return null;
+  return url;
+}
+
 /**
  * Browser / wallet adapter RPC.
- * Uses `NEXT_PUBLIC_SOLANA_RPC_URL` only when it matches `NEXT_PUBLIC_LOTTERY_CLUSTER`
- * (or inferred cluster); otherwise falls back to the public cluster RPC.
+ * Never returns Helius (or other) URLs with `api-key=` — those belong in HELIUS_API_KEY
+ * server-side only. Prefer `NEXT_PUBLIC_SOLANA_BROWSER_RPC_URL`, then a safe
+ * `NEXT_PUBLIC_SOLANA_RPC_URL`, then the public cluster endpoint.
  */
 export function resolvePublicSolanaRpcUrl(): string {
   const cluster = resolveLotteryClusterEnv();
-  const fromEnv = process.env.NEXT_PUBLIC_SOLANA_RPC_URL?.trim();
-  if (fromEnv && lotteryClusterFromRpc(fromEnv) === cluster) {
-    return fromEnv;
-  }
-  return DEFAULT_RPC[cluster];
+  return (
+    pickBrowserRpc(process.env.NEXT_PUBLIC_SOLANA_BROWSER_RPC_URL, cluster) ??
+    pickBrowserRpc(process.env.NEXT_PUBLIC_SOLANA_RPC_URL, cluster) ??
+    DEFAULT_RPC[cluster]
+  );
 }
 
 /**
