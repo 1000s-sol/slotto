@@ -127,8 +127,6 @@ export function LotteryOpsPanel({
   const walletSendOpts = useMemo(
     () => ({
       sendTransaction,
-      skipPreflight: true,
-      signAndSendRaw: true,
       fetchBlockhash: adminFetchRecentBlockhashAction,
     }),
     [sendTransaction],
