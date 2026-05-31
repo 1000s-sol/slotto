@@ -1,4 +1,3 @@
-import type { WalletAdapter } from "@solana/wallet-adapter-base";
 import type { AnchorWallet } from "@solana/wallet-adapter-react";
 import type {
   Connection,
@@ -14,7 +13,6 @@ export type WalletSendTransaction = (
 
 export type LotteryWalletSendOpts = {
   sendTransaction?: WalletSendTransaction;
-  adapter?: WalletAdapter | null;
   /** Admin: sign in Phantom, broadcast via our Connection (bypasses Phantom RPC 403). */
   signAndSendRaw?: boolean;
   /** Admin / recovery: skip RPC simulate when provider returns 403 on preflight. */
@@ -68,9 +66,9 @@ export async function sendTransactionViaWallet(
     return signature;
   };
 
-  if (opts?.signAndSendRaw && opts.adapter?.signTransaction) {
+  if (opts?.signAndSendRaw) {
     try {
-      const signed = await opts.adapter.signTransaction(tx);
+      const signed = await wallet.signTransaction(tx);
       const signature = await connection.sendRawTransaction(
         signed.serialize(),
         { skipPreflight: opts.skipPreflight ?? true, maxRetries: 3 },
