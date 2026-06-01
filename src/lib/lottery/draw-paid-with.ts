@@ -55,7 +55,8 @@ export async function fetchDrawPaidWithMints(
 
   const signatures: string[] = [];
   let before: string | undefined;
-  for (let page = 0; page < 20; page += 1) {
+  const maxPages = 5;
+  for (let page = 0; page < maxPages; page += 1) {
     const batch = await connection.getSignaturesForAddress(draw, {
       before,
       limit: 1000,
@@ -78,7 +79,7 @@ export async function fetchDrawPaidWithMints(
     set.add(mint);
   };
 
-  const txs = await mapWithConcurrency(signatures, 8, (sig) =>
+  const txs = await mapWithConcurrency(signatures, 3, (sig) =>
     connection
       .getParsedTransaction(sig, { maxSupportedTransactionVersion: 0 })
       .catch(() => null),

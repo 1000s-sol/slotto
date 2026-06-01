@@ -148,7 +148,9 @@ export function HomeLotterySection() {
     payWith: "SOL" | string;
     signature: string;
   } | null>(null);
-  const [splUiRows, setSplUiRows] = useState<SplMintUiRow[]>([]);
+  const [splDbRows, setSplDbRows] = useState<
+    Parameters<typeof mergeSplMintsForBuyUi>[1]
+  >([]);
   const [tokenMeta, setTokenMeta] = useState<Record<string, PayTokenMeta>>({});
   const [tickerPrices, setTickerPrices] = useState<TickerPriceItem[]>([]);
   const [liquidQuoteUi, setLiquidQuoteUi] = useState<string | null>(null);
@@ -352,7 +354,7 @@ export function HomeLotterySection() {
 
   useEffect(() => {
     if (!activeDraw) {
-      setSplUiRows([]);
+      setSplDbRows([]);
       return;
     }
     let cancelled = false;
@@ -360,31 +362,25 @@ export function HomeLotterySection() {
       try {
         const res = await fetch(
           `/api/lottery/draw-spl?drawId=${activeDraw.drawId}`,
-          { cache: "no-store" },
         );
         const json = (await res.json()) as { rows?: Parameters<
           typeof mergeSplMintsForBuyUi
         >[1] };
         if (cancelled) return;
-        setSplUiRows(
-          mergeSplMintsForBuyUi(
-            activeDraw.splMints,
-            json.rows ?? [],
-            buyable,
-          ),
-        );
+        setSplDbRows(json.rows ?? []);
       } catch {
-        if (!cancelled) {
-          setSplUiRows(
-            mergeSplMintsForBuyUi(activeDraw.splMints, [], buyable),
-          );
-        }
+        if (!cancelled) setSplDbRows([]);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [activeDraw, buyable]);
+  }, [activeDraw?.drawId]);
+
+  const splUiRows = useMemo((): SplMintUiRow[] => {
+    if (!activeDraw) return [];
+    return mergeSplMintsForBuyUi(activeDraw.splMints, splDbRows, buyable);
+  }, [activeDraw, splDbRows, buyable]);
 
   useEffect(() => {
     const drawId = activeDraw?.drawId;

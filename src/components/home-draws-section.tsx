@@ -272,7 +272,6 @@ export function HomeDrawsSection() {
       try {
         const res = await fetch(
           `/api/lottery/draw-paid-with?drawId=${drawId}`,
-          { cache: "no-store" },
         );
         const json = (await res.json()) as {
           paidWith?: Record<string, string[]>;
@@ -284,7 +283,7 @@ export function HomeDrawsSection() {
       }
     };
     void load();
-    const poll = setInterval(() => void load(), 30_000);
+    const poll = setInterval(() => void load(), 120_000);
     return () => {
       cancelled = true;
       clearInterval(poll);

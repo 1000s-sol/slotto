@@ -8,6 +8,10 @@ export type TokenBalanceSnapshot = {
   lotteryBuySupported?: boolean;
 };
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 /** Read SPL balance via server RPC (avoids browser api.mainnet-beta.solana.com 403). */
 export async function fetchTokenBalanceClient(
   owner: PublicKey,
@@ -17,15 +21,25 @@ export async function fetchTokenBalanceClient(
     owner: owner.toBase58(),
     mint: mint.toBase58(),
   });
-  const res = await fetch(`/api/lottery/token-balance?${params}`, {
-    cache: "no-store",
-  });
-  const json = (await res.json()) as TokenBalanceSnapshot & { error?: string };
-  if (!res.ok) {
-    throw new Error(json.error ?? "Could not read token balance");
+
+  let lastError = "Could not read token balance";
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const res = await fetch(`/api/lottery/token-balance?${params}`, {
+      cache: "no-store",
+    });
+    const json = (await res.json()) as TokenBalanceSnapshot & { error?: string };
+    if (res.ok) {
+      return {
+        ...json,
+        totalAmount: json.totalAmount ?? json.amount,
+      };
+    }
+    lastError = json.error ?? lastError;
+    if (res.status === 429 && attempt < 2) {
+      await sleep(600 * (attempt + 1));
+      continue;
+    }
+    break;
   }
-  return {
-    ...json,
-    totalAmount: json.totalAmount ?? json.amount,
-  };
+  throw new Error(lastError);
 }

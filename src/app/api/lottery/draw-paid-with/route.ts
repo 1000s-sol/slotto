@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 
 import { lotteryProgramId } from "@/lib/lottery/config";
 import { fetchDrawPaidWithMints } from "@/lib/lottery/draw-paid-with";
+import {
+  getDrawPaidWithCached,
+  setDrawPaidWithCached,
+} from "@/lib/lottery/draw-paid-with-cache";
 import { withLotteryServerRpc } from "@/lib/lottery/server-rpc";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 
@@ -27,14 +31,27 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Invalid drawId" }, { status: 400 });
   }
   try {
+    const cached = getDrawPaidWithCached(drawId);
+    if (cached) {
+      return NextResponse.json(
+        { paidWith: cached },
+        {
+          headers: {
+            "Cache-Control": "public, s-maxage=120, stale-while-revalidate=300",
+          },
+        },
+      );
+    }
+
     const paidWith = await withLotteryServerRpc((connection) =>
       fetchDrawPaidWithMints(connection, lotteryProgramId(), drawId),
     );
+    setDrawPaidWithCached(drawId, paidWith);
     return NextResponse.json(
       { paidWith },
       {
         headers: {
-          "Cache-Control": "public, s-maxage=20, stale-while-revalidate=40",
+          "Cache-Control": "public, s-maxage=120, stale-while-revalidate=300",
         },
       },
     );

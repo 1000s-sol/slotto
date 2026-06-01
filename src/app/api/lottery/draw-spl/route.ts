@@ -1,19 +1,23 @@
-import { Connection, PublicKey } from "@solana/web3.js";
 import { NextResponse } from "next/server";
 
-import { lotteryProgramId } from "@/lib/lottery/config";
-import { fetchDrawById } from "@/lib/lottery/chain";
-import { fetchSplMintRowsForDraw, healDrawSplDisplayCaps } from "@/lib/lottery/spl-catalog-db";
-import { mintSupportedForLotterySplBuy } from "@/lib/lottery/mint-token-program";
-import { resolveLotteryRpcUrl } from "@/lib/lottery/rpc-url";
-import {
-  splDbMintsMatchChain,
-  syncDrawSplRowsFromChain,
-} from "@/lib/lottery/sync-draw-spl-from-chain";
+import { fetchSplMintRowsForDraw } from "@/lib/lottery/spl-catalog-db";
+import { batchMintLotteryBuySupported } from "@/lib/lottery/mint-program-cache";
+import { withLotteryServerRpc } from "@/lib/lottery/server-rpc";
+import { clientIp, rateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
+/** Postgres SPL UI rows for a draw (light RPC: one batched mint lookup, cached). */
 export async function GET(request: Request) {
+  const ip = clientIp(request);
+  const limited = rateLimit(`draw-spl:${ip}`, 60, 60_000);
+  if (!limited.ok) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      { status: 429, headers: { "Retry-After": String(limited.retryAfter) } },
+    );
+  }
+
   const drawId = parseInt(
     new URL(request.url).searchParams.get("drawId") ?? "",
     10,
@@ -22,31 +26,31 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Invalid drawId" }, { status: 400 });
   }
 
-  const connection = new Connection(resolveLotteryRpcUrl(), "confirmed");
-  const programId = lotteryProgramId();
-  const draw = await fetchDrawById(connection, programId, drawId);
-  let rows = await fetchSplMintRowsForDraw(drawId);
+  try {
+    const rows = await fetchSplMintRowsForDraw(drawId);
+    const mints = rows.map((r) => r.mint);
+    const supportedByMint =
+      mints.length > 0
+        ? await withLotteryServerRpc((connection) =>
+            batchMintLotteryBuySupported(connection, mints),
+          )
+        : {};
 
-  if (draw && draw.splMints.length > 0) {
-    const chainMints = draw.splMints.map((m) => m.mint);
-    const dbMints = rows.map((r) => r.mint);
-    if (!splDbMintsMatchChain(dbMints, chainMints)) {
-      await syncDrawSplRowsFromChain(connection, programId, drawId);
-      rows = await fetchSplMintRowsForDraw(drawId);
-    }
-    await healDrawSplDisplayCaps(drawId);
-    rows = await fetchSplMintRowsForDraw(drawId);
-  }
-
-  const rowsWithSupport = await Promise.all(
-    rows.map(async (row) => ({
+    const rowsWithSupport = rows.map((row) => ({
       ...row,
-      lotteryBuySupported: await mintSupportedForLotterySplBuy(
-        connection,
-        new PublicKey(row.mint),
-      ),
-    })),
-  );
+      lotteryBuySupported: supportedByMint[row.mint] ?? true,
+    }));
 
-  return NextResponse.json({ rows: rowsWithSupport });
+    return NextResponse.json(
+      { rows: rowsWithSupport },
+      {
+        headers: {
+          "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120",
+        },
+      },
+    );
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Failed to load draw SPL";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }

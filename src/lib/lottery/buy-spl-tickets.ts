@@ -15,7 +15,7 @@ import {
 import { globalConfigPda, ticketChunkPda } from "./pdas";
 import { BuyPreflightError, type LotteryVaultPubkeys } from "./preflight-buy-sol";
 import { createLotteryProgram } from "./program";
-import { mintSupportedForLotterySplBuy } from "./mint-token-program";
+import { isRpcRateLimitError } from "./rpc-url";
 import { splBaseUnitsToUi } from "./spl-price";
 import { ticketChunkIndicesForRange } from "./ticket-chunks";
 import {
@@ -40,12 +40,6 @@ export async function buySplTickets(
   }
 
   const label = tokenLabel?.trim() || "tokens";
-  const supported = await mintSupportedForLotterySplBuy(connection, mint);
-  if (!supported) {
-    throw new BuyPreflightError(
-      `${label} uses Token-2022, which Slotto SPL ticket buys do not support yet. Pay with SOL or another listed token.`,
-    );
-  }
 
   const program = createLotteryProgram(connection, wallet);
   const globalConfig = globalConfigPda(programId);
@@ -74,10 +68,15 @@ export async function buySplTickets(
       const bal = await sendOpts.fetchTokenBalance(wallet.publicKey, mint);
       ataHeld = bal.ata;
       totalHeld = bal.total;
-    } catch {
-      throw new BuyPreflightError(
-        `Could not verify your ${label} balance. Refresh the page and try again.`,
-      );
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (isRpcRateLimitError(msg) || /too many requests/i.test(msg)) {
+        // Helius 429 — do not block Phantom; wallet simulation will catch underfunding.
+      } else {
+        throw new BuyPreflightError(
+          `Could not verify your ${label} balance. Refresh the page and try again.`,
+        );
+      }
     }
   } else {
     try {
