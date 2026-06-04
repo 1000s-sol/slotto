@@ -16,7 +16,7 @@ export function DiscordTicketBotButton() {
         className="inline-flex items-center gap-2 rounded-xl border border-[#5865F2]/50 bg-[#5865F2]/15 px-5 py-2.5 text-sm font-medium text-foreground transition hover:bg-[#5865F2]/25"
       >
         <DiscordLogo className="h-5 w-5 text-[#5865F2]" />
-        Ticket alerts for Discord
+        Sales Bot
       </button>
       <DiscordTicketBotModal
         open={open}
@@ -75,7 +75,7 @@ function DiscordTicketBotModal({
 
   return (
     <div
-      className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-[110] flex min-h-[100dvh] items-center justify-center bg-black/60 p-4 backdrop-blur-sm md:bg-black/75 md:backdrop-blur-md"
       role="presentation"
       onClick={onClose}
     >
@@ -145,11 +145,6 @@ function DiscordTicketBotModal({
               The bot only posts purchase embeds; it does not read your messages or manage roles.
             </p>
           </div>
-
-          <p className="text-xs">
-            Each purchase shows the buyer (linked Discord/X name when available), ticket count,
-            payment token, live jackpot, and a Solscan link — plus a button to slotto.gg.
-          </p>
         </div>
 
         <div className="flex flex-col gap-2 border-t border-border px-5 py-4 sm:flex-row">
@@ -160,8 +155,8 @@ function DiscordTicketBotModal({
               rel="noreferrer"
               className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#5865F2] px-4 py-2.5 text-sm font-semibold text-white hover:brightness-110"
             >
-              <DiscordLogo className="h-4 w-4" />
-              Invite bot to server
+              <DiscordLogo className="h-4 w-4 shrink-0" variant="white" />
+              invite bot
             </a>
           ) : inviteError ? (
             <p className="flex-1 text-sm text-amber-200/90">
