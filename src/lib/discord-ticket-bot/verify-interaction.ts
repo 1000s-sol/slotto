@@ -1,4 +1,4 @@
-import { verify } from "@noble/curves/ed25519";
+import { ed25519 } from "@noble/curves/ed25519";
 
 import { discordTicketBotPublicKey } from "./config";
 
@@ -19,7 +19,7 @@ export function verifyDiscordInteractionRequest(
     const sig = hexToBytes(signatureHeader);
     const key = hexToBytes(publicKeyHex);
     if (sig.length !== 64 || key.length !== 32) return false;
-    return verify(sig, message, key);
+    return ed25519.verify(sig, message, key);
   } catch {
     return false;
   }
