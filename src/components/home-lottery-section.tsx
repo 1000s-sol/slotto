@@ -19,6 +19,7 @@ import {
 } from "@/components/lottery/purchase-success-modal";
 import { SplPoolInfoButton } from "@/components/lottery/spl-pool-info-modal";
 import { TicketCountInput } from "@/components/lottery/ticket-count-input";
+import { notifyDiscordTicketSaleClient } from "@/lib/discord-ticket-bot/notify-client";
 import { fetchWalletSocialsClient } from "@/lib/fetch-wallet-social-client";
 import type { WalletSocialPublic } from "@/lib/social-profile-url";
 import { buySolTickets } from "@/lib/lottery/buy-sol-tickets";
@@ -551,6 +552,19 @@ export function HomeLotterySection() {
       const lastId = activeDraw.totalTickets + count - 1;
       const ids = count === 1 ? `#${firstId}` : `#${firstId}–#${lastId}`;
       const boughtWith = payWith;
+      const metaKey = boughtWith === "SOL" ? SOL_MINT : boughtWith;
+      const meta = tokenMeta[metaKey];
+      const isSolPay = boughtWith === "SOL";
+      void notifyDiscordTicketSaleClient({
+        signature: sig,
+        wallet: wallet.publicKey.toBase58(),
+        drawId: activeDraw.drawId,
+        count,
+        payWith: boughtWith,
+        tokenSymbol: meta?.symbol ?? (isSolPay ? "SOL" : ""),
+        tokenName: meta?.name ?? (isSolPay ? "Solana" : (meta?.symbol ?? "Token")),
+        tokenImageUrl: meta?.imageUrl ?? null,
+      });
       await refresh();
       setPhase({ kind: "idle" });
       setPurchase({ count, ids, payWith: boughtWith, signature: sig });

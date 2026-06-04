@@ -261,3 +261,24 @@ model LinkedWallet {
 
   @@index([userProfileId])
 }
+
+// --- Discord ticket-sale announcements (community servers) ---
+
+/// Guild + channel where the Slotto bot posts ticket purchase embeds.
+model DiscordTicketBotGuild {
+  /// Discord guild (server) snowflake
+  guildId     String   @id
+  channelId   String
+  enabled     Boolean  @default(true)
+  /// Discord user id who ran /slotto-setup
+  setupById   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+/// Idempotency: one Discord blast per on-chain buy signature.
+model DiscordTicketSaleNotify {
+  signature String   @id
+  drawId    Int
+  postedAt  DateTime @default(now())
+}

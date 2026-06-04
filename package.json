@@ -33,10 +33,12 @@
     "lottery:settle": "tsx scripts/lottery-settle-draw.ts",
     "lottery:simulate-buy": "tsx scripts/lottery-simulate-buy-sol.ts",
     "lottery:keeper": "tsx scripts/lottery-keeper.ts",
+    "lottery:init-chunk": "tsx scripts/lottery-init-ticket-chunk.ts",
     "lottery:mint-devnet-token": "tsx scripts/mint-devnet-spl.ts",
     "lottery:mint-free-entry": "tsx scripts/mint-free-entry-token.ts",
     "lottery:test:all": "npm run lottery:test && npm run lottery:test:integration",
-    "x:test-post": "tsx scripts/x-test-post.ts"
+    "x:test-post": "tsx scripts/x-test-post.ts",
+    "discord:register-commands": "tsx scripts/discord-register-ticket-bot-commands.ts"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.30.1",

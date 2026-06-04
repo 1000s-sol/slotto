@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { BrandPng } from "@/components/brand-png";
+import { DiscordTicketBotButton } from "@/components/discord-ticket-bot-modal";
 import { HomeLotterySection } from "@/components/home-lottery-section";
 import { HomeDrawsSection } from "@/components/home-draws-section";
 
@@ -42,13 +43,14 @@ export default function HomePage() {
             <li>Enter using Sol or featured project tokens</li>
             <li>Discover new projects and exciting investment opportunities</li>
           </ul>
-          <div className="mt-8">
+          <div className="mt-8 flex flex-wrap items-center gap-3">
             <Link
               href="/projects"
               className="inline-flex rounded-xl bg-gradient-to-r from-accent-purple to-accent-blue px-6 py-3 text-base font-medium text-white shadow-lg shadow-accent-purple/25 transition hover:brightness-110 lg:px-5 lg:py-2.5 lg:text-sm"
             >
               Browse projects
             </Link>
+            <DiscordTicketBotButton />
           </div>
         </div>
       </section>
