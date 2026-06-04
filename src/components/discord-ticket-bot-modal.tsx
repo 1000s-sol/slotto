@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { DiscordLogo } from "@/components/discord-logo";
 
@@ -36,8 +37,13 @@ function DiscordTicketBotModal({
   onClose: () => void;
   titleId: string;
 }) {
+  const [mounted, setMounted] = useState(false);
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
   const [inviteError, setInviteError] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -71,11 +77,11 @@ function DiscordTicketBotModal({
     };
   }, [open, onClose]);
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-[110] flex min-h-[100dvh] items-center justify-center bg-black/60 p-4 backdrop-blur-sm md:bg-black/75 md:backdrop-blur-md"
+      className="fixed inset-0 z-[200] grid place-items-center bg-black/65 p-4 backdrop-blur-md md:bg-black/75 md:backdrop-blur-lg"
       role="presentation"
       onClick={onClose}
     >
@@ -83,7 +89,7 @@ function DiscordTicketBotModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="max-h-[min(90vh,720px)] w-full max-w-lg overflow-y-auto rounded-2xl border border-border bg-bg-elevated shadow-2xl"
+        className="max-h-[min(90dvh,720px)] w-full max-w-lg overflow-y-auto rounded-2xl border border-border bg-bg-elevated shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3 border-b border-border px-5 py-4">
@@ -176,6 +182,7 @@ function DiscordTicketBotModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
