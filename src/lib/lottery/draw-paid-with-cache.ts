@@ -14,6 +14,11 @@ export function getDrawPaidWithCached(
     cache.delete(drawId);
     return null;
   }
+  // Never serve a cached empty map — it poisons the UI after a failed scan.
+  if (Object.keys(row.paidWith).length === 0) {
+    cache.delete(drawId);
+    return null;
+  }
   return row.paidWith;
 }
 

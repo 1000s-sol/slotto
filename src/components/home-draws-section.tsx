@@ -101,6 +101,7 @@ export function HomeDrawsSection() {
   const [tab, setTab] = useState<Tab>("current");
   const [tokens, setTokens] = useState<Record<string, TokenMeta>>({});
   const [paidWith, setPaidWith] = useState<Record<string, string[]>>({});
+  const [paidWithLoading, setPaidWithLoading] = useState(false);
   const [entrants, setEntrants] = useState<Entrant[]>([]);
   const [drawId, setDrawId] = useState<number | null>(null);
   const [drawAddress, setDrawAddress] = useState<string | null>(null);
@@ -263,10 +264,12 @@ export function HomeDrawsSection() {
   useEffect(() => {
     if (drawId === null || totalTickets === 0) {
       setPaidWith({});
+      setPaidWithLoading(false);
       return;
     }
     let cancelled = false;
     const load = async () => {
+      setPaidWithLoading(true);
       try {
         const res = await fetch(
           `/api/lottery/draw-paid-with?drawId=${drawId}`,
@@ -277,7 +280,9 @@ export function HomeDrawsSection() {
         if (cancelled || !json.paidWith) return;
         setPaidWith(json.paidWith);
       } catch {
-        /* fallback to SOL thumbnail */
+        /* keep prior paidWith if any */
+      } finally {
+        if (!cancelled) setPaidWithLoading(false);
       }
     };
     void load();
@@ -350,6 +355,7 @@ export function HomeDrawsSection() {
             entrants={sortedEntrants}
             tokens={tokens}
             paidWith={paidWith}
+            paidWithLoading={paidWithLoading}
             totalTickets={totalTickets}
           />
         )
@@ -374,6 +380,7 @@ function CurrentDrawTable({
   entrants,
   tokens,
   paidWith,
+  paidWithLoading,
   totalTickets,
 }: {
   drawId: number;
@@ -383,6 +390,7 @@ function CurrentDrawTable({
   entrants: Entrant[];
   tokens: Record<string, TokenMeta>;
   paidWith: Record<string, string[]>;
+  paidWithLoading: boolean;
   totalTickets: number;
 }) {
   return (
@@ -471,7 +479,10 @@ function CurrentDrawTable({
                     </td>
                     <td className="px-3 py-3">
                       <div className="flex items-center gap-1.5">
-                        {(paidWith[e.wallet] ?? []).length === 0 ? (
+                        {paidWithLoading &&
+                        (paidWith[e.wallet] ?? []).length === 0 ? (
+                          <span className="text-xs text-muted/70">…</span>
+                        ) : (paidWith[e.wallet] ?? []).length === 0 ? (
                           <span className="text-xs text-muted/70">—</span>
                         ) : (
                           (paidWith[e.wallet] ?? []).map((m) => (

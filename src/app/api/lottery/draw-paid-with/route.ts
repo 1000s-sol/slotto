@@ -46,7 +46,9 @@ export async function GET(request: Request) {
     const paidWith = await withLotteryServerRpc((connection) =>
       fetchDrawPaidWithMints(connection, lotteryProgramId(), drawId),
     );
-    setDrawPaidWithCached(drawId, paidWith);
+    if (Object.keys(paidWith).length > 0) {
+      setDrawPaidWithCached(drawId, paidWith);
+    }
     return NextResponse.json(
       { paidWith },
       {

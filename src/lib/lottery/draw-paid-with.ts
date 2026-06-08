@@ -45,6 +45,7 @@ async function mapWithConcurrency<T, R>(
   limit: number,
   fn: (item: T) => Promise<R>,
 ): Promise<R[]> {
+  if (items.length === 0) return [];
   const out: R[] = new Array(items.length);
   let cursor = 0;
   const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
@@ -119,53 +120,84 @@ function ingestParsedTransaction(
   }
 }
 
-function ingestVersionedTransaction(
+/** Decode legacy + v0 txs from `getTransaction` (covers cases parsed txs miss). */
+function ingestRawTransaction(
   walletMints: MintAccumulator,
   tx: VersionedTransactionResponse,
   programId: PublicKey,
 ): void {
-  if (tx.meta?.err) return;
-  const meta = tx.meta;
-  if (!meta) return;
+  try {
+    const meta = tx.meta;
+    if (!meta || meta.err) return;
 
-  const message = tx.transaction.message;
-  const keys = message.getAccountKeys({
-    accountKeysFromLookups: meta.loadedAddresses,
-  });
+    const message = tx.transaction.message;
+    let getKey: (index: number) => PublicKey | undefined;
 
-  const handleCompiled = (
-    programIdIndex: number,
-    accountIndexes: number[],
-    data: Uint8Array,
-  ) => {
-    const pid = keys.get(programIdIndex);
-    if (!pid?.equals(programId)) return;
-    const accounts = accountIndexes
-      .map((i) => keys.get(i))
-      .filter((k): k is PublicKey => k !== undefined);
-    recordBuy(walletMints, accounts, data);
-  };
-
-  for (const ix of message.compiledInstructions) {
-    handleCompiled(ix.programIdIndex, [...ix.accountKeyIndexes], ix.data);
-  }
-
-  for (const group of meta.innerInstructions ?? []) {
-    for (const ix of group.instructions) {
-      handleCompiled(
-        ix.programIdIndex,
-        [...ix.accounts],
-        utils.bytes.bs58.decode(ix.data),
-      );
+    if ("version" in message && message.version === 0) {
+      const keys = message.getAccountKeys({
+        accountKeysFromLookups: meta.loadedAddresses,
+      });
+      getKey = (index) => keys.get(index);
+      for (const ix of message.compiledInstructions) {
+        const pid = getKey(ix.programIdIndex);
+        if (!pid?.equals(programId)) continue;
+        const accounts = ix.accountKeyIndexes
+          .map((i) => getKey(i))
+          .filter((k): k is PublicKey => k !== undefined);
+        recordBuy(walletMints, accounts, ix.data);
+      }
+    } else {
+      const legacy = message as {
+        accountKeys: PublicKey[];
+        instructions: Array<{
+          programIdIndex: number;
+          accounts: number[];
+          data: Buffer | Uint8Array;
+        }>;
+      };
+      getKey = (index) => legacy.accountKeys[index];
+      for (const ix of legacy.instructions) {
+        const pid = getKey(ix.programIdIndex);
+        if (!pid?.equals(programId)) continue;
+        const accounts = ix.accounts
+          .map((i) => getKey(i))
+          .filter((k): k is PublicKey => k !== undefined);
+        const data =
+          ix.data instanceof Uint8Array ? ix.data : new Uint8Array(ix.data);
+        recordBuy(walletMints, accounts, data);
+      }
     }
+
+    for (const group of meta.innerInstructions ?? []) {
+      for (const ix of group.instructions) {
+        const pid = getKey(ix.programIdIndex);
+        if (!pid?.equals(programId)) continue;
+        const accounts = ix.accounts
+          .map((i) => getKey(i))
+          .filter((k): k is PublicKey => k !== undefined);
+        recordBuy(walletMints, accounts, utils.bytes.bs58.decode(ix.data));
+      }
+    }
+  } catch {
+    /* skip malformed tx */
   }
+}
+
+function walletMintsToRecord(walletMints: MintAccumulator): Record<string, string[]> {
+  const out: Record<string, string[]> = {};
+  for (const [wallet, set] of walletMints) {
+    out[wallet] = [...set].sort((a, b) => {
+      if (a === WRAPPED_SOL_MINT) return -1;
+      if (b === WRAPPED_SOL_MINT) return 1;
+      return a.localeCompare(b);
+    });
+  }
+  return out;
 }
 
 /**
  * Inspect the draw account's transaction history and attribute each buyer to
  * the set of mints they paid with (SOL is reported as wrapped-SOL mint).
- * The on-chain ticket data only stores owners, so this is the source of truth
- * for the "paid with" column. Best-effort: returns what it can decode.
  */
 export async function fetchDrawPaidWithMints(
   connection: Connection,
@@ -192,15 +224,7 @@ export async function fetchDrawPaidWithMints(
 
   const walletMints: MintAccumulator = new Map();
 
-  await mapWithConcurrency(signatures, 4, async (sig) => {
-    const parsed = await connection
-      .getParsedTransaction(sig, { maxSupportedTransactionVersion: 0 })
-      .catch(() => null);
-    if (parsed) {
-      ingestParsedTransaction(walletMints, parsed, programId);
-    }
-
-    // Parsed txs often omit custom program ix; unparsed decode is the reliable fallback.
+  await mapWithConcurrency(signatures, 2, async (sig) => {
     const raw = await connection
       .getTransaction(sig, {
         commitment: "confirmed",
@@ -208,17 +232,17 @@ export async function fetchDrawPaidWithMints(
       })
       .catch(() => null);
     if (raw) {
-      ingestVersionedTransaction(walletMints, raw, programId);
+      ingestRawTransaction(walletMints, raw, programId);
+      return;
+    }
+
+    const parsed = await connection
+      .getParsedTransaction(sig, { maxSupportedTransactionVersion: 0 })
+      .catch(() => null);
+    if (parsed) {
+      ingestParsedTransaction(walletMints, parsed, programId);
     }
   });
 
-  const out: Record<string, string[]> = {};
-  for (const [wallet, set] of walletMints) {
-    out[wallet] = [...set].sort((a, b) => {
-      if (a === WRAPPED_SOL_MINT) return -1;
-      if (b === WRAPPED_SOL_MINT) return 1;
-      return a.localeCompare(b);
-    });
-  }
-  return out;
+  return walletMintsToRecord(walletMints);
 }
