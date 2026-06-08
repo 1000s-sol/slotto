@@ -147,12 +147,12 @@ function ingestRawTransaction(
         recordBuy(walletMints, accounts, ix.data);
       }
     } else {
-      const legacy = message as {
+      const legacy = message as unknown as {
         accountKeys: PublicKey[];
         instructions: Array<{
           programIdIndex: number;
           accounts: number[];
-          data: Buffer | Uint8Array;
+          data: string;
         }>;
       };
       getKey = (index) => legacy.accountKeys[index];
@@ -162,9 +162,7 @@ function ingestRawTransaction(
         const accounts = ix.accounts
           .map((i) => getKey(i))
           .filter((k): k is PublicKey => k !== undefined);
-        const data =
-          ix.data instanceof Uint8Array ? ix.data : new Uint8Array(ix.data);
-        recordBuy(walletMints, accounts, data);
+        recordBuy(walletMints, accounts, utils.bytes.bs58.decode(ix.data));
       }
     }
 
