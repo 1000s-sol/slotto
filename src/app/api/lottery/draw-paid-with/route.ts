@@ -34,7 +34,7 @@ export async function GET(request: Request) {
     const cached = getDrawPaidWithCached(drawId);
     if (cached) {
       return NextResponse.json(
-        { paidWith: cached },
+        { paidWith: cached.paidWith, complete: cached.complete },
         {
           headers: {
             "Cache-Control": "public, s-maxage=120, stale-while-revalidate=300",
@@ -43,21 +43,23 @@ export async function GET(request: Request) {
       );
     }
 
-    const paidWith = await withLotteryServerRpc((connection) =>
+    const { paidWith, complete } = await withLotteryServerRpc((connection) =>
       fetchDrawPaidWithMints(connection, lotteryProgramId(), drawId),
     );
-    if (Object.keys(paidWith).length > 0) {
-      setDrawPaidWithCached(drawId, paidWith);
+    if (complete) {
+      setDrawPaidWithCached(drawId, paidWith, complete);
     }
     return NextResponse.json(
-      { paidWith },
+      { paidWith, complete },
       {
         headers: {
-          "Cache-Control": "public, s-maxage=120, stale-while-revalidate=300",
+          "Cache-Control": complete
+            ? "public, s-maxage=120, stale-while-revalidate=300"
+            : "no-store",
         },
       },
     );
   } catch {
-    return NextResponse.json({ paidWith: {} });
+    return NextResponse.json({ paidWith: {}, complete: false });
   }
 }

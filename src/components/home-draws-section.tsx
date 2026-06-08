@@ -101,6 +101,7 @@ export function HomeDrawsSection() {
   const [tab, setTab] = useState<Tab>("current");
   const [tokens, setTokens] = useState<Record<string, TokenMeta>>({});
   const [paidWith, setPaidWith] = useState<Record<string, string[]>>({});
+  const [paidWithComplete, setPaidWithComplete] = useState(false);
   const [paidWithLoading, setPaidWithLoading] = useState(false);
   const [entrants, setEntrants] = useState<Entrant[]>([]);
   const [drawId, setDrawId] = useState<number | null>(null);
@@ -264,10 +265,12 @@ export function HomeDrawsSection() {
   useEffect(() => {
     if (drawId === null || totalTickets === 0) {
       setPaidWith({});
+      setPaidWithComplete(false);
       setPaidWithLoading(false);
       return;
     }
     let cancelled = false;
+    setPaidWithComplete(false);
     const load = async () => {
       setPaidWithLoading(true);
       try {
@@ -276,9 +279,11 @@ export function HomeDrawsSection() {
         );
         const json = (await res.json()) as {
           paidWith?: Record<string, string[]>;
+          complete?: boolean;
         };
         if (cancelled || !json.paidWith) return;
         setPaidWith(json.paidWith);
+        setPaidWithComplete(json.complete === true);
       } catch {
         /* keep prior paidWith if any */
       } finally {
@@ -286,12 +291,12 @@ export function HomeDrawsSection() {
       }
     };
     void load();
-    const poll = setInterval(() => void load(), 120_000);
+    const poll = setInterval(() => void load(), paidWithComplete ? 120_000 : 8_000);
     return () => {
       cancelled = true;
       clearInterval(poll);
     };
-  }, [drawId, totalTickets]);
+  }, [drawId, totalTickets, paidWithComplete]);
 
   const sortedEntrants = useMemo(
     () => [...entrants].sort((a, b) => b.tickets - a.tickets),
@@ -356,6 +361,7 @@ export function HomeDrawsSection() {
             tokens={tokens}
             paidWith={paidWith}
             paidWithLoading={paidWithLoading}
+            paidWithComplete={paidWithComplete}
             totalTickets={totalTickets}
           />
         )
@@ -381,6 +387,7 @@ function CurrentDrawTable({
   tokens,
   paidWith,
   paidWithLoading,
+  paidWithComplete,
   totalTickets,
 }: {
   drawId: number;
@@ -391,6 +398,7 @@ function CurrentDrawTable({
   tokens: Record<string, TokenMeta>;
   paidWith: Record<string, string[]>;
   paidWithLoading: boolean;
+  paidWithComplete: boolean;
   totalTickets: number;
 }) {
   return (
@@ -479,7 +487,7 @@ function CurrentDrawTable({
                     </td>
                     <td className="px-3 py-3">
                       <div className="flex items-center gap-1.5">
-                        {paidWithLoading &&
+                        {(paidWithLoading || !paidWithComplete) &&
                         (paidWith[e.wallet] ?? []).length === 0 ? (
                           <span className="text-xs text-muted/70">…</span>
                         ) : (paidWith[e.wallet] ?? []).length === 0 ? (
