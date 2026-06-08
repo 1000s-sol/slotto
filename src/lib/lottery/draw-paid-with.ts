@@ -125,10 +125,12 @@ function ingestVersionedTransaction(
   programId: PublicKey,
 ): void {
   if (tx.meta?.err) return;
+  const meta = tx.meta;
+  if (!meta) return;
 
   const message = tx.transaction.message;
   const keys = message.getAccountKeys({
-    accountKeysFromLookups: tx.meta.loadedAddresses,
+    accountKeysFromLookups: meta.loadedAddresses,
   });
 
   const handleCompiled = (
@@ -148,7 +150,7 @@ function ingestVersionedTransaction(
     handleCompiled(ix.programIdIndex, [...ix.accountKeyIndexes], ix.data);
   }
 
-  for (const group of tx.meta.innerInstructions ?? []) {
+  for (const group of meta.innerInstructions ?? []) {
     for (const ix of group.instructions) {
       handleCompiled(
         ix.programIdIndex,
