@@ -7,7 +7,6 @@ import { useCallback, useMemo, useTransition } from "react";
 const SORT_OPTIONS = [
   { value: "likes", label: "Likes" },
   { value: "name", label: "A–Z" },
-  { value: "floor", label: "Floor price" },
 ] as const;
 
 export type ProjectsSortValue = (typeof SORT_OPTIONS)[number]["value"];
@@ -21,7 +20,7 @@ export function ProjectsToolbar({ defaultSort }: { defaultSort: ProjectsSortValu
 
   const currentSort = useMemo(() => {
     const s = searchParams.get("sort")?.trim();
-    if (s === "name" || s === "floor") return s;
+    if (s === "name") return s;
     return defaultSort;
   }, [searchParams, defaultSort]);
 

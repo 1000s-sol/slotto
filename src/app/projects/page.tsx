@@ -4,13 +4,12 @@ import { FeaturedProjectOfWeek } from "@/components/project/featured-project-of-
 import { ProjectCardTile } from "@/components/project/project-card-tile";
 import { ProjectsToolbar } from "@/components/project/projects-toolbar";
 import { pickFeaturedProject } from "@/lib/pick-featured-project";
-import { floorSolSortKey } from "@/lib/project-floor-sort";
 import { prisma } from "@/lib/prisma";
 import { getFeaturedProjectSlugFromDb } from "@/lib/site-settings";
 
 type Props = { searchParams: Promise<{ q?: string; sort?: string }> };
 
-type SortMode = "likes" | "name" | "floor";
+type SortMode = "likes" | "name";
 
 type ProjectRow = {
   slug: string;
@@ -19,11 +18,10 @@ type ProjectRow = {
   reviewMd: string;
   bannerImageUrl: string | null;
   listingImageUrl: string | null;
-  stats: unknown;
 };
 
 function parseSort(raw: string | undefined): SortMode {
-  if (raw === "name" || raw === "floor") return raw;
+  if (raw === "name") return raw;
   return "likes";
 }
 
@@ -31,13 +29,6 @@ function sortProjects(list: ProjectRow[], sort: SortMode): ProjectRow[] {
   const out = [...list];
   if (sort === "name") {
     out.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
-  } else if (sort === "floor") {
-    out.sort((a, b) => {
-      const fa = floorSolSortKey(a.stats);
-      const fb = floorSolSortKey(b.stats);
-      if (fa !== fb) return fa - fb;
-      return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
-    });
   } else {
     out.sort((a, b) => {
       if (b.likes !== a.likes) return b.likes - a.likes;
@@ -63,7 +54,6 @@ export default async function ProjectsPage({ searchParams }: Props) {
     reviewMd: true,
     bannerImageUrl: true,
     listingImageUrl: true,
-    stats: true,
   } as const;
 
   const statsPromise = Promise.all([
