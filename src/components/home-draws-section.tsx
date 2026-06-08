@@ -24,8 +24,6 @@ type TokenMeta = {
   imageUrl: string | null;
 };
 
-const SOL_MINT = "So11111111111111111111111111111111111111112";
-
 type Entrant = {
   wallet: string;
   discord: SocialProfile | null;
@@ -473,9 +471,13 @@ function CurrentDrawTable({
                     </td>
                     <td className="px-3 py-3">
                       <div className="flex items-center gap-1.5">
-                        {(paidWith[e.wallet] ?? [SOL_MINT]).map((m) => (
-                          <TokenThumb key={m} item={tokens[m]} />
-                        ))}
+                        {(paidWith[e.wallet] ?? []).length === 0 ? (
+                          <span className="text-xs text-muted/70">—</span>
+                        ) : (
+                          (paidWith[e.wallet] ?? []).map((m) => (
+                            <TokenThumb key={m} item={tokens[m]} />
+                          ))
+                        )}
                       </div>
                     </td>
                     <td className="px-5 py-3 text-right font-mono tabular-nums text-accent-gold">
