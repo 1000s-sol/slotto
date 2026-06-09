@@ -20,7 +20,6 @@ import {
 import { SplPoolInfoButton } from "@/components/lottery/spl-pool-info-modal";
 import { TicketCountInput } from "@/components/lottery/ticket-count-input";
 import { notifyDiscordTicketSaleClient } from "@/lib/discord-ticket-bot/notify-client";
-import { recordTicketPurchaseClient } from "@/lib/lottery/record-purchase-client";
 import { fetchWalletSocialsClient } from "@/lib/fetch-wallet-social-client";
 import type { WalletSocialPublic } from "@/lib/social-profile-url";
 import { buySolTickets } from "@/lib/lottery/buy-sol-tickets";
@@ -566,13 +565,6 @@ export function HomeLotterySection() {
         tokenSymbol: meta?.symbol ?? (isSolPay ? "SOL" : ""),
         tokenName: meta?.name ?? (isSolPay ? "Solana" : (meta?.symbol ?? "Token")),
         tokenImageUrl: meta?.imageUrl ?? null,
-      });
-      void recordTicketPurchaseClient({
-        signature: sig,
-        wallet: wallet.publicKey.toBase58(),
-        drawId: activeDraw.drawId,
-        count,
-        payWith: boughtWith,
       });
       await refresh();
       setPhase({ kind: "idle" });
