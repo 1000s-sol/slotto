@@ -21,6 +21,8 @@ export type PurchaseSuccessDetails = {
   signature: string;
   /** Formatted live SOL jackpot (e.g. "0.019"), or null if unavailable. */
   jackpotSol: string | null;
+  /** Project X handle when paid with a listed project token (not SOL). */
+  projectXHandle?: string | null;
 };
 
 function TokenAvatar({
@@ -63,7 +65,13 @@ function TokenAvatar({
 
 function buildTweetIntentUrl(details: PurchaseSuccessDetails): string {
   const ticketWord = details.count === 1 ? "ticket" : "tickets";
-  const tokenPart = details.tokenSymbol ? ` with ${details.tokenSymbol}` : "";
+  let tokenPart = "";
+  if (details.tokenSymbol) {
+    tokenPart = ` with ${details.tokenSymbol}`;
+    if (details.projectXHandle) {
+      tokenPart += ` from @${details.projectXHandle}`;
+    }
+  }
   const jackpotPart = details.jackpotSol
     ? `\n\nLive jackpot: ${details.jackpotSol} SOL 💰`
     : "";

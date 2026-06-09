@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { normalizeXHandle } from "@/lib/social-profile-url";
 import { fetchMintDecimals } from "./fetch-mint-decimals";
 import { liquidSplMaxPriceFromTickerItems } from "./liquid-ticket-price";
 import {
@@ -23,6 +24,8 @@ export type ProjectTokenForDraw = {
   liquid: boolean;
   tokenName: string | null;
   tokenImageUrl: string | null;
+  /** Normalized X handle from the project listing, e.g. uglyapesquad */
+  projectXHandle: string | null;
 };
 
 export async function fetchPublishedProjectTokens(): Promise<
@@ -37,6 +40,7 @@ export async function fetchPublishedProjectTokens(): Promise<
       tokenLiquid: true,
       tokenName: true,
       tokenImageUrl: true,
+      twitterUrl: true,
     },
     orderBy: { name: "asc" },
   });
@@ -52,6 +56,7 @@ export async function fetchPublishedProjectTokens(): Promise<
       liquid: r.tokenLiquid,
       tokenName: r.tokenName,
       tokenImageUrl: r.tokenImageUrl,
+      projectXHandle: normalizeXHandle(r.twitterUrl ?? ""),
     });
   }
   return out;

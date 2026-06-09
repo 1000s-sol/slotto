@@ -20,6 +20,7 @@ export type DrawTokenMeta = {
   name: string;
   imageUrl: string | null;
   liquid: boolean;
+  projectXHandle: string | null;
 };
 
 function abbrevMint(mint: string): string {
@@ -48,6 +49,7 @@ export async function buildDrawTokenMeta(
     name: "Solana",
     imageUrl: SOL_LOGO_URL,
     liquid: true,
+    projectXHandle: null,
   };
 
   await Promise.all(
@@ -60,6 +62,7 @@ export async function buildDrawTokenMeta(
           name: FREE_ENTRY_NAME,
           imageUrl: FREE_ENTRY_IMAGE_PATH,
           liquid: false,
+          projectXHandle: null,
         };
         return;
       }
@@ -81,7 +84,14 @@ export async function buildDrawTokenMeta(
 
       const symbol = tokenName || marketSymbol || abbrevMint(r.mint);
 
-      out[r.mint] = { mint: r.mint, symbol, name: symbol, imageUrl, liquid };
+      out[r.mint] = {
+        mint: r.mint,
+        symbol,
+        name: symbol,
+        imageUrl,
+        liquid,
+        projectXHandle: p?.projectXHandle ?? null,
+      };
     }),
   );
 
