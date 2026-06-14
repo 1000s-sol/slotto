@@ -65,11 +65,7 @@ export async function fetchDexTokenRows(
     try {
       const res = await fetch(
         `https://api.dexscreener.com/tokens/v1/solana/${chunk.join(",")}`,
-        {
-          headers: { Accept: "application/json" },
-          next: { revalidate: 30 },
-          cache: "force-cache",
-        },
+        { headers: { Accept: "application/json" }, next: { revalidate: 30 } },
       );
       if (!res.ok) continue;
       const data = (await res.json()) as DexTokenRow[];

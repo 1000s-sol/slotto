@@ -92,14 +92,17 @@ export async function buySplTickets(
   const heldDisplay = totalHeld > ataHeld ? totalHeld : ataHeld;
 
   if (heldForTx < required) {
-    if (totalHeld >= required) {
+    if (heldForTx === BigInt(0) && totalHeld === BigInt(0)) {
+      // Server balance read often returns empty under Helius 429 — let the wallet verify.
+    } else if (totalHeld >= required) {
       throw new BuyPreflightError(
         `Your wallet holds ${splBaseUnitsToUi(totalHeld.toString(), decimals)} ${label}, but the token account used for ticket buys only has ${splBaseUnitsToUi(ataHeld.toString(), decimals)} ${label}. Open your wallet, select ${label}, and consolidate or receive tokens into your main account, then try again.`,
       );
+    } else {
+      throw new BuyPreflightError(
+        `You need ${splBaseUnitsToUi(required.toString(), decimals)} ${label} for ${count} ticket(s), but this wallet holds ${splBaseUnitsToUi(heldDisplay.toString(), decimals)} ${label}. Add ${label} to your wallet and try again.`,
+      );
     }
-    throw new BuyPreflightError(
-      `You need ${splBaseUnitsToUi(required.toString(), decimals)} ${label} for ${count} ticket(s), but this wallet holds ${splBaseUnitsToUi(heldDisplay.toString(), decimals)} ${label}. Add ${label} to your wallet and try again.`,
-    );
   }
 
   try {

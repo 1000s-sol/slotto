@@ -74,12 +74,13 @@ export async function buildDrawTokenMeta(
       const splSymbol = r.symbol?.trim() ?? "";
       const projTokenName = p?.tokenName?.trim() ?? "";
       const projName = p?.projectName?.trim() ?? "";
-      let imageUrl = normalizeImageUrl(p?.tokenImageUrl ?? undefined);
-      if (!imageUrl) {
-        imageUrl = normalizeImageUrl(dexByMint.get(r.mint)?.info?.imageUrl);
+      // Logos: on-chain/market metadata only for liquid tokens; admin upload for non-liquid.
+      let imageUrl: string | null = null;
+      if (p && !liquid) {
+        imageUrl = normalizeImageUrl(p.tokenImageUrl ?? undefined);
       }
       if (!imageUrl) {
-        imageUrl = normalizeImageUrl(p?.listingImageUrl ?? undefined);
+        imageUrl = normalizeImageUrl(dexByMint.get(r.mint)?.info?.imageUrl);
       }
       let marketSymbol = "";
 
