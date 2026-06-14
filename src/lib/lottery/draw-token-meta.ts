@@ -1,5 +1,5 @@
 import { fetchHeliusTokenMeta, normalizeImageUrl } from "@/lib/helius-token-meta";
-import { WRAPPED_SOL_MINT } from "@/lib/token-usd-prices";
+import { fetchDexTokenRows, WRAPPED_SOL_MINT } from "@/lib/token-usd-prices";
 
 import {
   FREE_ENTRY_IMAGE_PATH,
@@ -42,6 +42,7 @@ export async function buildDrawTokenMeta(
 
   const projByMint = new Map(projects.map((p) => [p.mint, p]));
   const out: Record<string, DrawTokenMeta> = {};
+  const dexByMint = await fetchDexTokenRows(rows.map((r) => r.mint));
 
   out[WRAPPED_SOL_MINT] = {
     mint: WRAPPED_SOL_MINT,
@@ -74,6 +75,12 @@ export async function buildDrawTokenMeta(
       const projTokenName = p?.tokenName?.trim() ?? "";
       const projName = p?.projectName?.trim() ?? "";
       let imageUrl = normalizeImageUrl(p?.tokenImageUrl ?? undefined);
+      if (!imageUrl) {
+        imageUrl = normalizeImageUrl(dexByMint.get(r.mint)?.info?.imageUrl);
+      }
+      if (!imageUrl) {
+        imageUrl = normalizeImageUrl(p?.listingImageUrl ?? undefined);
+      }
       let marketSymbol = "";
 
       if ((!splSymbol && !projTokenName) || !imageUrl) {

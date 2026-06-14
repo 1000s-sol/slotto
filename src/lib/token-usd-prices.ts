@@ -65,13 +65,25 @@ export async function fetchDexTokenRows(
     try {
       const res = await fetch(
         `https://api.dexscreener.com/tokens/v1/solana/${chunk.join(",")}`,
-        { headers: { Accept: "application/json" }, next: { revalidate: 30 } },
+        {
+          headers: { Accept: "application/json" },
+          next: { revalidate: 30 },
+          cache: "force-cache",
+        },
       );
       if (!res.ok) continue;
       const data = (await res.json()) as DexTokenRow[];
       for (const row of data) {
         const addr = row.baseToken?.address;
-        if (addr && !byMint.has(addr)) byMint.set(addr, row);
+        if (!addr) continue;
+        const existing = byMint.get(addr);
+        if (!existing) {
+          byMint.set(addr, row);
+          continue;
+        }
+        const existingImg = existing.info?.imageUrl?.trim();
+        const newImg = row.info?.imageUrl?.trim();
+        if (!existingImg && newImg) byMint.set(addr, row);
       }
     } catch {
       /* partial data ok */

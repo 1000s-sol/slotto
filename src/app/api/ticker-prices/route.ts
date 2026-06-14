@@ -22,6 +22,8 @@ type TickerSlot = {
   mint: string;
   projectSlug: string | null;
   projectName: string | null;
+  tokenImageUrl: string | null;
+  listingImageUrl: string | null;
 };
 
 function abbrevMint(mint: string) {
@@ -31,10 +33,22 @@ function abbrevMint(mint: string) {
 async function buildTickerSlots(): Promise<TickerSlot[]> {
   const projects = await fetchLiquidTickerProjects();
   const slots: TickerSlot[] = [
-    { mint: WRAPPED_SOL_MINT, projectSlug: null, projectName: null },
+    {
+      mint: WRAPPED_SOL_MINT,
+      projectSlug: null,
+      projectName: null,
+      tokenImageUrl: null,
+      listingImageUrl: null,
+    },
   ];
   for (const p of projects) {
-    slots.push({ mint: p.mint, projectSlug: p.slug, projectName: p.name });
+    slots.push({
+      mint: p.mint,
+      projectSlug: p.slug,
+      projectName: p.name,
+      tokenImageUrl: p.tokenImageUrl,
+      listingImageUrl: p.listingImageUrl,
+    });
   }
   return slots;
 }
@@ -62,7 +76,8 @@ export async function GET() {
     );
 
     const items: TickerItem[] = slots.map((slot) => {
-      const { mint, projectSlug, projectName } = slot;
+      const { mint, projectSlug, projectName, tokenImageUrl, listingImageUrl } =
+        slot;
       const row = byMint.get(mint);
       const helius = heliusMap.get(mint) ?? null;
       const priceUsd = resolveTokenUsdPrice(mint, row, jupUsd[mint] ?? null);
@@ -80,7 +95,10 @@ export async function GET() {
 
       const dexLogo = normalizeImageUrl(row?.info?.imageUrl);
       const heliusLogo = normalizeImageUrl(helius?.image);
-      const logoUrl = dexLogo || heliusLogo || null;
+      const projectLogo =
+        normalizeImageUrl(tokenImageUrl ?? undefined) ||
+        normalizeImageUrl(listingImageUrl ?? undefined);
+      const logoUrl = dexLogo || heliusLogo || projectLogo || null;
 
       return {
         mint,
@@ -98,7 +116,13 @@ export async function GET() {
     );
   } catch {
     const slots = await buildTickerSlots().catch(() => [
-      { mint: WRAPPED_SOL_MINT, projectSlug: null, projectName: null },
+      {
+        mint: WRAPPED_SOL_MINT,
+        projectSlug: null,
+        projectName: null,
+        tokenImageUrl: null,
+        listingImageUrl: null,
+      },
     ]);
     return NextResponse.json({
       items: slots.map((slot) => ({
