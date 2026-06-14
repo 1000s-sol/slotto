@@ -170,6 +170,7 @@ model LotteryTicketPurchase {
   draw          LotteryDraw @relation(fields: [drawId], references: [id], onDelete: Cascade)
   wallet        String
   tickets       Int
+  signature     String      @unique
   /// string[] mint addresses used for payment chips (same convention as home draws)
   paidWithMints Json?
   createdAt     DateTime    @default(now())

@@ -66,12 +66,14 @@ export async function batchMintLotteryBuySupported(
   for (let i = 0; i < pending.length; i += 1) {
     const mint = pending[i]!;
     const info = infos[i];
-    let supported = false;
-    if (info) {
-      supported =
-        info.owner.equals(TOKEN_PROGRAM_ID) &&
-        isLotterySplBuySupportedProgram(info.owner);
+    if (!info) {
+      // RPC miss (rate limit / timeout) — do not cache false; keep buy UI usable.
+      out[mint] = true;
+      continue;
     }
+    const supported =
+      info.owner.equals(TOKEN_PROGRAM_ID) &&
+      isLotterySplBuySupportedProgram(info.owner);
     toCache(mint, supported);
     out[mint] = supported;
   }

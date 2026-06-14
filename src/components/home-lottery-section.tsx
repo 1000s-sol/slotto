@@ -109,6 +109,11 @@ function pad2(n: number): string {
   return String(n).padStart(2, "0");
 }
 
+/** draw-tokens abbrev fallback (e.g. 64vQ…BAGS) — prefer SPL row label from Postgres. */
+function isAbbrevMintLabel(label: string, mint: string): boolean {
+  return label.includes("…") && label.startsWith(mint.slice(0, 4));
+}
+
 function buyDisabledReason(
   buyable: boolean,
   connected: boolean,
@@ -628,7 +633,14 @@ export function HomeLotterySection() {
       // Free-entry is a permanent draw option, but only shown to holders.
       if (isFreeEntryMint(o.mint) && !holdsFreeEntry) continue;
       const meta = tokenMeta[o.mint];
-      const symbol = meta?.symbol ?? o.symbol;
+      const metaSymbol =
+        meta?.symbol && !isAbbrevMintLabel(meta.symbol, o.mint)
+          ? meta.symbol
+          : null;
+      const metaName =
+        meta?.name && !isAbbrevMintLabel(meta.name, o.mint) ? meta.name : null;
+      const symbol = metaSymbol ?? o.symbol;
+      const name = metaName ?? o.symbol ?? symbol;
       const remaining = splTicketsRemaining(o);
       const isLiquid = o.pricingMode === SPL_PRICING_LIQUID_DYNAMIC;
       const live = liveCostUiByMint[o.mint];
@@ -637,7 +649,7 @@ export function HomeLotterySection() {
         : symbol;
       opts.push({
         value: o.mint,
-        name: meta?.name ?? symbol,
+        name,
         symbol,
         imageUrl: meta?.imageUrl ?? null,
         remaining,

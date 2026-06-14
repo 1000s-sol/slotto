@@ -10,6 +10,7 @@ import { getSiteUrl } from "@/lib/site-metadata";
 import { buyerLabelForWallet } from "./buyer-label";
 import { discordTicketBotToken } from "./config";
 import { verifyLotteryBuySignature } from "./verify-buy-tx";
+import { recordLotteryTicketPurchase } from "@/lib/lottery/draw-paid-with-db";
 
 const WRAPPED_SOL_MINT = "So11111111111111111111111111111111111111112";
 
@@ -146,6 +147,21 @@ export async function notifyDiscordTicketSale(
   );
   if (!ok) {
     throw new Error("Transaction not verified as a confirmed ticket purchase");
+  }
+
+  try {
+    await recordLotteryTicketPurchase({
+      signature,
+      wallet,
+      drawNumber: input.drawId,
+      count: input.count,
+      payWith: input.payWith,
+    });
+  } catch (e) {
+    console.warn(
+      "[discord ticket sale] paid-with DB record skipped:",
+      e instanceof Error ? e.message : e,
+    );
   }
 
   const guilds = await prisma.discordTicketBotGuild.findMany({

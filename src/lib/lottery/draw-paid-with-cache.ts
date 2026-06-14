@@ -4,7 +4,7 @@ type CacheRow = {
   exp: number;
 };
 
-const TTL_MS = 120_000;
+const TTL_MS = 300_000;
 const cache = new Map<number, CacheRow>();
 
 export function getDrawPaidWithCached(
@@ -15,7 +15,6 @@ export function getDrawPaidWithCached(
     cache.delete(drawId);
     return null;
   }
-  // Never serve a cached empty map — it poisons the UI after a failed scan.
   if (Object.keys(row.paidWith).length === 0) {
     cache.delete(drawId);
     return null;

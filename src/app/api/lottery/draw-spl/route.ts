@@ -29,12 +29,16 @@ export async function GET(request: Request) {
   try {
     const rows = await fetchSplMintRowsForDraw(drawId);
     const mints = rows.map((r) => r.mint);
-    const supportedByMint =
-      mints.length > 0
-        ? await withLotteryServerRpc((connection) =>
-            batchMintLotteryBuySupported(connection, mints),
-          )
-        : {};
+    let supportedByMint: Record<string, boolean> = {};
+    if (mints.length > 0) {
+      try {
+        supportedByMint = await withLotteryServerRpc((connection) =>
+          batchMintLotteryBuySupported(connection, mints),
+        );
+      } catch {
+        // Helius 429 — keep SPL buy dropdown usable; on-chain buy still validates mint program.
+      }
+    }
 
     const rowsWithSupport = rows.map((row) => ({
       ...row,
