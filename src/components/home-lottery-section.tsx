@@ -77,6 +77,7 @@ type PayTokenMeta = {
   mint: string;
   symbol: string;
   name: string;
+  projectName?: string | null;
   imageUrl: string | null;
   liquid: boolean;
   projectXHandle?: string | null;
@@ -112,6 +113,10 @@ function pad2(n: number): string {
 /** draw-tokens abbrev fallback (e.g. 64vQ…BAGS) — prefer SPL row label from Postgres. */
 function isAbbrevMintLabel(label: string, mint: string): boolean {
   return label.includes("…") && label.startsWith(mint.slice(0, 4));
+}
+
+function abbrevMint(mint: string): string {
+  return `${mint.slice(0, 4)}…${mint.slice(-4)}`;
 }
 
 function buyDisabledReason(
@@ -568,7 +573,9 @@ export function HomeLotterySection() {
         count,
         payWith: boughtWith,
         tokenSymbol: meta?.symbol ?? (isSolPay ? "SOL" : ""),
-        tokenName: meta?.name ?? (isSolPay ? "Solana" : (meta?.symbol ?? "Token")),
+        tokenName: isSolPay
+          ? "Solana"
+          : meta?.projectName?.trim() || meta?.symbol || "Token",
         tokenImageUrl: meta?.imageUrl ?? null,
       });
       await refresh();
@@ -637,10 +644,8 @@ export function HomeLotterySection() {
         meta?.symbol && !isAbbrevMintLabel(meta.symbol, o.mint)
           ? meta.symbol
           : null;
-      const metaName =
-        meta?.name && !isAbbrevMintLabel(meta.name, o.mint) ? meta.name : null;
-      const symbol = metaSymbol ?? o.symbol;
-      const name = metaName ?? o.symbol ?? symbol;
+      const symbol = metaSymbol ?? abbrevMint(o.mint);
+      const name = symbol;
       const remaining = splTicketsRemaining(o);
       const isLiquid = o.pricingMode === SPL_PRICING_LIQUID_DYNAMIC;
       const live = liveCostUiByMint[o.mint];

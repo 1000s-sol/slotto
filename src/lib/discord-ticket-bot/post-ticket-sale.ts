@@ -46,6 +46,13 @@ function mascotThumbnailUrl(): string {
   return `${getSiteUrl().replace(/\/$/, "")}/brand/slotto-guy.png`;
 }
 
+function paidWithLabel(tokenSymbol: string, tokenName: string): string {
+  const sym = tokenSymbol.trim() || "Token";
+  const proj = tokenName.trim();
+  if (proj && proj !== sym) return `${sym} (${proj})`;
+  return sym;
+}
+
 function buildTicketSaleEmbed(opts: {
   buyerLabel: string;
   count: number;
@@ -57,13 +64,14 @@ function buildTicketSaleEmbed(opts: {
   signature: string;
 }) {
   const ticketWord = opts.count === 1 ? "ticket" : "tickets";
+  const paidWith = paidWithLabel(opts.tokenSymbol, opts.tokenName);
   const embed: Record<string, unknown> = {
     title: "🎟️ New Slotto ticket purchase",
     description: `Someone just bought **${opts.count}** ${ticketWord} in draw **#${opts.drawId}**.`,
     color: 0xf5b942,
     thumbnail: { url: mascotThumbnailUrl() },
     author: {
-      name: `${opts.tokenSymbol} · ${opts.tokenName}`,
+      name: paidWith,
       ...(opts.tokenImageUrl ? { icon_url: opts.tokenImageUrl } : {}),
     },
     fields: [
@@ -71,7 +79,7 @@ function buildTicketSaleEmbed(opts: {
       { name: "Tickets", value: String(opts.count), inline: true },
       {
         name: "Paid with",
-        value: `${opts.tokenSymbol} (${opts.tokenName})`,
+        value: paidWith,
         inline: true,
       },
       {

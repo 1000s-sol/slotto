@@ -16,8 +16,11 @@ const SOL_LOGO_URL =
 
 export type DrawTokenMeta = {
   mint: string;
+  /** On-chain / market ticker (e.g. CJT) — same source as the price ticker. */
   symbol: string;
   name: string;
+  /** Project listing name for “TOKEN (Project)” labels. */
+  projectName: string | null;
   imageUrl: string | null;
   liquid: boolean;
   projectXHandle: string | null;
@@ -48,6 +51,7 @@ export async function buildDrawTokenMeta(
     mint: WRAPPED_SOL_MINT,
     symbol: "SOL",
     name: "Solana",
+    projectName: null,
     imageUrl: SOL_LOGO_URL,
     liquid: true,
     projectXHandle: null,
@@ -61,6 +65,7 @@ export async function buildDrawTokenMeta(
           mint: r.mint,
           symbol: FREE_ENTRY_SYMBOL,
           name: FREE_ENTRY_NAME,
+          projectName: null,
           imageUrl: FREE_ENTRY_IMAGE_PATH,
           liquid: false,
           projectXHandle: null,
@@ -70,35 +75,43 @@ export async function buildDrawTokenMeta(
 
       const p = projByMint.get(r.mint);
       const liquid = p?.liquid ?? true;
-
-      const splSymbol = r.symbol?.trim() ?? "";
+      const splLabel = r.symbol?.trim() ?? "";
       const projTokenName = p?.tokenName?.trim() ?? "";
-      const projName = p?.projectName?.trim() ?? "";
-      // Logos: on-chain/market metadata only for liquid tokens; admin upload for non-liquid.
+      const projectName = p?.projectName?.trim() || null;
+
+      const dexRow = dexByMint.get(r.mint);
+      const dexSymbol = dexRow?.baseToken?.symbol?.trim() ?? "";
+
       let imageUrl: string | null = null;
       if (p && !liquid) {
         imageUrl = normalizeImageUrl(p.tokenImageUrl ?? undefined);
       }
       if (!imageUrl) {
-        imageUrl = normalizeImageUrl(dexByMint.get(r.mint)?.info?.imageUrl);
+        imageUrl = normalizeImageUrl(dexRow?.info?.imageUrl);
       }
-      let marketSymbol = "";
 
-      if ((!splSymbol && !projTokenName) || !imageUrl) {
+      let heliusSymbol = "";
+      if (!dexSymbol || !imageUrl) {
         const helius = await fetchHeliusTokenMeta(r.mint).catch(() => null);
-        marketSymbol = helius?.symbol?.trim() ?? "";
+        heliusSymbol = helius?.symbol?.trim() ?? "";
         if (!imageUrl) imageUrl = normalizeImageUrl(helius?.image);
       }
 
-      const symbol =
-        splSymbol || projTokenName || marketSymbol || abbrevMint(r.mint);
-      const name =
-        splSymbol || projTokenName || projName || marketSymbol || symbol;
+      // Draw SPL `symbol` in Postgres is the project label — not the market ticker.
+      let symbol = liquid
+        ? dexSymbol || heliusSymbol || projTokenName || abbrevMint(r.mint)
+        : projTokenName ||
+          splLabel ||
+          dexSymbol ||
+          heliusSymbol ||
+          abbrevMint(r.mint);
+      if (symbol.length > 12) symbol = symbol.slice(0, 12);
 
       out[r.mint] = {
         mint: r.mint,
         symbol,
-        name,
+        name: symbol,
+        projectName,
         imageUrl,
         liquid,
         projectXHandle: p?.projectXHandle ?? null,
