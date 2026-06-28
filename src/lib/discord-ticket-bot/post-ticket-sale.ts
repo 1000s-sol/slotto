@@ -8,7 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { getSiteUrl } from "@/lib/site-metadata";
 
 import { buyerLabelForWallet } from "./buyer-label";
-import { discordTicketBotToken } from "./config";
+import { mascotThumbnailUrl, postEmbedToChannel } from "./discord-channel";
 import { verifyLotteryBuySignature } from "./verify-buy-tx";
 import { recordLotteryTicketPurchase } from "@/lib/lottery/draw-paid-with-db";
 
@@ -25,26 +25,6 @@ export type TicketSaleNotifyInput = {
   tokenName: string;
   tokenImageUrl: string | null;
 };
-
-async function discordApi(
-  path: string,
-  init: RequestInit,
-): Promise<Response> {
-  const token = discordTicketBotToken();
-  if (!token) throw new Error("Discord ticket bot token not configured");
-  return fetch(`https://discord.com/api/v10${path}`, {
-    ...init,
-    headers: {
-      Authorization: `Bot ${token}`,
-      "Content-Type": "application/json",
-      ...(init.headers as Record<string, string> | undefined),
-    },
-  });
-}
-
-function mascotThumbnailUrl(): string {
-  return `${getSiteUrl().replace(/\/$/, "")}/brand/slotto-guy.png`;
-}
 
 function paidWithLabel(tokenSymbol: string, tokenName: string): string {
   const sym = tokenSymbol.trim() || "Token";
@@ -96,36 +76,6 @@ function buildTicketSaleEmbed(opts: {
     timestamp: new Date().toISOString(),
   };
   return embed;
-}
-
-async function postEmbedToChannel(
-  channelId: string,
-  embed: ReturnType<typeof buildTicketSaleEmbed>,
-  siteUrl: string,
-): Promise<void> {
-  const res = await discordApi(`/channels/${channelId}/messages`, {
-    method: "POST",
-    body: JSON.stringify({
-      embeds: [embed],
-      components: [
-        {
-          type: 1,
-          components: [
-            {
-              type: 2,
-              style: 5,
-              label: "Play at slotto.gg",
-              url: siteUrl,
-            },
-          ],
-        },
-      ],
-    }),
-  });
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`Discord POST ${res.status}: ${text.slice(0, 200)}`);
-  }
 }
 
 export async function notifyDiscordTicketSale(

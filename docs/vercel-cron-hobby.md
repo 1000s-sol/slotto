@@ -2,32 +2,38 @@
 
 Vercel **Hobby** only allows built-in cron **once per day**, which is not enough to settle draws after `sales_close_ts`.
 
-**Recommended:** GitHub Actions (in-repo) — see `.github/workflows/lottery-crank.yml`.
+## Primary: homepage timer → server keeper
 
-## GitHub Actions (secure, no public crank)
+When the countdown hits **sales close**, any open `slotto.gg` tab runs **`triggerLotteryCrank`** every ~6s (faster during `VrfRequested`). No wallet popups; throttled per draw on the server.
+
+**Required on Vercel:**
+
+| Variable | Purpose |
+|----------|---------|
+| `LOTTERY_KEEPER_SECRET_KEY` | JSON array of keeper keypair — pays `close_sales` / Switchboard / `settle` |
+| `HELIUS_API_KEY` or safe `LOTTERY_RPC_URL` | Server RPC |
+
+Keeper wallet needs **~0.1 SOL** on mainnet (Switchboard randomness rent).
+
+Optional kill switch: `LOTTERY_UI_CRANK_ENABLED=false` (falls back to cron-only).
+
+## Backup: GitHub Actions
+
+See `.github/workflows/lottery-crank.yml`.
 
 1. Add repo secret **`CRON_SECRET`** — same value as on Vercel (`CRON_SECRET` or `LOTTERY_CRON_SECRET`).
 2. Optional repo variable **`LOTTERY_CRANK_URL`** if not using `https://www.slotto.gg/api/lottery/crank`.
-3. Workflow runs every **5 minutes** (GitHub’s minimum for schedules) and on **workflow_dispatch** (manual).
-4. On Vercel, keep:
-   - `NEXT_PUBLIC_LOTTERY_PUBLIC_CRANK_ENABLED` **unset or `false`**
-   - `LOTTERY_PUBLIC_CRANK_ENABLED` **unset or `false`**
-   - `CRON_SECRET` set (API route rejects unauthenticated calls)
+3. Runs every **5 minutes** and on **workflow_dispatch** (manual). Each run cranks **twice** (45s apart) for Switchboard VRF.
 
-The workflow calls `GET /api/lottery/crank` with `Authorization: Bearer <CRON_SECRET>`. Visitors cannot trigger the keeper.
+The workflow calls `GET /api/lottery/crank` with `Authorization: Bearer <CRON_SECRET>`.
 
-## Not recommended for production
+## Manual fallback
 
-**Public homepage crank** (`NEXT_PUBLIC_LOTTERY_PUBLIC_CRANK_ENABLED=true`) lets any visitor spend keeper SOL and influence settlement timing. It was only a fallback when no scheduler exists. Use GitHub Actions instead.
+| Command | When |
+|---------|------|
+| `npm run lottery:settle -- <drawId>` | Emergency local settle |
+| GitHub **workflow_dispatch** on Lottery crank | Cron missed / no visitors on site |
 
-## Other options
+## Deprecated env
 
-| Option | Notes |
-|--------|--------|
-| **Vercel Pro** | Restore `vercel.json` with `*/2 * * * *` if you upgrade. |
-| **External cron** | cron-job.org etc. — same HTTP call as GitHub Actions. |
-| **Manual** | `npm run lottery:settle -- <drawId>` or `npm run lottery:keeper` locally. |
-
-## Tomorrow’s space
-
-The draw runs **30 days**; settlement only matters **after sales close**. GitHub cron does not need to be live for the launch stream itself. You can enable the workflow when the draw is created, or trigger **workflow_dispatch** once after close for testing.
+`NEXT_PUBLIC_LOTTERY_PUBLIC_CRANK_ENABLED` — no longer required; UI crank is on by default unless `LOTTERY_UI_CRANK_ENABLED=false`.

@@ -1,19 +1,19 @@
 /**
- * Whether visitors may invoke the public `triggerLotteryCrank` server action.
- * When false, only authenticated cron (`/api/lottery/crank` + CRON_SECRET) may crank.
+ * Whether open visitors may invoke settlement via the homepage server action.
+ * Defaults to **on** so the UI timer triggers crank when sales close (throttled
+ * per draw in `runTriggerLotteryCrank`). GitHub cron remains backup when nobody
+ * has the site open. Set `LOTTERY_UI_CRANK_ENABLED=false` to disable.
  */
-export function allowPublicLotteryCrank(): boolean {
-  const raw = process.env.LOTTERY_PUBLIC_CRANK_ENABLED?.trim().toLowerCase();
-  if (raw === "true" || raw === "1" || raw === "yes") return true;
+export function allowUiSettlementCrank(): boolean {
+  const raw = process.env.LOTTERY_UI_CRANK_ENABLED?.trim().toLowerCase();
   if (raw === "false" || raw === "0" || raw === "no") return false;
-
-  if (process.env.NODE_ENV === "production") {
-    const hasCron = !!(
-      process.env.CRON_SECRET?.trim() ||
-      process.env.LOTTERY_CRON_SECRET?.trim()
-    );
-    return !hasCron;
-  }
-
   return true;
+}
+
+/** @deprecated Use {@link allowUiSettlementCrank}. Kept for older env names. */
+export function allowPublicLotteryCrank(): boolean {
+  const legacy = process.env.LOTTERY_PUBLIC_CRANK_ENABLED?.trim().toLowerCase();
+  if (legacy === "false" || legacy === "0" || legacy === "no") return false;
+  if (legacy === "true" || legacy === "1" || legacy === "yes") return true;
+  return allowUiSettlementCrank();
 }

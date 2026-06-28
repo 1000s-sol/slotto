@@ -10,6 +10,7 @@ import { Connection } from "@solana/web3.js";
 import { crankDraw } from "../src/lib/lottery/crank-draw";
 import { lotteryProgramId } from "../src/lib/lottery/config";
 import { loadLotteryKeeperKeypair } from "../src/lib/lottery/keeper-wallet";
+import { postSettleAnnouncements } from "../src/lib/lottery/post-settle-announcements";
 import { createLotteryProgram } from "../src/lib/lottery/program";
 import { resolveLotteryRpcUrl } from "../src/lib/lottery/rpc-url";
 
@@ -53,6 +54,18 @@ async function main() {
     console.info(
       `Winner ${result.winner} (ticket #${result.winningTicketId})`,
     );
+  }
+
+  if (result.finalState === "Settled" || result.finalState === "Refunded") {
+    try {
+      await postSettleAnnouncements(connection, drawId, {
+        finalState: result.finalState,
+        winner: result.winner,
+      });
+      console.info("Posted settle announcements (X + Discord).");
+    } catch (e) {
+      console.warn("[lottery settle] announcement failed:", e);
+    }
   }
 }
 

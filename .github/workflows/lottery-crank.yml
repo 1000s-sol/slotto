@@ -1,6 +1,6 @@
 # Settles lottery draws after sales close (close_sales → VRF → settle).
 # Hobby Vercel cannot run frequent crons; this workflow calls the authenticated
-# API route instead. Do NOT enable public visitor crank in production.
+# API route. Homepage visitors also crank when the timer ends (server action).
 #
 # Repo secret: CRON_SECRET (same value as Vercel CRON_SECRET / LOTTERY_CRON_SECRET)
 # Optional repo variable: LOTTERY_CRANK_URL (default https://www.slotto.gg/api/lottery/crank)
@@ -20,7 +20,7 @@ concurrency:
 jobs:
   crank:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
       - name: Crank pending draws on production
         env:
@@ -32,35 +32,45 @@ jobs:
             exit 1
           fi
           URL="${LOTTERY_CRANK_URL:-https://www.slotto.gg/api/lottery/crank}"
-          MAX_ATTEMPTS=3
-          ATTEMPT=1
-          while [ "$ATTEMPT" -le "$MAX_ATTEMPTS" ]; do
-            echo "GET ${URL} (attempt ${ATTEMPT}/${MAX_ATTEMPTS})"
-            HTTP=$(curl -sS -w "\n%{http_code}" -X GET \
-              -H "Authorization: Bearer ${CRON_SECRET}" \
-              -H "Accept: application/json" \
-              --max-time 120 \
-              "${URL}")
-            BODY=$(echo "$HTTP" | head -n -1)
-            CODE=$(echo "$HTTP" | tail -n 1)
-            echo "$BODY"
-            if [ "$CODE" -ge 200 ] && [ "$CODE" -lt 300 ]; then
-              if echo "$BODY" | grep -q '"retry"[[:space:]]*:[[:space:]]*true'; then
-                if [ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ]; then
-                  echo "Rate limited — waiting 30s before retry" >&2
-                  sleep 30
-                  ATTEMPT=$((ATTEMPT + 1))
-                  continue
+
+          crank_once() {
+            local label="$1"
+            MAX_ATTEMPTS=3
+            ATTEMPT=1
+            while [ "$ATTEMPT" -le "$MAX_ATTEMPTS" ]; do
+              echo "${label} GET ${URL} (attempt ${ATTEMPT}/${MAX_ATTEMPTS})"
+              HTTP=$(curl -sS -L -w "\n%{http_code}" -X GET \
+                -H "Authorization: Bearer ${CRON_SECRET}" \
+                -H "Accept: application/json" \
+                --max-time 120 \
+                "${URL}")
+              BODY=$(echo "$HTTP" | head -n -1)
+              CODE=$(echo "$HTTP" | tail -n 1)
+              echo "$BODY"
+              if [ "$CODE" -ge 200 ] && [ "$CODE" -lt 300 ]; then
+                if echo "$BODY" | grep -q '"retry"[[:space:]]*:[[:space:]]*true'; then
+                  if [ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ]; then
+                    echo "Rate limited — waiting 30s before retry" >&2
+                    sleep 30
+                    ATTEMPT=$((ATTEMPT + 1))
+                    continue
+                  fi
                 fi
+                return 0
               fi
-              exit 0
-            fi
-            if [ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ]; then
-              echo "HTTP ${CODE} — waiting 30s before retry" >&2
-              sleep 30
-              ATTEMPT=$((ATTEMPT + 1))
-              continue
-            fi
-            echo "HTTP ${CODE}" >&2
-            exit 22
-          done
+              if [ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ]; then
+                echo "HTTP ${CODE} — waiting 30s before retry" >&2
+                sleep 30
+                ATTEMPT=$((ATTEMPT + 1))
+                continue
+              fi
+              echo "HTTP ${CODE}" >&2
+              return 22
+            done
+          }
+
+          crank_once "Pass 1"
+          # Switchboard VRF often needs a second pass (reveal + settle).
+          echo "Waiting 45s for VRF before second crank pass…"
+          sleep 45
+          crank_once "Pass 2"

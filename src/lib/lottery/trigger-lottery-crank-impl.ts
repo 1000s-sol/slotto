@@ -1,14 +1,13 @@
 import { Connection } from "@solana/web3.js";
 
-import { announceDrawEnded } from "./announce-draw";
 import { fetchDrawById } from "./chain";
 import { crankDraw } from "./crank-draw";
-import { fetchSettledDrawPrizeLamports } from "./draws";
 import { lotteryProgramId } from "./config";
 import {
   keypairToAnchorWallet,
   loadLotteryKeeperKeypair,
 } from "./keeper-wallet";
+import { postSettleAnnouncements } from "./post-settle-announcements";
 import { createLotteryProgram } from "./program";
 import type { SlottoLotteryProgram } from "./program";
 
@@ -47,20 +46,10 @@ async function crankOnRpc(
     result.finalState === "Settled" || result.finalState === "Refunded";
 
   if (terminal) {
-    // Best-effort official X announcement; idempotent + never blocks the crank.
     try {
-      const refunded = result.finalState === "Refunded";
-      const dv = await fetchDrawById(connection, programId, drawId);
-      const prizeLamports =
-        dv && !refunded
-          ? await fetchSettledDrawPrizeLamports(connection, dv)
-          : undefined;
-      await announceDrawEnded({
-        drawId,
+      await postSettleAnnouncements(connection, drawId, {
+        finalState: result.finalState,
         winner: result.winner,
-        prizeLamports,
-        totalTickets: dv?.totalTickets ?? 0,
-        refunded,
       });
     } catch (e) {
       console.warn("[lottery announce] ended hook failed:", e);

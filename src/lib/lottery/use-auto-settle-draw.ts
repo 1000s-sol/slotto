@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 
 import type { LotteryDrawView } from "./chain";
+import { DrawState } from "./constants";
 import { drawNeedsSettlement } from "./draw-settlement";
 import {
   triggerLotteryCrank,
@@ -10,20 +11,17 @@ import {
 } from "./trigger-crank-action";
 import { formatLotterySettlementError } from "./user-facing-error";
 
-const CRANK_INTERVAL_MS = 8_000;
-/** Poll chain state when settlement is cron-only (no public keeper action). */
-const REFRESH_ONLY_MS = 12_000;
+/** Retry while close_sales / VRF runs (Switchboard often needs 2+ passes). */
+const CRANK_INTERVAL_MS = 6_000;
+/** Faster retries once VRF is requested (reveal + settle). */
+const VRF_CRANK_INTERVAL_MS = 5_000;
 /** After a failed server crank, slow down so the UI does not hammer RPC / actions. */
-const CRANK_BACKOFF_MS = 45_000;
-
-/** Opt-in: set `NEXT_PUBLIC_LOTTERY_PUBLIC_CRANK_ENABLED=true` to allow visitor-triggered crank. */
-function visitorCrankEnabled(): boolean {
-  return process.env.NEXT_PUBLIC_LOTTERY_PUBLIC_CRANK_ENABLED === "true";
-}
+const CRANK_BACKOFF_MS = 30_000;
 
 /**
- * After sales end, crank via the server keeper only (no wallet popups).
- * Empty-draw refunds use the same keeper path (no visitor wallet txs).
+ * When the countdown hits sales close, drive settlement via the server keeper
+ * (no wallet popups). Throttled per draw on the server; GitHub cron is backup
+ * when nobody has the page open.
  */
 export function useAutoSettleDraw(
   draw: LotteryDrawView | null,
@@ -39,10 +37,9 @@ export function useAutoSettleDraw(
   useEffect(() => {
     if (!draw || !drawNeedsSettlement(draw, nowSec)) return;
 
-    const useVisitorCrank = visitorCrankEnabled();
     let cancelled = false;
     let cranking = false;
-    let intervalMs = useVisitorCrank ? CRANK_INTERVAL_MS : REFRESH_ONLY_MS;
+    let intervalMs = CRANK_INTERVAL_MS;
     let timerId: ReturnType<typeof setTimeout> | null = null;
 
     const schedule = (ms: number) => {
@@ -57,22 +54,23 @@ export function useAutoSettleDraw(
       if (cancelled || cranking) return;
       cranking = true;
       try {
-        if (!useVisitorCrank) {
-          await refreshRef.current();
-          intervalMs = REFRESH_ONLY_MS;
-          return;
-        }
         const result = await triggerLotteryCrank(draw.drawId);
         await refreshRef.current();
+
         if (!result.ok && result.error) {
           intervalMs = CRANK_BACKOFF_MS;
           onCrankResultRef.current?.({
             ok: false,
             error: formatLotterySettlementError(result.error),
           });
-        } else if (result.ok) {
-          intervalMs = CRANK_INTERVAL_MS;
-          onCrankResultRef.current?.({ ok: true });
+        } else {
+          intervalMs =
+            draw.state === DrawState.VrfRequested
+              ? VRF_CRANK_INTERVAL_MS
+              : CRANK_INTERVAL_MS;
+          if (result.ok) {
+            onCrankResultRef.current?.({ ok: true });
+          }
         }
       } catch (e) {
         intervalMs = CRANK_BACKOFF_MS;
