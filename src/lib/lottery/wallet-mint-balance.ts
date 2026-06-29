@@ -9,7 +9,7 @@ import {
 import { isRpcRateLimitError } from "./rpc-url";
 
 export type WalletMintBalanceSnapshot = {
-  /** Balance in the buyer ATA used by `buy_spl_tickets` (legacy SPL only). */
+  /** Balance in the buyer ATA used by `buy_spl_tickets`. */
   amount: string;
   /** Sum across all token accounts for this mint (matches wallet UI). */
   totalAmount: string;
@@ -101,7 +101,7 @@ export async function fetchWalletMintBalance(
   const tokenProgram =
     (await resolveMintTokenProgram(connection, mint)) ?? TOKEN_PROGRAM_ID;
   const lotteryBuySupported = isLotterySplBuySupportedProgram(tokenProgram);
-  const legacyAta = buyerAssociatedTokenAddress(mint, owner, TOKEN_PROGRAM_ID);
+  const buyerAta = buyerAssociatedTokenAddress(mint, owner, tokenProgram);
 
   let total = BigInt(0);
   let decimals = 0;
@@ -114,7 +114,7 @@ export async function fetchWalletMintBalance(
         connection,
         owner,
         mint,
-        legacyAta,
+        buyerAta,
         lotteryBuySupported,
       );
       total = row.total;
@@ -141,7 +141,7 @@ export async function fetchWalletMintBalance(
     amount: ataAmount.toString(),
     totalAmount: total.toString(),
     decimals,
-    ata: legacyAta.toBase58(),
+    ata: buyerAta.toBase58(),
     lotteryBuySupported,
   };
 }

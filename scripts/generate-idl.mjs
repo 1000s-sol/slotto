@@ -78,6 +78,9 @@ const errors = [
   "InvalidSplPricingMode",
   "InvalidSplQuotedPrice",
   "SplQuotedPriceTooHigh",
+  "SplQuotedPriceTooLow",
+  "InvalidTokenProgram",
+  "InvalidPartnerVault",
 ].map((name, i) => ({ code: 6000 + i, name, msg: name }));
 
 const idl = {
@@ -124,7 +127,7 @@ const idl = {
       acc("mint"),
       acc("team_vault"),
       acc("team_token", { writable: true }),
-      acc("token_program", { address: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" }),
+      acc("token_program"),
       acc("associated_token_program", {
         address: "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL",
       }),
@@ -146,6 +149,8 @@ const idl = {
       acc("global_config"),
       acc("team_vault", { writable: true }),
       acc("bux_vault", { writable: true }),
+      acc("partner_vault_1", { writable: true }),
+      acc("partner_vault_2", { writable: true }),
       acc("setup_vault", { writable: true }),
       acc("system_program", { address: "11111111111111111111111111111111" }),
       acc("rent", { address: "SysvarRent111111111111111111111111111111111" }),
@@ -160,7 +165,7 @@ const idl = {
       acc("buyer_token", { writable: true }),
       acc("team_token", { writable: true }),
       acc("setup_vault", { writable: true }),
-      acc("token_program", { address: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" }),
+      acc("token_program"),
       acc("associated_token_program", {
         address: "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL",
       }),
@@ -198,7 +203,7 @@ const idl = {
       acc("spl_vault_authority"),
       acc("treasury_token", { writable: true }),
       acc("destination_token", { writable: true }),
-      acc("token_program", { address: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" }),
+      acc("token_program"),
       acc("associated_token_program", {
         address: "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL",
       }),

@@ -6,7 +6,7 @@ use anchor_lang::solana_program::hash::hashv;
 use anchor_lang::solana_program::sysvar::rent::Rent;
 use anchor_lang::system_program;
 use anchor_spl::associated_token::AssociatedToken;
-use anchor_spl::token::{self, Mint, Token, TokenAccount};
+use anchor_spl::token_interface::{self, Mint, TokenAccount, TokenInterface};
 
 mod switchboard_randomness;
 use switchboard_randomness::{
@@ -29,10 +29,17 @@ pub const TICKETS_PER_CHUNK: usize = 256;
 
 /// Per SOL ticket: **0.009** SOL → prize vault (lamports).
 pub const LAMPORTS_SOL_TICKET_POT: u64 = 9_000_000;
-/// Per SOL ticket: **0.0008** SOL → team (8% of 0.01 ticket price, lamports).
-pub const LAMPORTS_SOL_TICKET_TEAM: u64 = 800_000;
+/// Per SOL ticket: **0.0005** SOL → team (5% of 0.01 ticket price, lamports).
+pub const LAMPORTS_SOL_TICKET_TEAM: u64 = 500_000;
 /// Per SOL ticket: **0.0002** SOL → BUX project wallet (2% of 0.01, lamports).
 pub const LAMPORTS_SOL_TICKET_BUX: u64 = 200_000;
+/// Per SOL ticket: **0.00015** SOL → each partner wallet (1.5% of 0.01, lamports).
+pub const LAMPORTS_SOL_TICKET_PARTNER: u64 = 150_000;
+/// Partner SOL recipients (1.5% of nominal ticket price each).
+pub const PARTNER_VAULT_1: Pubkey =
+    anchor_lang::solana_program::pubkey!("G4v8VgEe7GX5uCGHuky1YjcXwPVKtYhUG5CskUK3eipG");
+pub const PARTNER_VAULT_2: Pubkey =
+    anchor_lang::solana_program::pubkey!("9LLLZeUYGbHqPLj4R1SLLmV8GPFpAThXz7Cfv7d24tUN");
 /// Per SOL ticket: **0.0005** SOL → setup (lamports).
 pub const LAMPORTS_SOL_TICKET_SETUP: u64 = 500_000;
 /// Per SOL ticket total charged: **0.0105** SOL (lamports).
@@ -264,7 +271,8 @@ pub mod slotto_lottery {
     }
 
     /// Authority: create the team wallet ATA for an SPL mint (buyers must not pay ATA rent).
-    pub fn ensure_team_token_ata(_ctx: Context<EnsureTeamTokenAta>) -> Result<()> {
+    pub fn ensure_team_token_ata(ctx: Context<EnsureTeamTokenAta>) -> Result<()> {
+        require_supported_token_program(&ctx.accounts.token_program.key())?;
         Ok(())
     }
 
@@ -305,10 +313,12 @@ pub mod slotto_lottery {
             .checked_add(count)
             .ok_or(error!(ErrorCode::ArithmeticOverflow))?;
 
-        let (pot, team, bux, setup) = sol_ticket_lamports_splits(count)?;
+        let (pot, team, bux, partner_each, setup) = sol_ticket_lamports_splits(count)?;
         let total = pot
             .checked_add(team)
             .and_then(|s| s.checked_add(bux))
+            .and_then(|s| s.checked_add(partner_each))
+            .and_then(|s| s.checked_add(partner_each))
             .and_then(|s| s.checked_add(setup))
             .ok_or(error!(ErrorCode::ArithmeticOverflow))?;
 
@@ -344,6 +354,16 @@ pub mod slotto_lottery {
             &prize_vault_info,
             &ctx.accounts.bux_vault.to_account_info(),
             bux,
+        )?;
+        transfer_prize_vault_lamports(
+            &prize_vault_info,
+            &ctx.accounts.partner_vault_1.to_account_info(),
+            partner_each,
+        )?;
+        transfer_prize_vault_lamports(
+            &prize_vault_info,
+            &ctx.accounts.partner_vault_2.to_account_info(),
+            partner_each,
         )?;
         transfer_prize_vault_lamports(
             &prize_vault_info,
@@ -444,16 +464,20 @@ pub mod slotto_lottery {
             fee_setup,
         )?;
 
-        token::transfer(
+        require_supported_token_program(&ctx.accounts.token_program.key())?;
+
+        token_interface::transfer_checked(
             CpiContext::new(
                 ctx.accounts.token_program.to_account_info(),
-                token::Transfer {
+                token_interface::TransferChecked {
                     from: ctx.accounts.buyer_token.to_account_info(),
+                    mint: ctx.accounts.mint.to_account_info(),
                     to: ctx.accounts.team_token.to_account_info(),
                     authority: ctx.accounts.buyer.to_account_info(),
                 },
             ),
             spl_amount,
+            ctx.accounts.mint.decimals,
         )?;
 
         for (i, &chunk_idx) in chunk_indices.iter().enumerate() {
@@ -756,17 +780,21 @@ pub mod slotto_lottery {
         let bump = spl_auth_bump;
         let signer_seeds: &[&[&[u8]]] = &[&[b"spl_vault_auth", draw_key.as_ref(), &[bump]]];
 
-        token::transfer(
+        require_supported_token_program(&ctx.accounts.token_program.key())?;
+
+        token_interface::transfer_checked(
             CpiContext::new_with_signer(
                 ctx.accounts.token_program.to_account_info(),
-                token::Transfer {
+                token_interface::TransferChecked {
                     from: ctx.accounts.treasury_token.to_account_info(),
+                    mint: ctx.accounts.mint.to_account_info(),
                     to: ctx.accounts.destination_token.to_account_info(),
                     authority: ctx.accounts.spl_vault_authority.to_account_info(),
                 },
                 signer_seeds,
             ),
             amount,
+            ctx.accounts.mint.decimals,
         )?;
         Ok(())
     }
@@ -792,6 +820,15 @@ pub fn ticket_chunk_indices_for_range(base: u32, count: u32) -> Result<Vec<u32>>
 fn find_spl_row_index(draw: &AccountLoader<Draw>, mint: &Pubkey) -> Option<usize> {
     let data = draw.load().ok()?;
     find_spl_row_index_in_table(&data.spl_mint_rows, data.spl_count, mint)
+}
+
+fn require_supported_token_program(token_program: &Pubkey) -> Result<()> {
+    require!(
+        *token_program == anchor_spl::token::ID
+            || *token_program == anchor_spl::token_2022::ID,
+        ErrorCode::InvalidTokenProgram
+    );
+    Ok(())
 }
 
 /// Global ticket id → chunk PDA index (see [`ticket_slot_in_chunk`]).
@@ -835,8 +872,8 @@ pub(crate) fn find_spl_row_index_in_table(
     None
 }
 
-/// Per-ticket SOL splits for `count` tickets: (prize vault, team, bux, setup).
-pub(crate) fn sol_ticket_lamports_splits(count: u32) -> Result<(u64, u64, u64, u64)> {
+/// Per-ticket SOL splits for `count` tickets: (prize vault pot, team, bux, partner each, setup).
+pub(crate) fn sol_ticket_lamports_splits(count: u32) -> Result<(u64, u64, u64, u64, u64)> {
     let c = count as u64;
     let pot = LAMPORTS_SOL_TICKET_POT
         .checked_mul(c)
@@ -847,10 +884,13 @@ pub(crate) fn sol_ticket_lamports_splits(count: u32) -> Result<(u64, u64, u64, u
     let bux = LAMPORTS_SOL_TICKET_BUX
         .checked_mul(c)
         .ok_or(error!(ErrorCode::ArithmeticOverflow))?;
+    let partner_each = LAMPORTS_SOL_TICKET_PARTNER
+        .checked_mul(c)
+        .ok_or(error!(ErrorCode::ArithmeticOverflow))?;
     let setup = LAMPORTS_SOL_TICKET_SETUP
         .checked_mul(c)
         .ok_or(error!(ErrorCode::ArithmeticOverflow))?;
-    Ok((pot, team, bux, setup))
+    Ok((pot, team, bux, partner_each, setup))
 }
 
 /// **Total** SPL setup fee lamports (`LAMPORTS_SPL_TICKET_FEE_TOTAL * count`). No team vault payment.
@@ -1146,7 +1186,7 @@ pub struct EnsureTeamTokenAta<'info> {
     pub authority: Signer<'info>,
     #[account(seeds = [b"global_config"], bump = global_config.bump)]
     pub global_config: Account<'info, GlobalConfig>,
-    pub mint: Account<'info, Mint>,
+    pub mint: InterfaceAccount<'info, Mint>,
     /// CHECK: team wallet from global config.
     #[account(constraint = team_vault.key() == global_config.team_vault @ ErrorCode::InvalidTeamVault)]
     pub team_vault: UncheckedAccount<'info>,
@@ -1155,9 +1195,10 @@ pub struct EnsureTeamTokenAta<'info> {
         payer = authority,
         associated_token::mint = mint,
         associated_token::authority = team_vault,
+        associated_token::token_program = token_program,
     )]
-    pub team_token: Account<'info, TokenAccount>,
-    pub token_program: Program<'info, Token>,
+    pub team_token: InterfaceAccount<'info, TokenAccount>,
+    pub token_program: Interface<'info, TokenInterface>,
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
@@ -1194,6 +1235,12 @@ pub struct BuySolTickets<'info> {
     /// CHECK: BUX project SOL recipient from global config.
     #[account(mut, constraint = bux_vault.key() == global_config.bux_vault @ ErrorCode::InvalidBuxVault)]
     pub bux_vault: UncheckedAccount<'info>,
+    /// CHECK: partner SOL recipient (1.5% per ticket).
+    #[account(mut, constraint = partner_vault_1.key() == PARTNER_VAULT_1 @ ErrorCode::InvalidPartnerVault)]
+    pub partner_vault_1: UncheckedAccount<'info>,
+    /// CHECK: partner SOL recipient (1.5% per ticket).
+    #[account(mut, constraint = partner_vault_2.key() == PARTNER_VAULT_2 @ ErrorCode::InvalidPartnerVault)]
+    pub partner_vault_2: UncheckedAccount<'info>,
     /// CHECK: setup SOL recipient from global config.
     #[account(mut, constraint = setup_vault.key() == global_config.setup_vault @ ErrorCode::InvalidSetupVault)]
     pub setup_vault: UncheckedAccount<'info>,
@@ -1211,7 +1258,7 @@ pub struct BuySplTickets<'info> {
     pub draw: AccountLoader<'info, Draw>,
     #[account(seeds = [b"global_config"], bump = global_config.bump)]
     pub global_config: Account<'info, GlobalConfig>,
-    pub mint: Account<'info, Mint>,
+    pub mint: InterfaceAccount<'info, Mint>,
     /// CHECK: team wallet from global config (SPL recipient at purchase).
     #[account(constraint = team_vault.key() == global_config.team_vault @ ErrorCode::InvalidTeamVault)]
     pub team_vault: UncheckedAccount<'info>,
@@ -1219,18 +1266,20 @@ pub struct BuySplTickets<'info> {
         mut,
         token::mint = mint,
         token::authority = buyer,
+        token::token_program = token_program,
     )]
-    pub buyer_token: Account<'info, TokenAccount>,
+    pub buyer_token: InterfaceAccount<'info, TokenAccount>,
     #[account(
         mut,
         token::mint = mint,
         token::authority = team_vault,
+        token::token_program = token_program,
     )]
-    pub team_token: Account<'info, TokenAccount>,
+    pub team_token: InterfaceAccount<'info, TokenAccount>,
     /// CHECK: setup SOL recipient from global config (SPL ticket fee only).
     #[account(mut, constraint = setup_vault.key() == global_config.setup_vault @ ErrorCode::InvalidSetupVault)]
     pub setup_vault: UncheckedAccount<'info>,
-    pub token_program: Program<'info, Token>,
+    pub token_program: Interface<'info, TokenInterface>,
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
@@ -1309,7 +1358,7 @@ pub struct WithdrawSpl<'info> {
     #[account(seeds = [b"global_config"], bump = global_config.bump)]
     pub global_config: Account<'info, GlobalConfig>,
     pub draw: AccountLoader<'info, Draw>,
-    pub mint: Account<'info, Mint>,
+    pub mint: InterfaceAccount<'info, Mint>,
     /// CHECK: SPL treasury signer PDA (matches `draw.spl_auth_bump`).
     #[account(seeds = [b"spl_vault_auth", draw.key().as_ref()], bump)]
     pub spl_vault_authority: UncheckedAccount<'info>,
@@ -1317,16 +1366,18 @@ pub struct WithdrawSpl<'info> {
         mut,
         associated_token::mint = mint,
         associated_token::authority = spl_vault_authority,
+        associated_token::token_program = token_program,
     )]
-    pub treasury_token: Account<'info, TokenAccount>,
+    pub treasury_token: InterfaceAccount<'info, TokenAccount>,
     #[account(
         init_if_needed,
         payer = authority,
         associated_token::mint = mint,
         associated_token::authority = authority,
+        associated_token::token_program = token_program,
     )]
-    pub destination_token: Account<'info, TokenAccount>,
-    pub token_program: Program<'info, Token>,
+    pub destination_token: InterfaceAccount<'info, TokenAccount>,
+    pub token_program: Interface<'info, TokenInterface>,
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
@@ -1356,6 +1407,8 @@ pub enum ErrorCode {
     SplQuotedPriceTooHigh,
     #[msg("quoted SPL price is below the minimum band for this mint")]
     SplQuotedPriceTooLow,
+    #[msg("token program must be SPL Token or Token-2022")]
+    InvalidTokenProgram,
     #[msg("draw id counter overflow")]
     DrawIdOverflow,
     #[msg("draw is not accepting ticket sales")]
@@ -1424,6 +1477,8 @@ pub enum ErrorCode {
     StubVrfDisabled,
     #[msg("randomness account has already been revealed; bind a fresh one")]
     RandomnessAlreadyRevealed,
+    #[msg("partner vault address invalid")]
+    InvalidPartnerVault,
 }
 
 #[cfg(test)]
@@ -1464,6 +1519,8 @@ mod tests {
             LAMPORTS_SOL_TICKET_POT
                 + LAMPORTS_SOL_TICKET_TEAM
                 + LAMPORTS_SOL_TICKET_BUX
+                + LAMPORTS_SOL_TICKET_PARTNER
+                + LAMPORTS_SOL_TICKET_PARTNER
                 + LAMPORTS_SOL_TICKET_SETUP,
             LAMPORTS_SOL_TICKET_TOTAL
         );
@@ -1471,13 +1528,16 @@ mod tests {
 
     #[test]
     fn sol_ticket_lamports_splits_bulk() {
-        let (pot, team, bux, setup) = sol_ticket_lamports_splits(3).unwrap();
+        let (pot, team, bux, partner_each, setup) = sol_ticket_lamports_splits(3).unwrap();
         assert_eq!(pot, LAMPORTS_SOL_TICKET_POT * 3);
         assert_eq!(team, LAMPORTS_SOL_TICKET_TEAM * 3);
         assert_eq!(bux, LAMPORTS_SOL_TICKET_BUX * 3);
+        assert_eq!(partner_each, LAMPORTS_SOL_TICKET_PARTNER * 3);
         assert_eq!(setup, LAMPORTS_SOL_TICKET_SETUP * 3);
-        // All four slices now sum to the full per-ticket total (BUX included).
-        assert_eq!(pot + team + bux + setup, LAMPORTS_SOL_TICKET_TOTAL * 3);
+        assert_eq!(
+            pot + team + bux + partner_each + partner_each + setup,
+            LAMPORTS_SOL_TICKET_TOTAL * 3
+        );
     }
 
     #[test]

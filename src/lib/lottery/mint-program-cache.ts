@@ -7,17 +7,6 @@ import { isLotterySplBuySupportedProgram } from "./mint-token-program";
 const TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const cache = new Map<string, { supported: boolean; exp: number }>();
 
-/**
- * Force-show in the buy dropdown (admin can publish + unlock).
- * On-chain `buy_spl_tickets` still uses legacy SPL Token only — Token-2022 buys may fail.
- */
-const LOTTERY_BUY_UI_OVERRIDE = new Set([
-  "DEADsWJZaonaiZPFkrqEEBGf43mzA5uHeHpwgy9dW666",
-]);
-
-/** Token-2022 mints blocked from automatic RPC detection (unless in UI override). */
-const KNOWN_UNSUPPORTED = new Set<string>();
-
 function fromCache(mint: string): boolean | undefined {
   const row = cache.get(mint);
   if (!row || row.exp < Date.now()) {
@@ -40,16 +29,6 @@ export async function batchMintLotteryBuySupported(
   const pending: string[] = [];
 
   for (const mint of mints) {
-    if (LOTTERY_BUY_UI_OVERRIDE.has(mint)) {
-      out[mint] = true;
-      toCache(mint, true);
-      continue;
-    }
-    if (KNOWN_UNSUPPORTED.has(mint)) {
-      out[mint] = false;
-      toCache(mint, false);
-      continue;
-    }
     const hit = fromCache(mint);
     if (hit !== undefined) {
       out[mint] = hit;
@@ -71,9 +50,7 @@ export async function batchMintLotteryBuySupported(
       out[mint] = true;
       continue;
     }
-    const supported =
-      info.owner.equals(TOKEN_PROGRAM_ID) &&
-      isLotterySplBuySupportedProgram(info.owner);
+    const supported = isLotterySplBuySupportedProgram(info.owner);
     toCache(mint, supported);
     out[mint] = supported;
   }

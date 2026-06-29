@@ -196,8 +196,7 @@ export type SlottoLottery = {
           "writable": true
         },
         {
-          "name": "tokenProgram",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          "name": "tokenProgram"
         },
         {
           "name": "associatedTokenProgram",
@@ -297,6 +296,14 @@ export type SlottoLottery = {
           "writable": true
         },
         {
+          "name": "partnerVault1",
+          "writable": true
+        },
+        {
+          "name": "partnerVault2",
+          "writable": true
+        },
+        {
           "name": "setupVault",
           "writable": true
         },
@@ -364,8 +371,7 @@ export type SlottoLottery = {
           "writable": true
         },
         {
-          "name": "tokenProgram",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          "name": "tokenProgram"
         },
         {
           "name": "associatedTokenProgram",
@@ -550,8 +556,7 @@ export type SlottoLottery = {
           "writable": true
         },
         {
-          "name": "tokenProgram",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          "name": "tokenProgram"
         },
         {
           "name": "associatedTokenProgram",
@@ -818,6 +823,16 @@ export type SlottoLottery = {
       "code": 6038,
       "name": "splQuotedPriceTooHigh",
       "msg": "splQuotedPriceTooHigh"
+    },
+    {
+      "code": 6039,
+      "name": "splQuotedPriceTooLow",
+      "msg": "splQuotedPriceTooLow"
+    },
+    {
+      "code": 6040,
+      "name": "invalidTokenProgram",
+      "msg": "invalidTokenProgram"
     }
   ],
   "types": [

@@ -3,7 +3,6 @@ import type { AnchorWallet } from "@solana/wallet-adapter-react";
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   TOKEN_PROGRAM_ID,
-  getAssociatedTokenAddressSync,
 } from "@solana/spl-token";
 import { Connection, PublicKey } from "@solana/web3.js";
 
@@ -12,6 +11,10 @@ import {
   LAMPORTS_SOL_BUY_FEE_BUFFER,
   MAX_SOL_TICKETS_PER_BUY,
 } from "./constants";
+import {
+  buyerAssociatedTokenAddress,
+  resolveMintTokenProgram,
+} from "./mint-token-program";
 import { globalConfigPda, ticketChunkPda } from "./pdas";
 import { BuyPreflightError, type LotteryVaultPubkeys } from "./preflight-buy-sol";
 import { createLotteryProgram } from "./program";
@@ -40,17 +43,17 @@ export async function buySplTickets(
   }
 
   const label = tokenLabel?.trim() || "tokens";
+  const tokenProgram =
+    (await resolveMintTokenProgram(connection, mint)) ?? TOKEN_PROGRAM_ID;
 
   const program = createLotteryProgram(connection, wallet);
   const globalConfig = globalConfigPda(programId);
   const teamVault = vaults.teamVault;
 
-  const buyerToken = getAssociatedTokenAddressSync(
+  const buyerToken = buyerAssociatedTokenAddress(
     mint,
     wallet.publicKey,
-    false,
-    TOKEN_PROGRAM_ID,
-    ASSOCIATED_TOKEN_PROGRAM_ID,
+    tokenProgram,
   );
 
   // Preflight before opening the wallet: a transaction that the wallet's
@@ -115,13 +118,7 @@ export async function buySplTickets(
   } catch (e) {
     if (e instanceof BuyPreflightError) throw e;
   }
-  const teamToken = getAssociatedTokenAddressSync(
-    mint,
-    teamVault,
-    false,
-    TOKEN_PROGRAM_ID,
-    ASSOCIATED_TOKEN_PROGRAM_ID,
-  );
+  const teamToken = buyerAssociatedTokenAddress(mint, teamVault, tokenProgram);
 
   const base = draw.totalTickets;
   const chunkIndices = ticketChunkIndicesForRange(base, count);
@@ -146,6 +143,8 @@ export async function buySplTickets(
         buyerToken,
         teamToken,
         setupVault: vaults.setupVault,
+        tokenProgram,
+        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
       })
       .remainingAccounts(remainingAccounts)
       .transaction(),

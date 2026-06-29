@@ -11,6 +11,7 @@ import {
 } from "./constants";
 import { globalConfigPda, ticketChunkPda } from "./pdas";
 import { createLotteryProgram } from "./program";
+import { LOTTERY_PARTNER_VAULT_1, LOTTERY_PARTNER_VAULT_2 } from "./recipients";
 import { ticketChunkIndicesForRange } from "./ticket-chunks";
 export class BuyPreflightError extends Error {
   constructor(message: string) {
@@ -54,6 +55,8 @@ export async function buildBuySolTicketsTransaction(
       globalConfig,
       teamVault: vaults.teamVault,
       buxVault: vaults.buxVault,
+      partnerVault1: new PublicKey(LOTTERY_PARTNER_VAULT_1),
+      partnerVault2: new PublicKey(LOTTERY_PARTNER_VAULT_2),
       setupVault: vaults.setupVault,
     })
     .remainingAccounts(remainingAccounts)

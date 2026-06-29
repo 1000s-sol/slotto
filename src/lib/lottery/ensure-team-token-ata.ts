@@ -1,11 +1,15 @@
 import type { AnchorWallet } from "@solana/wallet-adapter-react";
 import {
-  getAssociatedTokenAddressSync,
+  ASSOCIATED_TOKEN_PROGRAM_ID,
   TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
 import { Connection, PublicKey } from "@solana/web3.js";
 
 import { globalConfigPda } from "./pdas";
+import {
+  buyerAssociatedTokenAddress,
+  resolveMintTokenProgram,
+} from "./mint-token-program";
 import { createLotteryProgram } from "./program";
 import {
   sendTransactionViaWallet,
@@ -28,12 +32,9 @@ export async function ensureTeamTokenAta(
     const cfg = await program.account.globalConfig.fetch(globalConfig);
     teamVaultPk = cfg.teamVault;
   }
-  const teamToken = getAssociatedTokenAddressSync(
-    mint,
-    teamVaultPk,
-    false,
-    TOKEN_PROGRAM_ID,
-  );
+  const tokenProgram =
+    (await resolveMintTokenProgram(connection, mint)) ?? TOKEN_PROGRAM_ID;
+  const teamToken = buyerAssociatedTokenAddress(mint, teamVaultPk, tokenProgram);
 
   return sendTransactionViaWallet(connection, wallet, () =>
     program.methods
@@ -44,6 +45,8 @@ export async function ensureTeamTokenAta(
         mint,
         teamVault: teamVaultPk,
         teamToken,
+        tokenProgram,
+        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
       })
       .transaction(),
     sendOpts,

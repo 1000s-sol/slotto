@@ -1,17 +1,19 @@
 import {
+  getAssociatedTokenAddressSync,
   TOKEN_2022_PROGRAM_ID,
   TOKEN_PROGRAM_ID,
-  getAssociatedTokenAddressSync,
 } from "@solana/spl-token";
 import type { Connection, PublicKey } from "@solana/web3.js";
 
 import { mintLotteryBuySupportedCached } from "./mint-program-cache";
 
-/** On-chain lottery `buy_spl_tickets` only supports legacy SPL Token (not Token-2022). */
+/** SPL Token and Token-2022 mints are supported for `buy_spl_tickets`. */
 export function isLotterySplBuySupportedProgram(
   program: PublicKey,
 ): boolean {
-  return program.equals(TOKEN_PROGRAM_ID);
+  return (
+    program.equals(TOKEN_PROGRAM_ID) || program.equals(TOKEN_2022_PROGRAM_ID)
+  );
 }
 
 export async function resolveMintTokenProgram(

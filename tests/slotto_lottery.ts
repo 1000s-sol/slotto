@@ -8,6 +8,8 @@ import {
   SYSVAR_CLOCK_PUBKEY,
   SYSVAR_RENT_PUBKEY,
   SystemProgram,
+  Transaction,
+  sendAndConfirmTransaction,
 } from "@solana/web3.js";
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -75,6 +77,23 @@ async function tokenAmountOrZero(
   }
 }
 
+async function ensureRentExemptRecipient(
+  connection: anchor.web3.Connection,
+  recipient: PublicKey,
+  payer: Keypair
+): Promise<void> {
+  const info = await connection.getAccountInfo(recipient);
+  if (info && info.lamports >= 890_880) return;
+  const tx = new Transaction().add(
+    SystemProgram.transfer({
+      fromPubkey: payer.publicKey,
+      toPubkey: recipient,
+      lamports: 1_000_000,
+    })
+  );
+  await sendAndConfirmTransaction(connection, tx, [payer]);
+}
+
 describe("slotto_lottery", () => {
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
@@ -83,6 +102,12 @@ describe("slotto_lottery", () => {
   const authority = (provider.wallet as anchor.Wallet).payer;
   // Must be funded system accounts — buy_sol_tickets transfers SOL to these.
   const teamVault = authority.publicKey;
+  const partnerVault1 = new PublicKey(
+    "G4v8VgEe7GX5uCGHuky1YjcXwPVKtYhUG5CskUK3eipG"
+  );
+  const partnerVault2 = new PublicKey(
+    "9LLLZeUYGbHqPLj4R1SLLmV8GPFpAThXz7Cfv7d24tUN"
+  );
   const buxVault = authority.publicKey;
   const setupVault = authority.publicKey;
   const globalConfig = globalConfigPda(program.programId);
@@ -90,6 +115,17 @@ describe("slotto_lottery", () => {
   let nextDrawId = 0;
 
   before(async () => {
+    await ensureRentExemptRecipient(
+      provider.connection,
+      partnerVault1,
+      authority
+    );
+    await ensureRentExemptRecipient(
+      provider.connection,
+      partnerVault2,
+      authority
+    );
+
     const existing = await provider.connection.getAccountInfo(globalConfig);
     if (existing) {
       const cfg = await program.account.globalConfig.fetch(globalConfig);
@@ -244,6 +280,8 @@ describe("slotto_lottery", () => {
           globalConfig,
           teamVault,
           buxVault,
+          partnerVault1,
+          partnerVault2,
           setupVault,
           systemProgram: SystemProgram.programId,
           rent: SYSVAR_RENT_PUBKEY,
