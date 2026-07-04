@@ -40,8 +40,9 @@ export async function POST(request: Request) {
   try {
     const tx = Transaction.from(raw);
     const result = await withLotteryServerRpc((connection) =>
-      // Legacy Transaction: no config object (unsigned tx, empty signers).
-      connection.simulateTransaction(tx, []),
+      // Legacy Transaction: omit signers so web3.js simulates unsigned (sigVerify off).
+      // Passing [] is wrong — empty array is truthy and triggers transaction.sign() → "No signers".
+      connection.simulateTransaction(tx),
     );
     const err = result.value.err;
     const logs = result.value.logs ?? [];
