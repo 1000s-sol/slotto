@@ -40,10 +40,8 @@ export async function POST(request: Request) {
   try {
     const tx = Transaction.from(raw);
     const result = await withLotteryServerRpc((connection) =>
-      connection.simulateTransaction(tx, {
-        sigVerify: false,
-        commitment: "confirmed",
-      }),
+      // Legacy Transaction: no config object (unsigned tx, empty signers).
+      connection.simulateTransaction(tx, []),
     );
     const err = result.value.err;
     const logs = result.value.logs ?? [];
