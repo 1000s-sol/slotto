@@ -1,7 +1,6 @@
 import { BN } from "@coral-xyz/anchor";
 import type { AnchorWallet } from "@solana/wallet-adapter-react";
 import {
-  ASSOCIATED_TOKEN_PROGRAM_ID,
   TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
 import { Connection, PublicKey } from "@solana/web3.js";
@@ -144,7 +143,6 @@ export async function buySplTickets(
         teamToken,
         setupVault: vaults.setupVault,
         tokenProgram,
-        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
       })
       .remainingAccounts(remainingAccounts)
       .transaction(),

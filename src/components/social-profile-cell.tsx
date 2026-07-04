@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import { XLogo } from "@/components/x-logo";
 import type { SocialProfile } from "@/lib/social-profile-url";
 
@@ -5,12 +8,27 @@ function AvatarImg({
   src,
   alt,
   size,
+  fallbackLetter,
 }: {
   src: string;
   alt: string;
   size: number;
+  fallbackLetter: string;
 }) {
   const dim = `${size}px`;
+  const [failed, setFailed] = useState(false);
+
+  if (failed) {
+    return (
+      <span
+        className="inline-flex shrink-0 items-center justify-center rounded-full bg-surface text-[10px] font-bold text-muted ring-1 ring-border"
+        style={{ width: dim, height: dim }}
+      >
+        {fallbackLetter.slice(0, 1).toUpperCase()}
+      </span>
+    );
+  }
+
   return (
     <img
       src={src}
@@ -22,6 +40,7 @@ function AvatarImg({
       loading="lazy"
       decoding="async"
       referrerPolicy="no-referrer"
+      onError={() => setFailed(true)}
     />
   );
 }
@@ -42,7 +61,7 @@ export function SocialProfileCell({
   const inner = (
     <>
       {profile.avatarUrl ? (
-        <AvatarImg src={profile.avatarUrl} alt={profile.username} size={size} />
+        <AvatarImg src={profile.avatarUrl} alt={profile.username} size={size} fallbackLetter={profile.username} />
       ) : (
         <span
           className="inline-flex shrink-0 items-center justify-center rounded-full bg-surface text-[10px] font-bold text-muted ring-1 ring-border"

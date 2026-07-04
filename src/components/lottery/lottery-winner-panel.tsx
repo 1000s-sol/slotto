@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import { LotteryCelebration } from "@/components/lottery/lottery-celebration";
 import { WalletAvatar } from "@/components/lottery/wallet-avatar";
 import { solscanAccountUrl } from "@/lib/lottery/config";
@@ -20,7 +22,9 @@ function WinnerAvatar({
   x: SocialProfile | null | undefined;
 }) {
   const primary = discord ?? x;
-  if (primary?.avatarUrl) {
+  const [failed, setFailed] = useState(false);
+
+  if (primary?.avatarUrl && !failed) {
     return (
       <img
         src={primary.avatarUrl}
@@ -28,7 +32,8 @@ function WinnerAvatar({
         width={72}
         height={72}
         className="rounded-full object-cover ring-2 ring-accent-gold/50"
-        referrerPolicy="strict-origin-when-cross-origin"
+        referrerPolicy="no-referrer"
+        onError={() => setFailed(true)}
       />
     );
   }

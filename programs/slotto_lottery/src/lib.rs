@@ -154,6 +154,13 @@ pub mod slotto_lottery {
         Ok(())
     }
 
+    /// Authority: point SOL ticket BUX slice (2%) at a new wallet.
+    pub fn update_bux_vault(ctx: Context<UpdateBuxVault>, bux_vault: Pubkey) -> Result<()> {
+        require_keys_neq!(bux_vault, Pubkey::default());
+        ctx.accounts.global_config.bux_vault = bux_vault;
+        Ok(())
+    }
+
     /// Authority opens a new draw: schedule, optional seed SOL into prize vault, SPL mint table (rows only).
     ///
     /// SPL ticket proceeds go to the global **team** wallet ATA (`init_if_needed` in `buy_spl_tickets`).
@@ -1093,7 +1100,7 @@ impl PrizeVault {
     pub const LEN: usize = 0;
 }
 
-/// Global singleton — immutable after init for v1 (no `update_config`).
+/// Global singleton — team/setup vaults immutable for v1; BUX vault updatable by authority.
 #[account]
 pub struct GlobalConfig {
     pub team_vault: Pubkey,
@@ -1122,6 +1129,19 @@ pub struct Initialize<'info> {
     )]
     pub global_config: Account<'info, GlobalConfig>,
     pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateBuxVault<'info> {
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [b"global_config"],
+        bump = global_config.bump,
+        constraint = authority.key() == global_config.authority @ ErrorCode::Unauthorized
+    )]
+    pub global_config: Account<'info, GlobalConfig>,
 }
 
 #[derive(Accounts)]

@@ -2,9 +2,10 @@ import { Prisma } from "@prisma/client";
 
 import { getAnnounceSiteUrl } from "@/lib/site-metadata";
 import { prisma } from "@/lib/prisma";
+import { lotteryXPostingEnabled } from "@/lib/lottery/test-mode";
 
 import { formatSolFromLamports } from "./draws";
-import { postTweet, xPostingConfigured } from "@/lib/x/post-tweet";
+import { postTweet } from "@/lib/x/post-tweet";
 
 type AnnouncementKind = "LIVE" | "ENDED";
 
@@ -25,7 +26,7 @@ async function claimAndPost(
   kind: AnnouncementKind,
   text: string,
 ): Promise<void> {
-  if (!xPostingConfigured()) return;
+  if (!lotteryXPostingEnabled()) return;
 
   const where = { onChainDrawId_kind: { onChainDrawId, kind } };
 
@@ -74,7 +75,7 @@ export async function announceDrawLive(opts: {
   seedLamports?: number;
   salesCloseTs?: number;
 }): Promise<void> {
-  if (!xPostingConfigured()) return;
+  if (!lotteryXPostingEnabled()) return;
 
   const siteUrl = getAnnounceSiteUrl();
   const lines = [`🎰 Slotto draw #${opts.drawId} is LIVE!`];
@@ -97,7 +98,7 @@ export async function announceDrawEnded(opts: {
   totalTickets: number;
   refunded: boolean;
 }): Promise<void> {
-  if (!xPostingConfigured()) return;
+  if (!lotteryXPostingEnabled()) return;
 
   const siteUrl = getAnnounceSiteUrl();
   let text: string;

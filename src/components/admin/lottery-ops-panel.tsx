@@ -479,7 +479,9 @@ export function LotteryOpsPanel({
           : "";
       const xNote = announce.ok
         ? " Posted draw-live to @slottogg_."
-        : ` X post not sent: ${announce.reason}`;
+        : announce.reason?.includes("LOTTERY_TEST_MODE")
+          ? " Discord draw-live posted (test mode; X skipped)."
+          : ` X post not sent: ${announce.reason}`;
       const rpcNote = rpcConfirmHiccup
         ? " Draw is on-chain; RPC confirmation polling hit a transient error."
         : "";

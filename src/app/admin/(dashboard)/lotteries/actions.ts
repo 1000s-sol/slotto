@@ -45,13 +45,33 @@ async function requireAdmin() {
   return admin;
 }
 
-/** Official @slottogg_ "draw is live" post (no-op unless X posting is configured). */
+/** Official @slottogg_ "draw is live" post (no-op in test mode or when X not configured). */
 export async function adminAnnounceDrawLiveAction(
   drawId: number,
   seedLamports?: number,
   salesCloseTs?: number,
 ): Promise<{ ok: true } | { ok: false; reason: string }> {
   await requireAdmin();
+
+  try {
+    const { notifyDiscordDrawLive } = await import(
+      "@/lib/discord-ticket-bot/post-draw-start"
+    );
+    await withLotteryServerRpc((connection) =>
+      notifyDiscordDrawLive(connection, drawId, {
+        seedLamports,
+        salesCloseTs,
+      }),
+    );
+  } catch (e) {
+    console.warn("[admin announce] Discord draw-live skipped:", e);
+  }
+
+  const { lotteryTestMode } = await import("@/lib/lottery/test-mode");
+  if (lotteryTestMode()) {
+    return { ok: false, reason: "X disabled in LOTTERY_TEST_MODE" };
+  }
+
   const { xPostingConfigured } = await import("@/lib/x/post-tweet");
   if (!xPostingConfigured()) {
     return {

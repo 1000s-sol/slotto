@@ -34,37 +34,74 @@ function discordProfileNeedsRepair(row: UserProfile): boolean {
   return true;
 }
 
-export async function ensureDiscordProfileComplete(
+/** Re-fetch Discord avatar hash from the bot API (handles pfp changes after link). */
+async function refreshDiscordAvatarFromBot(
   row: UserProfile,
 ): Promise<UserProfile> {
-  if (!row.discordId || !discordProfileNeedsRepair(row)) {
-    return row;
+  if (!row.discordId) return row;
+  const bot = discordBotToken();
+  if (!bot) return row;
+
+  const user = await fetchDiscordUserByBot(row.discordId, bot);
+  if (!user) return row;
+
+  const currentHash = user.avatar?.trim() || null;
+  const storedHash = row.discordAvatarHash?.trim() || null;
+
+  if (currentHash === storedHash && row.discordAvatarUrl) {
+    const rebuilt = currentHash
+      ? discordAvatarUrlFromHash(row.discordId, currentHash)
+      : null;
+    if (rebuilt && rebuilt === row.discordAvatarUrl) return row;
   }
 
-  let hash =
-    row.discordAvatarHash?.trim() ||
-    discordAvatarHashFromUrl(row.discordAvatarUrl) ||
-    null;
-
-  if (!hash) {
-    const bot = discordBotToken();
-    if (!bot) return row;
-    const user = await fetchDiscordUserByBot(row.discordId, bot);
-    if (user?.avatar) hash = user.avatar.trim();
-  }
-
-  if (!hash) {
+  if (!currentHash) {
     return prisma.userProfile.update({
       where: { id: row.id },
-      data: { discordAvatarUrl: null, discordAvatarHash: null },
+      data: { discordAvatarHash: null, discordAvatarUrl: null },
     });
   }
 
-  const avatarUrl = discordAvatarUrlFromHash(row.discordId, hash);
+  const avatarUrl = discordAvatarUrlFromHash(row.discordId, currentHash);
   return prisma.userProfile.update({
     where: { id: row.id },
-    data: { discordAvatarHash: hash, discordAvatarUrl: avatarUrl },
+    data: { discordAvatarHash: currentHash, discordAvatarUrl: avatarUrl },
   });
+}
+
+export async function ensureDiscordProfileComplete(
+  row: UserProfile,
+): Promise<UserProfile> {
+  if (!row.discordId) return row;
+
+  if (discordProfileNeedsRepair(row)) {
+    let hash =
+      row.discordAvatarHash?.trim() ||
+      discordAvatarHashFromUrl(row.discordAvatarUrl) ||
+      null;
+
+    if (!hash) {
+      const bot = discordBotToken();
+      if (!bot) return row;
+      const user = await fetchDiscordUserByBot(row.discordId, bot);
+      if (user?.avatar) hash = user.avatar.trim();
+    }
+
+    if (!hash) {
+      return prisma.userProfile.update({
+        where: { id: row.id },
+        data: { discordAvatarUrl: null, discordAvatarHash: null },
+      });
+    }
+
+    const avatarUrl = discordAvatarUrlFromHash(row.discordId, hash);
+    return prisma.userProfile.update({
+      where: { id: row.id },
+      data: { discordAvatarHash: hash, discordAvatarUrl: avatarUrl },
+    });
+  }
+
+  return refreshDiscordAvatarFromBot(row);
 }
 
 function discordProfileFromRow(row: UserProfile): SocialProfile | null {
@@ -89,7 +126,7 @@ function xProfileFromRow(row: UserProfile): SocialProfile | null {
   if (!handle) return null;
   return {
     username: handle,
-    avatarUrl: row.xAvatarUrl?.trim() || xAvatarFallback(handle),
+    avatarUrl: xAvatarFallback(handle),
     profileUrl: xProfileUrl(handle),
   };
 }

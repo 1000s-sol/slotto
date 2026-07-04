@@ -50,6 +50,36 @@
       ]
     },
     {
+      "name": "update_bux_vault",
+      "discriminator": [
+        107,
+        1,
+        138,
+        54,
+        213,
+        76,
+        239,
+        248
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "global_config",
+          "writable": true
+        }
+      ],
+      "args": [
+        {
+          "name": "bux_vault",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
       "name": "create_draw",
       "discriminator": [
         107,

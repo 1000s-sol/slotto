@@ -101,6 +101,10 @@ const idl = {
       arg("bux_vault", "pubkey"),
       arg("setup_vault", "pubkey"),
     ]),
+    ix("update_bux_vault", [
+      acc("authority", { writable: true, signer: true }),
+      acc("global_config", { writable: true }),
+    ], [arg("bux_vault", "pubkey")]),
     ix("create_draw", [
       acc("authority", { writable: true, signer: true }),
       acc("global_config", { writable: true }),

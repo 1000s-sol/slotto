@@ -29,6 +29,7 @@
     "lottery:deploy:devnet": "bash scripts/lottery-deploy-devnet.sh",
     "lottery:deploy:mainnet": "bash scripts/lottery-deploy-mainnet.sh",
     "lottery:init": "tsx scripts/lottery-initialize.ts",
+    "lottery:update-bux-vault": "tsx scripts/lottery-update-bux-vault.ts",
     "lottery:init-devnet": "LOTTERY_CLUSTER=devnet tsx scripts/lottery-initialize.ts",
     "lottery:settle": "tsx scripts/lottery-settle-draw.ts",
     "lottery:simulate-buy": "tsx scripts/lottery-simulate-buy-sol.ts",

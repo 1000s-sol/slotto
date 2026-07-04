@@ -1,5 +1,11 @@
 import { Connection } from "@solana/web3.js";
 
+import {
+  heliusRpcUrl,
+  parseHeliusApiKeys,
+} from "@/lib/helius-api-keys";
+import { resolveLotteryClusterEnv } from "@/lib/lottery/cluster";
+
 import { lotteryRpcErrorText } from "./user-facing-error";
 import {
   isRpcFallbackError,
@@ -19,60 +25,60 @@ function makeConnection(url: string): Connection {
   });
 }
 
-/** Server actions / API: primary RPC (Helius), brief backoff, then public cluster. */
+function heliusUrlsForCluster(): string[] {
+  const cluster = resolveLotteryClusterEnv();
+  return parseHeliusApiKeys().map((key) => heliusRpcUrl(cluster, key));
+}
+
+/** Server actions / API: rotate Helius keys on 429/401, then public cluster. */
 export async function withLotteryServerRpc<T>(
   fn: (connection: Connection) => Promise<T>,
 ): Promise<T> {
+  const heliusUrls = heliusUrlsForCluster();
   const primaryUrl = resolveLotteryRpcUrl();
   const fallbackUrl = lotteryPublicRpcFallback();
+
+  const tryUrls = [
+    ...new Set([
+      primaryUrl,
+      ...heliusUrls.filter((u) => u !== primaryUrl),
+    ]),
+  ];
 
   async function run(url: string): Promise<T> {
     return fn(makeConnection(url));
   }
 
-  try {
-    return await run(primaryUrl);
-  } catch (e) {
-    const message = lotteryRpcErrorText(e);
+  let lastError: unknown;
 
-    if (isRpcRateLimitError(message) && fallbackUrl !== primaryUrl) {
-      console.warn(
-        "[lottery rpc] rate limited on primary — using public cluster fallback",
-      );
-      try {
-        return await run(fallbackUrl);
-      } catch (fallbackErr) {
-        const fallbackMsg = lotteryRpcErrorText(fallbackErr);
-        if (!isRpcRateLimitError(fallbackMsg)) throw fallbackErr;
-      }
-      await sleep(1500);
-      try {
-        return await run(primaryUrl);
-      } catch (retryErr) {
-        throw retryErr;
-      }
+  for (const url of tryUrls) {
+    try {
+      return await run(url);
+    } catch (e) {
+      lastError = e;
+      const message = lotteryRpcErrorText(e);
+      if (!isRpcFallbackError(message)) throw e;
+      console.warn(`[lottery rpc] ${url.slice(0, 48)}… failed — trying next endpoint`);
     }
-
-    if (isRpcRateLimitError(message)) {
-      await sleep(1500);
-      try {
-        return await run(primaryUrl);
-      } catch (retryErr) {
-        const retryMsg = lotteryRpcErrorText(retryErr);
-        if (fallbackUrl !== primaryUrl && isRpcFallbackError(retryMsg)) {
-          console.warn(
-            "[lottery rpc] rate limited after retry — using public cluster fallback",
-          );
-          return run(fallbackUrl);
-        }
-        throw retryErr;
-      }
-    }
-
-    if (fallbackUrl !== primaryUrl && isRpcFallbackError(message)) {
-      console.warn("[lottery rpc] primary RPC failed — using public cluster fallback");
-      return run(fallbackUrl);
-    }
-    throw e;
   }
+
+  if (isRpcRateLimitError(lotteryRpcErrorText(lastError))) {
+    await sleep(1500);
+    for (const url of tryUrls) {
+      try {
+        return await run(url);
+      } catch (e) {
+        lastError = e;
+        const message = lotteryRpcErrorText(e);
+        if (!isRpcFallbackError(message)) throw e;
+      }
+    }
+  }
+
+  if (fallbackUrl && !tryUrls.includes(fallbackUrl)) {
+    console.warn("[lottery rpc] Helius exhausted — using public cluster fallback");
+    return run(fallbackUrl);
+  }
+
+  throw lastError;
 }

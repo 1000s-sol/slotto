@@ -8,7 +8,9 @@ import { prisma } from "@/lib/prisma";
 import { getSiteUrl } from "@/lib/site-metadata";
 
 import { buyerLabelForWallet } from "./buyer-label";
+import { ticketSaleBannerUrl } from "./banners";
 import { mascotThumbnailUrl, postEmbedToChannel } from "./discord-channel";
+import { resolveDiscordNotifyChannelIds } from "./notify-channels";
 import { verifyLotteryBuySignature } from "./verify-buy-tx";
 import { recordLotteryTicketPurchase } from "@/lib/lottery/draw-paid-with-db";
 
@@ -45,11 +47,14 @@ function buildTicketSaleEmbed(opts: {
 }) {
   const ticketWord = opts.count === 1 ? "ticket" : "tickets";
   const paidWith = paidWithLabel(opts.tokenSymbol, opts.tokenName);
+  const bannerUrl =
+    ticketSaleBannerUrl(opts.tokenSymbol) ?? opts.tokenImageUrl;
   const embed: Record<string, unknown> = {
     title: "🎟️ New Slotto ticket purchase",
     description: `Someone just bought **${opts.count}** ${ticketWord} in draw **#${opts.drawId}**.`,
     color: 0xf5b942,
     thumbnail: { url: mascotThumbnailUrl() },
+    ...(bannerUrl ? { image: { url: bannerUrl } } : {}),
     author: {
       name: paidWith,
       ...(opts.tokenImageUrl ? { icon_url: opts.tokenImageUrl } : {}),
@@ -122,10 +127,8 @@ export async function notifyDiscordTicketSale(
     );
   }
 
-  const guilds = await prisma.discordTicketBotGuild.findMany({
-    where: { enabled: true },
-  });
-  if (guilds.length === 0) {
+  const channelIds = await resolveDiscordNotifyChannelIds();
+  if (channelIds.length === 0) {
     await prisma.discordTicketSaleNotify.create({
       data: { signature, drawId: input.drawId },
     });
@@ -156,21 +159,13 @@ export async function notifyDiscordTicketSale(
   let posted = 0;
   const failures: string[] = [];
 
-  for (const g of guilds) {
+  for (const channelId of channelIds) {
     try {
-      await postEmbedToChannel(g.channelId, embed, siteUrl);
+      await postEmbedToChannel(channelId, embed, siteUrl);
       posted += 1;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      failures.push(`${g.guildId}: ${msg}`);
-      if (msg.includes("403") || msg.includes("404") || msg.includes("50001")) {
-        await prisma.discordTicketBotGuild
-          .update({
-            where: { guildId: g.guildId },
-            data: { enabled: false },
-          })
-          .catch(() => {});
-      }
+      failures.push(`${channelId}: ${msg}`);
     }
   }
 

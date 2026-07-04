@@ -1,4 +1,8 @@
 import {
+  heliusRpcUrl,
+  parseHeliusApiKeys,
+} from "@/lib/helius-api-keys";
+import {
   lotteryClusterFromRpc,
   resolveLotteryClusterEnv,
   type LotteryCluster,
@@ -14,13 +18,7 @@ const DEFAULT_RPC: Record<LotteryCluster, string> = {
 
 export { resolveLotteryClusterEnv };
 
-function heliusRpcUrl(cluster: LotteryCluster, apiKey: string): string {
-  const host =
-    cluster === "mainnet-beta"
-      ? "mainnet.helius-rpc.com"
-      : "devnet.helius-rpc.com";
-  return `https://${host}/?api-key=${apiKey}`;
-}
+export { heliusRpcUrl, parseHeliusApiKeys };
 
 /** Helius / RPC auth failures — retry public cluster endpoint when configured. */
 export function isRpcAuthError(message: string): boolean {
@@ -117,9 +115,9 @@ export function resolveLotteryRpcUrl(): string {
     return explicit;
   }
 
-  const heliusKey = process.env.HELIUS_API_KEY?.trim();
-  if (heliusKey) {
-    return heliusRpcUrl(cluster, heliusKey);
+  const heliusKeys = parseHeliusApiKeys();
+  if (heliusKeys.length > 0) {
+    return heliusRpcUrl(cluster, heliusKeys[0]!);
   }
 
   return DEFAULT_RPC[cluster];

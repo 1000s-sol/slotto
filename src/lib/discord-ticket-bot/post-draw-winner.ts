@@ -8,13 +8,14 @@ import {
   fetchSettledDrawPrizeLamports,
   formatSolFromLamports,
 } from "@/lib/lottery/draws";
-import { prisma } from "@/lib/prisma";
 import { getSiteUrl } from "@/lib/site-metadata";
 import { getSocialByWallets } from "@/lib/user-profile-db";
 
 import { buyerLabelForWallet, shortWallet } from "./buyer-label";
+import { drawWinnerBannerUrl } from "./banners";
 import { discordTicketBotConfigured } from "./config";
 import { mascotThumbnailUrl, postEmbedToChannel } from "./discord-channel";
+import { resolveDiscordNotifyChannelIds } from "./notify-channels";
 
 function balanceDeltaForKey(
   keys: { staticAccountKeys: PublicKey[] },
@@ -93,6 +94,7 @@ function buildDrawWinnerEmbed(opts: {
       .join("\n"),
     color: 0x57f287,
     thumbnail: { url: mascotThumbnailUrl() },
+    image: { url: drawWinnerBannerUrl() },
     fields: [
       { name: "Winner", value: opts.winnerLabel, inline: true },
       { name: "Prize", value: `${opts.prizeSol} SOL`, inline: true },
@@ -135,11 +137,9 @@ export async function notifyDiscordDrawWinner(
     return { posted: 0, skipped: true, reason: "draw not settled" };
   }
 
-  const guilds = await prisma.discordTicketBotGuild.findMany({
-    where: { enabled: true },
-  });
-  if (guilds.length === 0) {
-    return { posted: 0, skipped: true, reason: "no guild channels configured" };
+  const channelIds = await resolveDiscordNotifyChannelIds();
+  if (channelIds.length === 0) {
+    return { posted: 0, skipped: true, reason: "no notify channels configured" };
   }
 
   const [prizeLamports, winnerLabel, settleTx, socialMap] = await Promise.all([
@@ -165,21 +165,13 @@ export async function notifyDiscordDrawWinner(
   let posted = 0;
   const failures: string[] = [];
 
-  for (const g of guilds) {
+  for (const channelId of channelIds) {
     try {
-      await postEmbedToChannel(g.channelId, embed, siteUrl);
+      await postEmbedToChannel(channelId, embed, siteUrl);
       posted += 1;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      failures.push(`${g.guildId}: ${msg}`);
-      if (msg.includes("403") || msg.includes("404") || msg.includes("50001")) {
-        await prisma.discordTicketBotGuild
-          .update({
-            where: { guildId: g.guildId },
-            data: { enabled: false },
-          })
-          .catch(() => {});
-      }
+      failures.push(`${channelId}: ${msg}`);
     }
   }
 
