@@ -38,7 +38,6 @@ import {
   validateProjectTokenDrawSettings,
   type ProjectTokenDrawSettings,
 } from "@/components/admin/project-token-draw-allocator";
-import { ensureTeamTokenAta } from "@/lib/lottery/ensure-team-token-ata";
 import { formatLotteryAdminError } from "@/lib/lottery/user-facing-error";
 import { lotteryWalletSendOptsForAdmin } from "@/lib/lottery/lottery-admin-wallet-client";
 import { useLotteryWallet } from "@/lib/lottery/use-lottery-wallet";
@@ -57,6 +56,7 @@ import {
   adminMintsExistOnClusterAction,
   adminSaveSplRowsForDrawAction,
 } from "@/app/admin/(dashboard)/lotteries/actions";
+import { adminPrepareNewDrawInfrastructureAction } from "@/app/admin/(dashboard)/lotteries/draw-infrastructure-actions";
 
 type LotteryOpsPanelProps = {
   liveDraw: LotteryDrawView | null;
@@ -430,23 +430,37 @@ export function LotteryOpsPanel({
       }
 
       const skippedTeamAta: string[] = [];
+      const splMintsOnCluster = activeSpl
+        .filter((row) => mintsOnCluster[row.mint])
+        .map((row) => row.mint);
       for (const row of activeSpl) {
-        const mintPk = new PublicKey(row.mint);
         if (!mintsOnCluster[row.mint]) {
           skippedTeamAta.push(row.symbol || row.mint.slice(0, 8));
-          continue;
         }
+      }
+
+      if (splMintsOnCluster.length > 0) {
         setPhase({
           kind: "busy",
-          label: `Ensuring team ATA for ${row.symbol}…`,
+          label: "Funding team ATAs + ticket chunk 1…",
         });
-        await ensureTeamTokenAta(
-          signingConnection,
-          wallet,
-          programId,
-          mintPk,
-          walletSendOpts,
+        const prep = await adminPrepareNewDrawInfrastructureAction(
+          drawId,
+          splMintsOnCluster,
         );
+        if (!prep.ok) {
+          setPhase({
+            kind: "error",
+            message: `Draw #${drawId} created but prep failed: ${prep.error}. Fix keeper/authority on server, then run Ensure team ATAs + init chunk 1 in admin.`,
+            signature: sig,
+          });
+          return;
+        }
+      } else if (activeSpl.length === 0) {
+        const prep = await adminPrepareNewDrawInfrastructureAction(drawId, []);
+        if (!prep.ok) {
+          console.warn("[create draw] chunk 1 prep:", prep.error);
+        }
       }
 
       const existsOnServer = await adminDrawExistsOnServerAction(drawId);
@@ -478,10 +492,10 @@ export function LotteryOpsPanel({
           ? ` Team ATA skipped for ${skippedTeamAta.join(", ")} (mint not found on server RPC — usually devnet server + mainnet tokens; SPL buys disabled until cluster is mainnet).`
           : "";
       const xNote = announce.ok
-        ? " Posted draw-live to @slottogg_."
-        : announce.reason?.includes("LOTTERY_TEST_MODE")
-          ? " Discord draw-live posted (test mode; X skipped)."
-          : ` X post not sent: ${announce.reason}`;
+        ? announce.discordPosted > 0
+          ? " Posted draw-live to Discord test channel."
+          : " Posted draw-live to @slottogg_."
+        : ` Draw-live announce: ${announce.reason}`;
       const rpcNote = rpcConfirmHiccup
         ? " Draw is on-chain; RPC confirmation polling hit a transient error."
         : "";

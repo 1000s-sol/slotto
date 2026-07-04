@@ -3,6 +3,7 @@ import { Connection } from "@solana/web3.js";
 import { fetchDrawById } from "./chain";
 import { crankDraw } from "./crank-draw";
 import { lotteryProgramId } from "./config";
+import { DrawState } from "./constants";
 import {
   keypairToAnchorWallet,
   loadLotteryKeeperKeypair,
@@ -24,6 +25,10 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function isTerminalState(state: string): boolean {
+  return state === "Settled" || state === "Refunded";
+}
+
 async function crankOnRpc(
   rpcUrl: string,
   drawId: number,
@@ -35,51 +40,77 @@ async function crankOnRpc(
     connection,
     keypairToAnchorWallet(payer),
   );
-  const result = await crankDraw(
-    connection,
-    program,
-    programId,
-    drawId,
-    payer,
-  );
-  const terminal =
-    result.finalState === "Settled" || result.finalState === "Refunded";
 
-  if (terminal) {
-    try {
-      await postSettleAnnouncements(connection, drawId, {
-        finalState: result.finalState,
-        winner: result.winner,
-      });
-    } catch (e) {
-      console.warn("[lottery announce] ended hook failed:", e);
+  /** Switchboard VRF often needs close → request → wait → reveal → settle. */
+  const maxPasses = 8;
+  let lastFinalState = "unknown";
+  let totalSigs = 0;
+
+  for (let pass = 0; pass < maxPasses; pass += 1) {
+    const draw = await fetchDrawById(connection, programId, drawId);
+    if (!draw) {
+      return { ok: false, error: `Draw #${drawId} not found` };
+    }
+    if (
+      draw.state === DrawState.Settled ||
+      draw.state === DrawState.Refunded
+    ) {
+      lastFinalState = draw.state === DrawState.Settled ? "Settled" : "Refunded";
+      break;
+    }
+
+    const result = await crankDraw(
+      connection,
+      program,
+      programId,
+      drawId,
+      payer,
+    );
+    lastFinalState = result.finalState;
+    totalSigs += result.signatures.length;
+
+    if (isTerminalState(result.finalState)) {
+      try {
+        await postSettleAnnouncements(connection, drawId, {
+          finalState: result.finalState,
+          winner: result.winner,
+        });
+      } catch (e) {
+        console.warn("[lottery announce] ended hook failed:", e);
+      }
+      return { ok: true, finalState: result.finalState };
+    }
+
+    if (pass < maxPasses - 1) {
+      const waitMs =
+        result.finalState === "VrfRequested" ? 8_000 : 4_000;
+      await sleep(waitMs);
     }
   }
 
+  if (isTerminalState(lastFinalState)) {
+    return { ok: true, finalState: lastFinalState };
+  }
+
   return {
-    ok: terminal || result.signatures.length > 0,
-    finalState: result.finalState,
-    error: terminal
-      ? undefined
-      : result.signatures.length === 0
-        ? `Crank incomplete (still ${result.finalState})`
-        : undefined,
+    ok: totalSigs > 0,
+    finalState: lastFinalState,
+    error:
+      totalSigs === 0
+        ? `Crank incomplete (still ${lastFinalState})`
+        : `Crank in progress (still ${lastFinalState}) — retry shortly`,
   };
 }
 
 /**
- * Per-draw throttle for the public crank. This action is callable by any
- * visitor (the homepage triggers it so draws settle without wallet popups), so
- * we (a) collapse concurrent calls for the same draw into one in-flight run and
- * (b) enforce a short cooldown between runs. This caps keeper RPC/tx work under
- * spam. Best-effort per server instance — the durable fix is an authenticated
- * cron worker.
+ * Per-draw throttle for the public crank. Collapses concurrent calls for the
+ * same draw; cooldown applies between full multi-pass runs.
  */
 const inFlightCrank = new Map<number, Promise<CrankTriggerResult>>();
 const lastCrankAt = new Map<number, number>();
-const CRANK_COOLDOWN_MS = 4_000;
+const CRANK_COOLDOWN_MS = 3_000;
 
-/** Server-only: close_sales → request_vrf → settle for one draw. */
+/** Server-only: close_sales → request_vrf → settle for one draw (multi-pass). */
 export async function runTriggerLotteryCrank(
   drawId: number,
 ): Promise<CrankTriggerResult> {
@@ -92,9 +123,6 @@ export async function runTriggerLotteryCrank(
 
   const last = lastCrankAt.get(drawId) ?? 0;
   if (Date.now() - last < CRANK_COOLDOWN_MS) {
-    // Benign no-op: another crank just ran for this draw (common when many
-    // viewers settle the same draw at once). Don't surface an error or trigger
-    // UI backoff — the next poll picks up the new on-chain state.
     return { ok: true };
   }
 

@@ -100,6 +100,15 @@ export async function buySplTickets(
   const decimals = chainRow?.decimals ?? 0;
   const required = quotedPricePerTicket * BigInt(count);
 
+  if (chainRow && chainRow.sold + count > chainRow.cap) {
+    const left = Math.max(0, chainRow.cap - chainRow.sold);
+    throw new BuyPreflightError(
+      left === 0
+        ? `No more ${label} tickets left for this draw.`
+        : `Only ${left} ${label} ticket(s) left for this draw (you asked for ${count}).`,
+    );
+  }
+
   if (!sendOpts?.fetchTokenBalance) {
     try {
       const bal = await connection.getTokenAccountBalance(buyerToken, "confirmed");

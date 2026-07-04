@@ -24,6 +24,7 @@ import { fetchWalletSocialsClient } from "@/lib/fetch-wallet-social-client";
 import type { WalletSocialPublic } from "@/lib/social-profile-url";
 import { buySolTickets } from "@/lib/lottery/buy-sol-tickets";
 import { buySplTickets } from "@/lib/lottery/buy-spl-tickets";
+import { ensureTicketChunksForPurchaseAction } from "@/app/admin/(dashboard)/lotteries/draw-infrastructure-actions";
 import { fetchTickerPricesClient } from "@/lib/lottery/fetch-ticker-prices-client";
 import { resolveSplQuotedPricePerTicket } from "@/lib/lottery/resolve-spl-quoted-price";
 import { liquidSplPriceFromTickerItems } from "@/lib/lottery/liquid-ticket-price";
@@ -519,6 +520,18 @@ export function HomeLotterySection({ preview = false }: { preview?: boolean }) {
     if (count !== ticketCount) {
       setTicketCount(count);
     }
+    setPhase({ kind: "busy", label: "Preparing draw…" });
+    const chunkPrep = await ensureTicketChunksForPurchaseAction(
+      activeDraw.drawId,
+      count,
+    );
+    if (!chunkPrep.ok && chunkPrep.error !== "Keeper not configured") {
+      setPhase({
+        kind: "error",
+        message: chunkPrep.error,
+      });
+      return;
+    }
     setPhase({ kind: "busy", label: "Confirm in your wallet…" });
     const sendOpts = lotteryWalletSendOptsForBrowser(wallet, sendTransaction);
     try {
@@ -817,14 +830,6 @@ export function HomeLotterySection({ preview = false }: { preview?: boolean }) {
                 splSubtitle
               )}
             </p>
-            {payWith === "SOL" ? (
-              <p className="mt-2 text-xs text-amber-100/90">
-                Phantom may show a security notice for SOL buys — one payment is
-                split across the prize pool, team, BUX, and partners. That is
-                expected; DEADS/token buys look simpler because they use a
-                different path.
-              </p>
-            ) : null}
             <ul className="mt-3 space-y-1.5 text-xs text-muted/90">
               <li className="flex items-start gap-2">
                 <span className="mt-0.5 shrink-0 text-accent-gold" aria-hidden>

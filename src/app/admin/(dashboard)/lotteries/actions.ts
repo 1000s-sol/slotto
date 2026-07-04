@@ -50,44 +50,70 @@ export async function adminAnnounceDrawLiveAction(
   drawId: number,
   seedLamports?: number,
   salesCloseTs?: number,
-): Promise<{ ok: true } | { ok: false; reason: string }> {
+): Promise<
+  | { ok: true; discordPosted: number }
+  | { ok: false; reason: string; discordPosted?: number }
+> {
   await requireAdmin();
 
+  let discordPosted = 0;
+  let discordError: string | undefined;
   try {
     const { notifyDiscordDrawLive } = await import(
       "@/lib/discord-ticket-bot/post-draw-start"
     );
-    await withLotteryServerRpc((connection) =>
+    const discord = await withLotteryServerRpc((connection) =>
       notifyDiscordDrawLive(connection, drawId, {
         seedLamports,
         salesCloseTs,
       }),
     );
+    discordPosted = discord.posted;
+    if (discord.skipped && discord.reason) {
+      discordError = discord.reason;
+    }
   } catch (e) {
-    console.warn("[admin announce] Discord draw-live skipped:", e);
+    discordError = e instanceof Error ? e.message : "Discord post failed";
+    console.warn("[admin announce] Discord draw-live failed:", e);
   }
 
   const { lotteryTestMode } = await import("@/lib/lottery/test-mode");
   if (lotteryTestMode()) {
-    return { ok: false, reason: "X disabled in LOTTERY_TEST_MODE" };
+    if (discordPosted > 0) {
+      return { ok: true, discordPosted };
+    }
+    return {
+      ok: false,
+      reason: discordError ?? "Discord draw-live did not post",
+      discordPosted: 0,
+    };
   }
 
   const { xPostingConfigured } = await import("@/lib/x/post-tweet");
   if (!xPostingConfigured()) {
+    if (discordPosted > 0) {
+      return { ok: true, discordPosted };
+    }
     return {
       ok: false,
       reason:
+        discordError ??
         "X posting not configured on Vercel (set SLOTTO_X_POSTING_ENABLED=true and SLOTTO_X_* keys).",
+      discordPosted,
     };
   }
   try {
     const { announceDrawLive } = await import("@/lib/lottery/announce-draw");
     await announceDrawLive({ drawId, seedLamports, salesCloseTs });
-    return { ok: true };
+    return { ok: true, discordPosted };
   } catch (e) {
+    if (discordPosted > 0) {
+      return { ok: true, discordPosted };
+    }
     return {
       ok: false,
       reason: e instanceof Error ? e.message : "X post failed",
+      discordPosted,
     };
   }
 }

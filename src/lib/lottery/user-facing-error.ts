@@ -231,9 +231,8 @@ export function formatLotteryBuyError(
 
   if (isInsufficientSol(text) || (!payingSpl && isInsufficientSplToken(text))) {
     return (
-      "Phantom rejected this purchase (often a false insufficient-SOL warning on ticket buys). " +
-      "Confirm Phantom is on Mainnet Beta, refresh, and try again. Create-draw worked because " +
-      "that tx shape differs from buy (one program call vs several SOL transfers)."
+      "Not enough SOL in your wallet for this purchase (ticket price + network fee). " +
+      "Confirm Phantom is on Mainnet Beta, refresh, and try again."
     );
   }
 

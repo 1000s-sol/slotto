@@ -16,6 +16,10 @@ import { drawWinnerBannerUrl } from "./banners";
 import { discordTicketBotConfigured } from "./config";
 import { mascotThumbnailUrl, postEmbedToChannel } from "./discord-channel";
 import { resolveDiscordNotifyChannelIds } from "./notify-channels";
+import {
+  claimDiscordDrawEmbed,
+  releaseDiscordDrawEmbedClaim,
+} from "@/lib/lottery/discord-draw-embed-idempotency";
 
 function balanceDeltaForKey(
   keys: { staticAccountKeys: PublicKey[] },
@@ -142,11 +146,16 @@ export async function notifyDiscordDrawWinner(
     return { posted: 0, skipped: true, reason: "no notify channels configured" };
   }
 
+  const claimed = await claimDiscordDrawEmbed(drawId, "ended");
+  if (!claimed) {
+    return { posted: 0, skipped: true, reason: "already posted" };
+  }
+
   const [prizeLamports, winnerLabel, settleTx, socialMap] = await Promise.all([
     fetchSettledDrawPrizeLamports(connection, draw),
     buyerLabelForWallet(draw.winner),
     fetchSettleTxSignature(connection, draw),
-    getSocialByWallets([draw.winner]),
+    getSocialByWallets([draw.winner]).catch(() => ({})),
   ]);
 
   const prizeSol = formatSolFromLamports(prizeLamports);
@@ -179,5 +188,14 @@ export async function notifyDiscordDrawWinner(
     console.warn("[discord draw winner] partial post failures:", failures.join("; "));
   }
 
-  return { posted, skipped: posted === 0 };
+  if (posted === 0) {
+    await releaseDiscordDrawEmbedClaim(drawId, "ended");
+    return {
+      posted: 0,
+      skipped: true,
+      reason: failures.join("; ") || "post failed",
+    };
+  }
+
+  return { posted, skipped: false };
 }

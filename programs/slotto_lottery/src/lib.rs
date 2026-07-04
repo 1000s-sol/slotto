@@ -320,14 +320,19 @@ pub mod slotto_lottery {
             .checked_add(count)
             .ok_or(error!(ErrorCode::ArithmeticOverflow))?;
 
+        let total = LAMPORTS_SOL_TICKET_TOTAL
+            .checked_mul(count as u64)
+            .ok_or(error!(ErrorCode::ArithmeticOverflow))?;
+
         let (pot, team, bux, partner_each, setup) = sol_ticket_lamports_splits(count)?;
-        let total = pot
+        let total_check = pot
             .checked_add(team)
             .and_then(|s| s.checked_add(bux))
             .and_then(|s| s.checked_add(partner_each))
             .and_then(|s| s.checked_add(partner_each))
             .and_then(|s| s.checked_add(setup))
             .ok_or(error!(ErrorCode::ArithmeticOverflow))?;
+        require!(total == total_check, ErrorCode::ArithmeticOverflow);
 
         let chunk_indices = ticket_chunk_indices_for_range(base, count)?;
         require_eq!(
@@ -339,7 +344,7 @@ pub mod slotto_lottery {
         let buyer_key = ctx.accounts.buyer.key();
         let program_id = ctx.program_id;
 
-        // One debit from the buyer (wallet UIs flag multiple outbound system transfers).
+        // One debit from the buyer; fee recipients paid from prize vault in the same tx.
         system_program::transfer(
             CpiContext::new(
                 ctx.accounts.system_program.to_account_info(),
@@ -377,7 +382,6 @@ pub mod slotto_lottery {
             &ctx.accounts.setup_vault.to_account_info(),
             setup,
         )?;
-        // Remaining lamports in the prize vault are the pot slice (plus any prior seed).
 
         for (i, &chunk_idx) in chunk_indices.iter().enumerate() {
             let chunk_ai = &ctx.remaining_accounts[i];
@@ -509,7 +513,7 @@ pub mod slotto_lottery {
         Ok(())
     }
 
-    /// Permissionless: once `now >= sales_close_ts`, move draw from **Selling** → **SalesClosed** (no more tickets).
+    /// Permissionless: once `now >= sales_close_ts`, move draw from **Selling** → **SalesClosed**.
     pub fn close_sales(ctx: Context<CloseSales>) -> Result<()> {
         let mut draw = ctx.accounts.draw.load_mut()?;
         require!(

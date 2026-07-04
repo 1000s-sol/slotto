@@ -31,6 +31,8 @@ export async function postSettleAnnouncements(
     prizeLamports,
     totalTickets: dv?.totalTickets ?? 0,
     refunded,
+  }).catch((e) => {
+    console.warn("[lottery announce] X ended hook failed:", e);
   });
 
   if (!refunded && opts.winner) {

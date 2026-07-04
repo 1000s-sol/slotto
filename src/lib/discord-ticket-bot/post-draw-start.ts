@@ -9,6 +9,10 @@ import { drawStartBannerUrl } from "./banners";
 import { discordTicketBotConfigured } from "./config";
 import { postEmbedToChannel } from "./discord-channel";
 import { resolveDiscordNotifyChannelIds } from "./notify-channels";
+import {
+  claimDiscordDrawEmbed,
+  releaseDiscordDrawEmbedClaim,
+} from "@/lib/lottery/discord-draw-embed-idempotency";
 
 function formatCloseDate(salesCloseTs?: number): string | null {
   if (!salesCloseTs || !Number.isFinite(salesCloseTs)) return null;
@@ -58,6 +62,11 @@ export async function notifyDiscordDrawLive(
     return { posted: 0, skipped: true, reason: "no notify channels configured" };
   }
 
+  const claimed = await claimDiscordDrawEmbed(drawId, "live");
+  if (!claimed) {
+    return { posted: 0, skipped: true, reason: "already posted" };
+  }
+
   const programId = lotteryProgramId();
   const draw = await fetchDrawById(connection, programId, drawId);
   const salesCloseTs = opts?.salesCloseTs ?? draw?.salesCloseTs;
@@ -74,14 +83,26 @@ export async function notifyDiscordDrawLive(
   const siteUrl = getSiteUrl().replace(/\/$/, "") || "https://slotto.gg";
 
   let posted = 0;
+  const failures: string[] = [];
   for (const channelId of channelIds) {
     try {
       await postEmbedToChannel(channelId, embed, siteUrl);
       posted += 1;
     } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      failures.push(`${channelId}: ${msg}`);
       console.warn("[discord draw live]", channelId, e);
     }
   }
 
-  return { posted, skipped: posted === 0 };
+  if (posted === 0) {
+    await releaseDiscordDrawEmbedClaim(drawId, "live");
+    return {
+      posted: 0,
+      skipped: true,
+      reason: failures.join("; ") || "post failed",
+    };
+  }
+
+  return { posted, skipped: false };
 }

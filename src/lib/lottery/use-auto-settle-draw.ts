@@ -4,24 +4,21 @@ import { useEffect, useRef } from "react";
 
 import type { LotteryDrawView } from "./chain";
 import { DrawState } from "./constants";
-import { drawNeedsSettlement } from "./draw-settlement";
+import { drawNeedsSettlement, drawTerminalState } from "./draw-settlement";
 import {
   triggerLotteryCrank,
   type CrankUiResult,
 } from "./trigger-crank-action";
 import { formatLotterySettlementError } from "./user-facing-error";
 
-/** Retry while close_sales / VRF runs (Switchboard often needs 2+ passes). */
-const CRANK_INTERVAL_MS = 6_000;
-/** Faster retries once VRF is requested (reveal + settle). */
-const VRF_CRANK_INTERVAL_MS = 5_000;
-/** After a failed server crank, slow down so the UI does not hammer RPC / actions. */
-const CRANK_BACKOFF_MS = 30_000;
+/** Aggressive retries once sales close time passes (Switchboard needs 2+ passes). */
+const SETTLE_INTERVAL_MS = 4_000;
+const VRF_SETTLE_INTERVAL_MS = 5_000;
+const CRANK_BACKOFF_MS = 12_000;
 
 /**
- * When the countdown hits sales close, drive settlement via the server keeper
- * (no wallet popups). Throttled per draw on the server; GitHub cron is backup
- * when nobody has the page open.
+ * When the countdown hits zero, drive settlement via the server keeper until
+ * the draw reaches Settled or Refunded (no wallet popups).
  */
 export function useAutoSettleDraw(
   draw: LotteryDrawView | null,
@@ -33,13 +30,17 @@ export function useAutoSettleDraw(
   refreshRef.current = refresh;
   const onCrankResultRef = useRef(onCrankResult);
   onCrankResultRef.current = onCrankResult;
+  const drawRef = useRef(draw);
+  drawRef.current = draw;
+  const nowSecRef = useRef(nowSec);
+  nowSecRef.current = nowSec;
 
   useEffect(() => {
     if (!draw || !drawNeedsSettlement(draw, nowSec)) return;
 
     let cancelled = false;
     let cranking = false;
-    let intervalMs = CRANK_INTERVAL_MS;
+    let intervalMs = SETTLE_INTERVAL_MS;
     let timerId: ReturnType<typeof setTimeout> | null = null;
 
     const schedule = (ms: number) => {
@@ -52,10 +53,24 @@ export function useAutoSettleDraw(
 
     const tick = async () => {
       if (cancelled || cranking) return;
+      const current = drawRef.current;
+      if (!current || drawTerminalState(current)) {
+        return;
+      }
+      if (!drawNeedsSettlement(current, nowSecRef.current)) {
+        return;
+      }
+
       cranking = true;
       try {
-        const result = await triggerLotteryCrank(draw.drawId);
+        const result = await triggerLotteryCrank(current.drawId);
         await refreshRef.current();
+
+        const refreshed = drawRef.current;
+        if (refreshed && drawTerminalState(refreshed)) {
+          onCrankResultRef.current?.({ ok: true });
+          return;
+        }
 
         if (!result.ok && result.error) {
           intervalMs = CRANK_BACKOFF_MS;
@@ -65,12 +80,9 @@ export function useAutoSettleDraw(
           });
         } else {
           intervalMs =
-            draw.state === DrawState.VrfRequested
-              ? VRF_CRANK_INTERVAL_MS
-              : CRANK_INTERVAL_MS;
-          if (result.ok) {
-            onCrankResultRef.current?.({ ok: true });
-          }
+            refreshed?.state === DrawState.VrfRequested
+              ? VRF_SETTLE_INTERVAL_MS
+              : SETTLE_INTERVAL_MS;
         }
       } catch (e) {
         intervalMs = CRANK_BACKOFF_MS;
@@ -81,7 +93,9 @@ export function useAutoSettleDraw(
         });
       } finally {
         cranking = false;
-        schedule(intervalMs);
+        if (!cancelled && drawRef.current && !drawTerminalState(drawRef.current)) {
+          schedule(intervalMs);
+        }
       }
     };
 
