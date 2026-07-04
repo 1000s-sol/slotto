@@ -10,6 +10,7 @@ import {
 } from "@/lib/lottery/draws";
 import { getSiteUrl } from "@/lib/site-metadata";
 import { getSocialByWallets } from "@/lib/user-profile-db";
+import type { WalletSocialPublic } from "@/lib/social-profile-url";
 
 import { buyerLabelForWallet, shortWallet } from "./buyer-label";
 import { drawWinnerBannerUrl } from "./banners";
@@ -155,7 +156,9 @@ export async function notifyDiscordDrawWinner(
     fetchSettledDrawPrizeLamports(connection, draw),
     buyerLabelForWallet(draw.winner),
     fetchSettleTxSignature(connection, draw),
-    getSocialByWallets([draw.winner]).catch(() => ({})),
+    getSocialByWallets([draw.winner]).catch(
+      (): Record<string, WalletSocialPublic> => ({}),
+    ),
   ]);
 
   const prizeSol = formatSolFromLamports(prizeLamports);
