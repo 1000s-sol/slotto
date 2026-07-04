@@ -1,5 +1,5 @@
 import type { AnchorWallet } from "@solana/wallet-adapter-react";
-import { Connection, PublicKey } from "@solana/web3.js";
+import { Connection, PublicKey, Transaction } from "@solana/web3.js";
 
 import type { LotteryDrawView } from "./chain";
 import { chainUnixTs, isDrawBuyable } from "./chain";
@@ -10,9 +10,11 @@ import {
   MAX_SOL_TICKETS_PER_BUY,
 } from "./constants";
 import { globalConfigPda, ticketChunkPda } from "./pdas";
+import { slottoMemoInstruction } from "./memo-instruction";
 import { createLotteryProgram } from "./program";
 import { LOTTERY_PARTNER_VAULT_1, LOTTERY_PARTNER_VAULT_2 } from "./recipients";
 import { ticketChunkIndicesForRange } from "./ticket-chunks";
+
 export class BuyPreflightError extends Error {
   constructor(message: string) {
     super(message);
@@ -46,7 +48,7 @@ export async function buildBuySolTicketsTransaction(
     isSigner: false,
   }));
 
-  const tx = await program.methods
+  const buyTx = await program.methods
     .buySolTickets(count)
     .accounts({
       buyer: wallet.publicKey,
@@ -62,6 +64,14 @@ export async function buildBuySolTicketsTransaction(
     .remainingAccounts(remainingAccounts)
     .transaction();
 
+  const tx = new Transaction();
+  tx.add(
+    slottoMemoInstruction(
+      wallet.publicKey,
+      `Slotto draw #${draw.drawId}: buy ${count} SOL ticket(s)`,
+    ),
+  );
+  tx.add(...buyTx.instructions);
   return tx;
 }
 

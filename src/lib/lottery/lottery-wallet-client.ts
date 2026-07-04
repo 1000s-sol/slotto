@@ -4,6 +4,7 @@ import { PublicKey } from "@solana/web3.js";
 import { fetchAccountExistsClient } from "./fetch-account-exists-client";
 import { fetchMintTokenProgramClient } from "./fetch-mint-token-program-client";
 import { fetchTokenBalanceClient } from "./fetch-token-balance-client";
+import { simulateTransactionClient } from "./simulate-transaction-client";
 import type { LotteryWalletSendOpts } from "./wallet-send-transaction";
 
 async function fetchSolBalanceClient(owner: PublicKey): Promise<number> {
@@ -91,6 +92,7 @@ export function lotteryWalletSendOptsForBrowser(
     resolveTokenProgram: fetchMintTokenProgramClient,
     fetchSolBalance: fetchSolBalanceClient,
     tokenAccountExists: fetchAccountExistsClient,
+    simulateBeforeSign: simulateTransactionClient,
   };
 }
 

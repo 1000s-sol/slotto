@@ -817,6 +817,14 @@ export function HomeLotterySection({ preview = false }: { preview?: boolean }) {
                 splSubtitle
               )}
             </p>
+            {payWith === "SOL" ? (
+              <p className="mt-2 text-xs text-amber-100/90">
+                Phantom may show a security notice for SOL buys — one payment is
+                split across the prize pool, team, BUX, and partners. That is
+                expected; DEADS/token buys look simpler because they use a
+                different path.
+              </p>
+            ) : null}
             <ul className="mt-3 space-y-1.5 text-xs text-muted/90">
               <li className="flex items-start gap-2">
                 <span className="mt-0.5 shrink-0 text-accent-gold" aria-hidden>

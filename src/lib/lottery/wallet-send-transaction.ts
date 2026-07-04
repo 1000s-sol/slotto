@@ -45,6 +45,8 @@ export type LotteryWalletSendOpts = {
   fetchSolBalance?: (owner: PublicKey) => Promise<number>;
   /** Whether a token/system account exists (server RPC). */
   tokenAccountExists?: (address: PublicKey) => Promise<boolean>;
+  /** Server simulate before Phantom (catches on-chain failures early). */
+  simulateBeforeSign?: (tx: Transaction) => Promise<void>;
 };
 
 /** Thrown when broadcast succeeded but confirmation polling failed (tx may still have landed). */
@@ -133,6 +135,9 @@ export async function sendTransactionViaWallet(
 
   if (opts?.signAndSendRaw) {
     try {
+      if (opts.simulateBeforeSign) {
+        await opts.simulateBeforeSign(tx);
+      }
       const signed = await wallet.signTransaction(tx);
       const raw = signed.serialize();
       const signature = opts.broadcastRawTransaction
