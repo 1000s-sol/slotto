@@ -1,6 +1,6 @@
 import type { Connection } from "@solana/web3.js";
 
-import { fetchDrawById } from "@/lib/lottery/chain";
+import { fetchDrawById, fetchJackpotLamports } from "@/lib/lottery/chain";
 import { lotteryProgramId } from "@/lib/lottery/config";
 import { formatSolFromLamports } from "@/lib/lottery/draws";
 import { getSiteUrl } from "@/lib/site-metadata";
@@ -60,8 +60,11 @@ export async function notifyDiscordDrawLive(
 
   const programId = lotteryProgramId();
   const draw = await fetchDrawById(connection, programId, drawId);
-  const seedLamports = opts?.seedLamports ?? draw?.seedLamports;
   const salesCloseTs = opts?.salesCloseTs ?? draw?.salesCloseTs;
+  let seedLamports = opts?.seedLamports;
+  if (seedLamports == null && draw) {
+    seedLamports = await fetchJackpotLamports(connection, draw.prizeVault);
+  }
 
   const embed = buildDrawStartEmbed({
     drawId,
