@@ -3,6 +3,18 @@ export function lotteryTestMode(): boolean {
   return process.env.LOTTERY_TEST_MODE?.trim().toLowerCase() === "true";
 }
 
+/**
+ * During a dry run the on-chain draw is real, but the public homepage should stay
+ * on the last production winner until test mode is off. Preview pages pass
+ * `{ preview: true }` to `/api/lottery/state`.
+ */
+export function shouldExposeActiveDrawToPublic(options?: {
+  preview?: boolean;
+}): boolean {
+  if (!lotteryTestMode()) return true;
+  return options?.preview === true;
+}
+
 export function discordLotteryTestChannelId(): string | undefined {
   return process.env.DISCORD_LOTTERY_TEST_CHANNEL_ID?.trim() || undefined;
 }

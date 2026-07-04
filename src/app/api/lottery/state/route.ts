@@ -7,11 +7,13 @@ import { withLotteryServerRpc } from "@/lib/lottery/server-rpc";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const state = await withLotteryStateCache(() =>
+    const preview =
+      new URL(request.url).searchParams.get("preview") === "1";
+    const state = await withLotteryStateCache(preview ? "preview" : "public", () =>
       withLotteryServerRpc((connection) =>
-        fetchLotteryState(connection, lotteryProgramId()),
+        fetchLotteryState(connection, lotteryProgramId(), { preview }),
       ),
     );
     return NextResponse.json(state, {

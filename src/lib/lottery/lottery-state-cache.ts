@@ -6,22 +6,24 @@ type CacheRow = {
 };
 
 const TTL_MS = 20_000;
-let cache: CacheRow | null = null;
+const caches = new Map<string, CacheRow>();
 
 /** Short-lived snapshot so brief Helius 429s do not 500 the homepage buy UI. */
 export async function withLotteryStateCache(
+  cacheKey: string,
   fetchFresh: () => Promise<LotteryStateSnapshot>,
 ): Promise<LotteryStateSnapshot> {
-  if (cache && cache.exp > Date.now()) {
-    return cache.state;
+  const cached = caches.get(cacheKey);
+  if (cached && cached.exp > Date.now()) {
+    return cached.state;
   }
 
   try {
     const state = await fetchFresh();
-    cache = { state, exp: Date.now() + TTL_MS };
+    caches.set(cacheKey, { state, exp: Date.now() + TTL_MS });
     return state;
   } catch (e) {
-    if (cache) return cache.state;
+    if (cached) return cached.state;
     throw e;
   }
 }

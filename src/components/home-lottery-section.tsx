@@ -128,7 +128,7 @@ function buyDisabledReason(
   return null;
 }
 
-export function HomeLotterySection() {
+export function HomeLotterySection({ preview = false }: { preview?: boolean }) {
   const { connection } = useConnection();
   const wallet = useLotteryWallet();
   const { connected, sendTransaction } = useWallet();
@@ -199,7 +199,7 @@ export function HomeLotterySection() {
 
   const refresh = useCallback(async () => {
     try {
-      const state = await fetchLotteryStateClient();
+      const state = await fetchLotteryStateClient({ preview });
       setNowSec(state.nowSec);
       setVaultPubkeys({
         teamVault: new PublicKey(state.teamVault),
@@ -241,7 +241,7 @@ export function HomeLotterySection() {
         e instanceof Error ? e.message : e,
       );
     }
-  }, []);
+  }, [preview]);
 
   useAutoSettleDraw(activeDraw, nowSec, refresh, (result) => {
     // Settlement runs on the server keeper with no visitor interaction, so any

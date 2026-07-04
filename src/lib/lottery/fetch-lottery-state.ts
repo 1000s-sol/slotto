@@ -12,6 +12,12 @@ import {
   type LotteryDrawViewJson,
 } from "./draws";
 import { isPastWinnerDrawVisible } from "./past-winners-filter";
+import { shouldExposeActiveDrawToPublic } from "./test-mode";
+
+export type LotteryStateFetchOptions = {
+  /** Preview page (`/preview/...`) — show the live test draw while LOTTERY_TEST_MODE. */
+  preview?: boolean;
+};
 
 export type LotteryStateSnapshot = {
   activeDraw: LotteryDrawViewJson | null;
@@ -28,13 +34,15 @@ export type LotteryStateSnapshot = {
 export async function fetchLotteryState(
   connection: Connection,
   programId: PublicKey,
+  options?: LotteryStateFetchOptions,
 ): Promise<LotteryStateSnapshot> {
   const inProgress = await fetchInProgressDraw(connection, programId);
+  const showActiveDraw = shouldExposeActiveDrawToPublic(options);
   let jackpotLamports: number | null = null;
   let settledDraw: LotteryDrawViewJson | null = null;
   let settledDrawPrizeLamports: number | null = null;
 
-  if (inProgress) {
+  if (inProgress && showActiveDraw) {
     if (inProgress.state === DrawState.Selling) {
       jackpotLamports = await fetchJackpotLamports(
         connection,
@@ -60,7 +68,8 @@ export async function fetchLotteryState(
   );
 
   return {
-    activeDraw: inProgress ? lotteryDrawViewToJson(inProgress) : null,
+    activeDraw:
+      inProgress && showActiveDraw ? lotteryDrawViewToJson(inProgress) : null,
     settledDraw,
     settledDrawPrizeLamports,
     jackpotLamports,

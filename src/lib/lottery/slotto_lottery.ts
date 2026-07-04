@@ -56,6 +56,36 @@ export type SlottoLottery = {
       ]
     },
     {
+      "name": "updateBuxVault",
+      "discriminator": [
+        107,
+        1,
+        138,
+        54,
+        213,
+        76,
+        239,
+        248
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "globalConfig",
+          "writable": true
+        }
+      ],
+      "args": [
+        {
+          "name": "buxVault",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
       "name": "createDraw",
       "discriminator": [
         107,
@@ -833,6 +863,11 @@ export type SlottoLottery = {
       "code": 6040,
       "name": "invalidTokenProgram",
       "msg": "invalidTokenProgram"
+    },
+    {
+      "code": 6041,
+      "name": "invalidPartnerVault",
+      "msg": "invalidPartnerVault"
     }
   ],
   "types": [

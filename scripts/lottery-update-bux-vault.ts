@@ -4,22 +4,43 @@
  */
 import "dotenv/config";
 
-import * as anchor from "@coral-xyz/anchor";
-import { Program } from "@coral-xyz/anchor";
-import { PublicKey, SystemProgram } from "@solana/web3.js";
+import { Connection, PublicKey } from "@solana/web3.js";
 
+import { lotteryProgramId } from "../src/lib/lottery/config";
+import {
+  keypairToAnchorWallet,
+  loadLotteryKeeperKeypair,
+} from "../src/lib/lottery/keeper-wallet";
+import { globalConfigPda } from "../src/lib/lottery/pdas";
+import { createLotteryProgram } from "../src/lib/lottery/program";
 import { LOTTERY_BUX_VAULT } from "../src/lib/lottery/recipients";
-import { globalConfigPda } from "../tests/pdas";
-import type { SlottoLottery } from "../target/types/slotto_lottery";
+import {
+  resolveLotteryCluster,
+  resolveLotteryRpcUrl,
+} from "../src/lib/lottery/rpc-url";
 
 async function main() {
-  const provider = anchor.AnchorProvider.env();
-  anchor.setProvider(provider);
+  const payer = loadLotteryKeeperKeypair();
+  if (!payer) {
+    console.error(
+      "No keypair. Set LOTTERY_KEEPER_SECRET_KEY, LOTTERY_KEEPER_WALLET, or LOTTERY_TEST_WALLET.",
+    );
+    process.exit(1);
+  }
 
-  const program = anchor.workspace.SlottoLottery as Program<SlottoLottery>;
-  const authority = (provider.wallet as anchor.Wallet).payer;
-  const globalConfig = globalConfigPda(program.programId);
+  const rpc = resolveLotteryRpcUrl();
+  const cluster = resolveLotteryCluster();
+  const connection = new Connection(rpc, "confirmed");
+  const programId = lotteryProgramId();
+  const globalConfig = globalConfigPda(programId);
   const bux = new PublicKey(LOTTERY_BUX_VAULT);
+
+  const program = createLotteryProgram(connection, keypairToAnchorWallet(payer));
+
+  console.info("Cluster:", cluster);
+  console.info("RPC:", rpc);
+  console.info("Program id:", programId.toBase58());
+  console.info("Authority:", payer.publicKey.toBase58());
 
   const cfg = await program.account.globalConfig.fetch(globalConfig);
   if (cfg.buxVault.equals(bux)) {
@@ -29,15 +50,15 @@ async function main() {
 
   console.info("Updating BUX vault:", cfg.buxVault.toBase58(), "→", bux.toBase58());
 
-  await program.methods
+  const sig = await program.methods
     .updateBuxVault(bux)
     .accounts({
-      authority: authority.publicKey,
+      authority: payer.publicKey,
       globalConfig,
     })
     .rpc();
 
-  console.info("Done.");
+  console.info("Done. tx:", sig);
 }
 
 main().catch((e) => {

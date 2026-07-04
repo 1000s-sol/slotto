@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { HomeDrawsSection } from "@/components/home-draws-section";
 import { HomeLotterySection } from "@/components/home-lottery-section";
 
 export const metadata: Metadata = {
@@ -15,8 +16,9 @@ export default function PreviewLotteryPage() {
         posts. Use this page for today&apos;s dry run (3–5pm ET).
       </div>
       <div className="rounded-2xl border border-border bg-bg-elevated/55 p-4 sm:p-8">
-        <HomeLotterySection />
+        <HomeLotterySection preview />
       </div>
+      <HomeDrawsSection preview />
     </div>
   );
 }

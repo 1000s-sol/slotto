@@ -97,7 +97,7 @@ function WalletCell({ address }: { address: string }) {
 
 type Tab = "current" | "past";
 
-export function HomeDrawsSection() {
+export function HomeDrawsSection({ preview = false }: { preview?: boolean }) {
   const [tab, setTab] = useState<Tab>("current");
   const [tokens, setTokens] = useState<Record<string, TokenMeta>>({});
   const [paidWith, setPaidWith] = useState<Record<string, string[]>>({});
@@ -117,7 +117,7 @@ export function HomeDrawsSection() {
 
   const refreshDraw = useCallback(async () => {
     try {
-      const state = await fetchLotteryStateClient();
+      const state = await fetchLotteryStateClient({ preview });
       setNowSec(state.nowSec);
       const draw = state.activeDraw
         ? lotteryDrawViewFromJson(state.activeDraw)
@@ -154,7 +154,7 @@ export function HomeDrawsSection() {
       setInProgressDraw(null);
       setEntrants([]);
     }
-  }, []);
+  }, [preview]);
 
   const needsSettlement = Boolean(
     inProgressDraw && drawNeedsSettlement(inProgressDraw, nowSec),
