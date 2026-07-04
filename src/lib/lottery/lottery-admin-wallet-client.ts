@@ -8,6 +8,7 @@ import {
   adminFetchRecentBlockhashAction,
 } from "@/app/admin/(dashboard)/lotteries/actions";
 
+import { fetchMintTokenProgramClient } from "./fetch-mint-token-program-client";
 import type { LotteryWalletSendOpts } from "./wallet-send-transaction";
 
 /** Admin on-chain txs: server RPC with Helius + public fallback (never browser RPC). */
@@ -25,5 +26,6 @@ export function lotteryWalletSendOptsForAdmin(
       );
       return signature;
     },
+    resolveTokenProgram: fetchMintTokenProgramClient,
   };
 }

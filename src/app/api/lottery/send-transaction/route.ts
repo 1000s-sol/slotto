@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { lotteryRpcErrorText } from "@/lib/lottery/user-facing-error";
 import { withLotteryServerRpc } from "@/lib/lottery/server-rpc";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 
@@ -42,13 +43,15 @@ export async function POST(request: Request) {
   try {
     const signature = await withLotteryServerRpc((connection) =>
       connection.sendRawTransaction(raw, {
-        skipPreflight: false,
+        // Phantom already simulated; server preflight often false-fails (Token-2022, public RPC).
+        skipPreflight: true,
         maxRetries: 3,
       }),
     );
     return NextResponse.json({ signature });
   } catch (e) {
-    const message = e instanceof Error ? e.message : "send failed";
+    const message = lotteryRpcErrorText(e).slice(0, 500) || "send failed";
+    console.error("[lottery send-transaction]", message);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

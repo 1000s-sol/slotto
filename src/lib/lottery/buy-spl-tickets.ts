@@ -1,9 +1,11 @@
 import { BN } from "@coral-xyz/anchor";
 import type { AnchorWallet } from "@solana/wallet-adapter-react";
 import {
+  ASSOCIATED_TOKEN_PROGRAM_ID,
   TOKEN_PROGRAM_ID,
+  createAssociatedTokenAccountIdempotentInstruction,
 } from "@solana/spl-token";
-import { Connection, PublicKey } from "@solana/web3.js";
+import { Connection, PublicKey, Transaction } from "@solana/web3.js";
 
 import type { LotteryDrawView } from "./chain";
 import {
@@ -139,6 +141,16 @@ export async function buySplTickets(
   }
   const teamToken = buyerAssociatedTokenAddress(mint, teamVault, tokenProgram);
 
+  if (sendOpts?.tokenAccountExists) {
+    const teamReady = await sendOpts.tokenAccountExists(teamToken);
+    if (!teamReady) {
+      throw new BuyPreflightError(
+        `${label} ticket sales are not ready on-chain yet (team token account missing). ` +
+          "An admin must run “Ensure team ATA” for this mint in Admin → Lotteries.",
+      );
+    }
+  }
+
   const base = draw.totalTickets;
   const chunkIndices = ticketChunkIndicesForRange(base, count);
   const remainingAccounts = chunkIndices.map((idx) => ({
@@ -150,22 +162,46 @@ export async function buySplTickets(
   return sendTransactionViaWallet(
     connection,
     wallet,
-    () =>
-      program.methods
-      .buySplTickets(count, new BN(quotedPricePerTicket.toString()))
-      .accounts({
-        buyer: wallet.publicKey,
-        draw: draw.draw,
-        globalConfig,
-        mint,
-        teamVault,
-        buyerToken,
-        teamToken,
-        setupVault: vaults.setupVault,
-        tokenProgram,
-      })
-      .remainingAccounts(remainingAccounts)
-      .transaction(),
+    async () => {
+      const buyTx = await program.methods
+        .buySplTickets(count, new BN(quotedPricePerTicket.toString()))
+        .accounts({
+          buyer: wallet.publicKey,
+          draw: draw.draw,
+          globalConfig,
+          mint,
+          teamVault,
+          buyerToken,
+          teamToken,
+          setupVault: vaults.setupVault,
+          tokenProgram,
+        })
+        .remainingAccounts(remainingAccounts)
+        .transaction();
+
+      let needsBuyerAta = false;
+      if (sendOpts?.tokenAccountExists) {
+        needsBuyerAta = !(await sendOpts.tokenAccountExists(buyerToken));
+      }
+
+      if (!needsBuyerAta) {
+        return buyTx;
+      }
+
+      const tx = new Transaction();
+      tx.add(
+        createAssociatedTokenAccountIdempotentInstruction(
+          wallet.publicKey,
+          buyerToken,
+          wallet.publicKey,
+          mint,
+          tokenProgram,
+          ASSOCIATED_TOKEN_PROGRAM_ID,
+        ),
+      );
+      tx.add(...buyTx.instructions);
+      return tx;
+    },
     sendOpts,
   );
 }

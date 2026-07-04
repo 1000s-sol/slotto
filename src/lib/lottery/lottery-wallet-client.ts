@@ -1,6 +1,7 @@
 import type { AnchorWallet } from "@solana/wallet-adapter-react";
 import { PublicKey } from "@solana/web3.js";
 
+import { fetchAccountExistsClient } from "./fetch-account-exists-client";
 import { fetchMintTokenProgramClient } from "./fetch-mint-token-program-client";
 import { fetchTokenBalanceClient } from "./fetch-token-balance-client";
 import type { LotteryWalletSendOpts } from "./wallet-send-transaction";
@@ -89,6 +90,7 @@ export function lotteryWalletSendOptsForBrowser(
     },
     resolveTokenProgram: fetchMintTokenProgramClient,
     fetchSolBalance: fetchSolBalanceClient,
+    tokenAccountExists: fetchAccountExistsClient,
   };
 }
 

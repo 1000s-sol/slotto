@@ -31,8 +31,9 @@ export async function ensureTeamTokenAta(
     const cfg = await program.account.globalConfig.fetch(globalConfig);
     teamVaultPk = cfg.teamVault;
   }
-  const tokenProgram =
-    (await resolveMintTokenProgram(connection, mint)) ?? TOKEN_PROGRAM_ID;
+  const tokenProgram = sendOpts?.resolveTokenProgram
+    ? await sendOpts.resolveTokenProgram(mint)
+    : ((await resolveMintTokenProgram(connection, mint)) ?? TOKEN_PROGRAM_ID);
   const teamToken = buyerAssociatedTokenAddress(mint, teamVaultPk, tokenProgram);
 
   return sendTransactionViaWallet(connection, wallet, () =>

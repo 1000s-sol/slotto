@@ -212,6 +212,15 @@ export function formatLotteryBuyError(
 
   if (payingSpl && isInsufficientSplToken(text)) {
     if (
+      text.toLowerCase().includes("team_token") ||
+      text.toLowerCase().includes("team token")
+    ) {
+      return (
+        "This token is not ready for ticket sales yet. " +
+        "An admin must run “Ensure team ATA” for this mint in Admin → Lotteries."
+      );
+    }
+    if (
       text.toLowerCase().includes("accountnotinitialized") ||
       text.toLowerCase().includes("3012")
     ) {

@@ -43,6 +43,8 @@ export type LotteryWalletSendOpts = {
   resolveTokenProgram?: (mint: PublicKey) => Promise<PublicKey>;
   /** Native SOL balance via server RPC (browser Helius/public RPC often 401/403). */
   fetchSolBalance?: (owner: PublicKey) => Promise<number>;
+  /** Whether a token/system account exists (server RPC). */
+  tokenAccountExists?: (address: PublicKey) => Promise<boolean>;
 };
 
 /** Thrown when broadcast succeeded but confirmation polling failed (tx may still have landed). */

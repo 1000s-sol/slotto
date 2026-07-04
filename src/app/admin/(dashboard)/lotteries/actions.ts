@@ -140,7 +140,7 @@ export async function adminBroadcastSignedTransactionAction(
   }
   const signature = await withLotteryServerRpc((connection) =>
     connection.sendRawTransaction(raw, {
-      skipPreflight: false,
+      skipPreflight: true,
       maxRetries: 3,
     }),
   );

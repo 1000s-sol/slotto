@@ -65,7 +65,7 @@ export async function buildBuySolTicketsTransaction(
   return tx;
 }
 
-/** Client-side checks + RPC simulation before opening Phantom. */
+/** Client-side checks before opening Phantom. */
 export async function preflightBuySolTickets(
   connection: Connection,
   wallet: AnchorWallet,
@@ -73,6 +73,7 @@ export async function preflightBuySolTickets(
   draw: LotteryDrawView,
   count: number,
   nowSecFromUi?: number,
+  fetchSolBalance?: (owner: PublicKey) => Promise<number>,
 ): Promise<void> {
   if (!Number.isInteger(count) || count < 1 || count > MAX_SOL_TICKETS_PER_BUY) {
     throw new BuyPreflightError(
@@ -102,7 +103,9 @@ export async function preflightBuySolTickets(
   const required =
     count * LAMPORTS_PER_SOL_TICKET + LAMPORTS_SOL_BUY_FEE_BUFFER;
   try {
-    const balance = await connection.getBalance(wallet.publicKey, "confirmed");
+    const balance = fetchSolBalance
+      ? await fetchSolBalance(wallet.publicKey)
+      : await connection.getBalance(wallet.publicKey, "confirmed");
     if (balance < required) {
       throw new BuyPreflightError(
         `Need ~${(required / 1e9).toFixed(4)} SOL for ${count} ticket(s) + network fee (wallet has ${(balance / 1e9).toFixed(4)} SOL).`,
