@@ -1,8 +1,21 @@
 import type { AnchorWallet } from "@solana/wallet-adapter-react";
 import { PublicKey } from "@solana/web3.js";
 
+import { fetchMintTokenProgramClient } from "./fetch-mint-token-program-client";
 import { fetchTokenBalanceClient } from "./fetch-token-balance-client";
 import type { LotteryWalletSendOpts } from "./wallet-send-transaction";
+
+async function fetchSolBalanceClient(owner: PublicKey): Promise<number> {
+  const res = await fetch(
+    `/api/lottery/sol-balance?owner=${owner.toBase58()}`,
+    { cache: "no-store" },
+  );
+  const json = (await res.json()) as { lamports?: number; error?: string };
+  if (!res.ok || json.lamports == null) {
+    throw new Error(json.error ?? "Could not read SOL balance");
+  }
+  return json.lamports;
+}
 
 async function fetchServerBlockhash(): Promise<{
   blockhash: string;
@@ -69,8 +82,13 @@ export function lotteryWalletSendOptsForBrowser(
       return {
         ata: BigInt(snap.amount),
         total: BigInt(snap.totalAmount),
+        tokenProgram: snap.tokenProgram
+          ? new PublicKey(snap.tokenProgram)
+          : undefined,
       };
     },
+    resolveTokenProgram: fetchMintTokenProgramClient,
+    fetchSolBalance: fetchSolBalanceClient,
   };
 }
 

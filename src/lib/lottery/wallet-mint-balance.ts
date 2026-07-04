@@ -15,6 +15,8 @@ export type WalletMintBalanceSnapshot = {
   totalAmount: string;
   decimals: number;
   ata: string;
+  /** Token or Token-2022 program id for this mint (required for DEADS buys). */
+  tokenProgram: string;
   /** Whether this mint can be used for on-chain SPL ticket buys. */
   lotteryBuySupported: boolean;
 };
@@ -142,6 +144,7 @@ export async function fetchWalletMintBalance(
     totalAmount: total.toString(),
     decimals,
     ata: buyerAta.toBase58(),
+    tokenProgram: tokenProgram.toBase58(),
     lotteryBuySupported,
   };
 }

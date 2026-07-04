@@ -5,6 +5,7 @@ export type TokenBalanceSnapshot = {
   totalAmount: string;
   decimals: number;
   ata: string;
+  tokenProgram?: string;
   lotteryBuySupported?: boolean;
 };
 

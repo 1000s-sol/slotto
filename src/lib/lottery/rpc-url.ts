@@ -61,9 +61,8 @@ function isPublicSolanaEndpoint(url: string): boolean {
 
 /**
  * Browser / wallet adapter RPC.
- * Public Solana RPC (api.mainnet-beta.solana.com) returns 403 for browser/XHR/ws
- * traffic, so prefer ANY configured provider URL (e.g. Helius with a key) over it.
- * Only falls back to the public endpoint when nothing else is configured.
+ * Never use Helius api-key URLs here — keys belong in HELIUS_API_KEYS (server only).
+ * Ticket buys use server blockhash/broadcast; this Connection is for Anchor `.transaction()` only.
  */
 export function resolvePublicSolanaRpcUrl(): string {
   const cluster = resolveLotteryClusterEnv();
@@ -71,23 +70,32 @@ export function resolvePublicSolanaRpcUrl(): string {
     process.env.NEXT_PUBLIC_SOLANA_BROWSER_RPC_URL,
     process.env.NEXT_PUBLIC_SOLANA_RPC_URL,
   ];
-  // First pass: a real provider (non-public) on the right cluster.
   for (const c of candidates) {
     const url = c?.trim();
-    if (url && lotteryClusterFromRpc(url) === cluster && !isPublicSolanaEndpoint(url)) {
+    if (
+      url &&
+      lotteryClusterFromRpc(url) === cluster &&
+      !isPublicSolanaEndpoint(url) &&
+      !isServerOnlyRpcUrl(url)
+    ) {
       return url;
     }
   }
-  // Second pass: any configured URL on the right cluster.
   for (const c of candidates) {
     const url = c?.trim();
-    if (url && lotteryClusterFromRpc(url) === cluster) return url;
+    if (
+      url &&
+      lotteryClusterFromRpc(url) === cluster &&
+      !isServerOnlyRpcUrl(url)
+    ) {
+      return url;
+    }
   }
   return DEFAULT_RPC[cluster];
 }
 
-/** Keyed / Helius URLs in LOTTERY_RPC_URL often 403 on Vercel — use HELIUS_API_KEY instead. */
-function isForbiddenLotteryRpc(url: string): boolean {
+/** Helius / api-key URLs belong in server env only — never in NEXT_PUBLIC_* (401/403 in browser). */
+export function isServerOnlyRpcUrl(url: string): boolean {
   const lower = url.toLowerCase();
   return (
     lower.includes("helius-rpc.com") ||
@@ -109,7 +117,7 @@ export function resolveLotteryRpcUrl(): string {
     (cluster === "devnet" ? process.env.LOTTERY_DEVNET_RPC?.trim() : undefined);
   if (
     explicit &&
-    !isForbiddenLotteryRpc(explicit) &&
+    !isServerOnlyRpcUrl(explicit) &&
     lotteryClusterFromRpc(explicit) === cluster
   ) {
     return explicit;

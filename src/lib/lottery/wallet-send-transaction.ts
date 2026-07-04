@@ -38,7 +38,11 @@ export type LotteryWalletSendOpts = {
   fetchTokenBalance?: (
     owner: PublicKey,
     mint: PublicKey,
-  ) => Promise<{ ata: bigint; total: bigint }>;
+  ) => Promise<{ ata: bigint; total: bigint; tokenProgram?: PublicKey }>;
+  /** Token vs Token-2022 program via server RPC (never browser Helius). */
+  resolveTokenProgram?: (mint: PublicKey) => Promise<PublicKey>;
+  /** Native SOL balance via server RPC (browser Helius/public RPC often 401/403). */
+  fetchSolBalance?: (owner: PublicKey) => Promise<number>;
 };
 
 /** Thrown when broadcast succeeded but confirmation polling failed (tx may still have landed). */

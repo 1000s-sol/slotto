@@ -42,8 +42,43 @@ export async function buySplTickets(
   }
 
   const label = tokenLabel?.trim() || "tokens";
-  const tokenProgram =
-    (await resolveMintTokenProgram(connection, mint)) ?? TOKEN_PROGRAM_ID;
+
+  let tokenProgram: PublicKey | null = null;
+  let ataHeld = BigInt(0);
+  let totalHeld = BigInt(0);
+
+  if (sendOpts?.fetchTokenBalance) {
+    try {
+      const bal = await sendOpts.fetchTokenBalance(wallet.publicKey, mint);
+      ataHeld = bal.ata;
+      totalHeld = bal.total;
+      tokenProgram = bal.tokenProgram ?? null;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (isRpcRateLimitError(msg) || /too many requests/i.test(msg)) {
+        // Helius 429 — do not block Phantom; wallet simulation will catch underfunding.
+      } else {
+        throw new BuyPreflightError(
+          `Could not verify your ${label} balance. Refresh the page and try again.`,
+        );
+      }
+    }
+  }
+
+  if (!tokenProgram && sendOpts?.resolveTokenProgram) {
+    tokenProgram = await sendOpts.resolveTokenProgram(mint);
+  }
+
+  if (!tokenProgram && !sendOpts?.signAndSendRaw && !sendOpts?.fetchTokenBalance) {
+    tokenProgram =
+      (await resolveMintTokenProgram(connection, mint)) ?? TOKEN_PROGRAM_ID;
+  }
+
+  if (!tokenProgram) {
+    throw new BuyPreflightError(
+      `Could not load token details for ${label}. Hard refresh the page and try again.`,
+    );
+  }
 
   const program = createLotteryProgram(connection, wallet);
   const globalConfig = globalConfigPda(programId);
@@ -63,24 +98,7 @@ export async function buySplTickets(
   const decimals = chainRow?.decimals ?? 0;
   const required = quotedPricePerTicket * BigInt(count);
 
-  let ataHeld = BigInt(0);
-  let totalHeld = BigInt(0);
-  if (sendOpts?.fetchTokenBalance) {
-    try {
-      const bal = await sendOpts.fetchTokenBalance(wallet.publicKey, mint);
-      ataHeld = bal.ata;
-      totalHeld = bal.total;
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      if (isRpcRateLimitError(msg) || /too many requests/i.test(msg)) {
-        // Helius 429 — do not block Phantom; wallet simulation will catch underfunding.
-      } else {
-        throw new BuyPreflightError(
-          `Could not verify your ${label} balance. Refresh the page and try again.`,
-        );
-      }
-    }
-  } else {
+  if (!sendOpts?.fetchTokenBalance) {
     try {
       const bal = await connection.getTokenAccountBalance(buyerToken, "confirmed");
       ataHeld = BigInt(bal.value.amount);
@@ -108,7 +126,9 @@ export async function buySplTickets(
   }
 
   try {
-    const solBalance = await connection.getBalance(wallet.publicKey, "confirmed");
+    const solBalance = sendOpts?.fetchSolBalance
+      ? await sendOpts.fetchSolBalance(wallet.publicKey)
+      : await connection.getBalance(wallet.publicKey, "confirmed");
     if (solBalance < LAMPORTS_SOL_BUY_FEE_BUFFER) {
       throw new BuyPreflightError(
         `This wallet needs a little SOL for the network fee (about ${(LAMPORTS_SOL_BUY_FEE_BUFFER / 1e9).toFixed(4)} SOL). Add some SOL and try again.`,

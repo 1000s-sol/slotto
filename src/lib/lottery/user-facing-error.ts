@@ -1,4 +1,5 @@
 import { BuyPreflightError } from "./preflight-buy-sol";
+import { isRpcAuthError } from "./rpc-url";
 
 type BuyErrorContext = {
   /** "SOL" or SPL mint address */
@@ -197,6 +198,10 @@ export function formatLotteryBuyError(
     const seconds =
       parseRetrySeconds(text) ?? RATE_LIMIT_DEFAULT_WAIT_SECONDS;
     return `Rate limit reached. Please wait ${seconds} second${seconds === 1 ? "" : "s"} and try again.`;
+  }
+
+  if (isRpcAuthError(text)) {
+    return "RPC configuration error on the server. Hard refresh and try again in a minute.";
   }
 
   const payingSpl = context.payWith && context.payWith !== "SOL";
