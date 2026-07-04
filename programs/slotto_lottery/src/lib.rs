@@ -37,9 +37,9 @@ pub const LAMPORTS_SOL_TICKET_BUX: u64 = 200_000;
 pub const LAMPORTS_SOL_TICKET_PARTNER: u64 = 150_000;
 /// Partner SOL recipients (1.5% of nominal ticket price each).
 pub const PARTNER_VAULT_1: Pubkey =
-    anchor_lang::solana_program::pubkey!("G4v8VgEe7GX5uCGHuky1YjcXwPVKtYhUG5CskUK3eipG");
+    pubkey!("G4v8VgEe7GX5uCGHuky1YjcXwPVKtYhUG5CskUK3eipG");
 pub const PARTNER_VAULT_2: Pubkey =
-    anchor_lang::solana_program::pubkey!("9LLLZeUYGbHqPLj4R1SLLmV8GPFpAThXz7Cfv7d24tUN");
+    pubkey!("9LLLZeUYGbHqPLj4R1SLLmV8GPFpAThXz7Cfv7d24tUN");
 /// Per SOL ticket: **0.0005** SOL → setup (lamports).
 pub const LAMPORTS_SOL_TICKET_SETUP: u64 = 500_000;
 /// Per SOL ticket total charged: **0.0105** SOL (lamports).
