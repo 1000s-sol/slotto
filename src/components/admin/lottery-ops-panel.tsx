@@ -528,16 +528,30 @@ export function LotteryOpsPanel({
     } catch (e) {
       const raw = formatLotteryAdminError(e);
       const lower = raw.toLowerCase();
+      const partialSig = walletSendErrorSignature(e);
       const hint =
         lower.includes("user rejected") || lower.includes("user declined")
           ? "Transaction cancelled in wallet."
           : lower.includes("disconnected port") ||
               lower.includes("service worker")
             ? "Phantom lost connection — refresh the page, reconnect the wallet, and try again."
-            : null;
+            : lower.includes("not confirmed") || lower.includes("confirmation timed out")
+              ? partialSig
+                ? `Confirmation timed out but a tx was broadcast (${partialSig.slice(0, 8)}…). Check Solscan — if create_draw landed, refresh admin; otherwise retry (next draw id may have advanced).`
+                : "Confirmation timed out — the tx may still land. Wait 30s, refresh admin, and check next draw id before retrying."
+              : null;
+      let detail = raw;
+      if (hint) {
+        detail =
+          hint.startsWith("Confirmation") ||
+          hint.startsWith("Transaction cancelled") ||
+          hint.startsWith("Phantom lost")
+            ? hint
+            : `${raw} ${hint}`;
+      }
       setPhase({
         kind: "error",
-        message: `Failed at step “${step}”: ${hint ? `${raw} ${hint}` : raw}`,
+        message: `Failed at step “${step}”: ${detail}`,
       });
     }
   }, [

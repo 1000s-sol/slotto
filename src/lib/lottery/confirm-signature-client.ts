@@ -43,3 +43,21 @@ export async function confirmSignatureWithRetry(
     error: lastError ?? "Confirmation timed out",
   };
 }
+
+/** Poll via POST /api/lottery/confirm (Helius + public fallback). */
+export async function confirmSignatureViaApi(
+  signature: string,
+  deadlineMs = 90_000,
+): Promise<ConfirmPollResult> {
+  return confirmSignatureWithRetry(async (maxWaitMs) => {
+    const res = await fetch("/api/lottery/confirm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ signature, maxWaitMs }),
+    });
+    if (!res.ok) {
+      return { confirmed: false, error: "Confirm request failed" };
+    }
+    return res.json() as Promise<ConfirmPollResult>;
+  }, deadlineMs);
+}

@@ -36,7 +36,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid base64" }, { status: 400 });
   }
 
-  if (raw.length < 64 || raw.length > 1232) {
+  if (raw.length < 64 || raw.length > 1644) {
     return NextResponse.json({ error: "Invalid transaction size" }, { status: 400 });
   }
 

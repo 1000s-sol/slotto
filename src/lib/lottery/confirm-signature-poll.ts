@@ -6,6 +6,25 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+async function confirmViaGetTransaction(
+  connection: Connection,
+  signature: string,
+): Promise<SignatureConfirmState | null> {
+  try {
+    const tx = await connection.getTransaction(signature, {
+      maxSupportedTransactionVersion: 0,
+      commitment: "confirmed",
+    });
+    if (!tx) return null;
+    if (tx.meta?.err) {
+      return { kind: "failed", error: JSON.stringify(tx.meta.err) };
+    }
+    return { kind: "confirmed" };
+  } catch {
+    return null;
+  }
+}
+
 export type SignatureConfirmState =
   | { kind: "confirmed" }
   | { kind: "failed"; error: string }
@@ -48,6 +67,7 @@ export async function pollSignatureConfirmation(
 ): Promise<ConfirmPollResult> {
   const deadline = Date.now() + deadlineMs;
   let lastPollError: string | null = null;
+  let pendingPolls = 0;
 
   while (Date.now() < deadline) {
     try {
@@ -60,6 +80,16 @@ export async function pollSignatureConfirmation(
       }
       if (state.kind === "failed") {
         return { confirmed: false, error: state.error };
+      }
+      pendingPolls += 1;
+      if (pendingPolls >= 2) {
+        const viaTx = await confirmViaGetTransaction(connection, signature);
+        if (viaTx?.kind === "confirmed") {
+          return { confirmed: true, error: null };
+        }
+        if (viaTx?.kind === "failed") {
+          return { confirmed: false, error: viaTx.error };
+        }
       }
     } catch (e) {
       lastPollError = lotteryRpcErrorText(e);

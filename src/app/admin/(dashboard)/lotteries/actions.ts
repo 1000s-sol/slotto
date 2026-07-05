@@ -118,7 +118,7 @@ export async function adminBroadcastSignedTransactionAction(
   } catch {
     throw new Error("Invalid transaction encoding");
   }
-  if (raw.length < 64 || raw.length > 1232) {
+  if (raw.length < 64 || raw.length > 1644) {
     throw new Error("Invalid transaction size");
   }
   const signature = await withLotteryServerRpc((connection) =>

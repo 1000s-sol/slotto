@@ -2,7 +2,7 @@ import type { AnchorWallet } from "@solana/wallet-adapter-react";
 import { PublicKey } from "@solana/web3.js";
 
 import { fetchAccountExistsClient } from "./fetch-account-exists-client";
-import { confirmSignatureWithRetry } from "./confirm-signature-client";
+import { confirmSignatureViaApi } from "./confirm-signature-client";
 import { fetchMintTokenProgramClient } from "./fetch-mint-token-program-client";
 import { fetchTokenBalanceClient } from "./fetch-token-balance-client";
 import { simulateTransactionClient } from "./simulate-transaction-client";
@@ -38,17 +38,7 @@ async function fetchServerBlockhash(): Promise<{
 async function confirmSignatureOnServer(
   signature: string,
 ): Promise<{ confirmed: boolean; error: string | null }> {
-  return confirmSignatureWithRetry(async (maxWaitMs) => {
-    const res = await fetch("/api/lottery/confirm", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ signature, maxWaitMs }),
-    });
-    if (!res.ok) {
-      return { confirmed: false, error: "Confirm request failed" };
-    }
-    return res.json() as Promise<{ confirmed: boolean; error: string | null }>;
-  });
+  return confirmSignatureViaApi(signature);
 }
 
 async function broadcastSignedTransactionOnServer(

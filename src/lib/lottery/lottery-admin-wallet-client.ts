@@ -4,11 +4,10 @@ import type { AnchorWallet } from "@solana/wallet-adapter-react";
 
 import {
   adminBroadcastSignedTransactionAction,
-  adminConfirmSignatureAction,
   adminFetchRecentBlockhashAction,
 } from "@/app/admin/(dashboard)/lotteries/actions";
 
-import { confirmSignatureWithRetry } from "./confirm-signature-client";
+import { confirmSignatureViaApi } from "./confirm-signature-client";
 import { fetchMintTokenProgramClient } from "./fetch-mint-token-program-client";
 import type { LotteryWalletSendOpts } from "./wallet-send-transaction";
 
@@ -20,9 +19,7 @@ export function lotteryWalletSendOptsForAdmin(
   return {
     fetchBlockhash: adminFetchRecentBlockhashAction,
     confirmSignature: (signature) =>
-      confirmSignatureWithRetry((maxWaitMs) =>
-        adminConfirmSignatureAction(signature, maxWaitMs),
-      ),
+      confirmSignatureViaApi(signature, 120_000),
     signAndSendRaw: true,
     broadcastRawTransaction: async (raw) => {
       const { signature } = await adminBroadcastSignedTransactionAction(
