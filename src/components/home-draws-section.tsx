@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { solscanAccountUrl } from "@/lib/lottery/config";
@@ -93,6 +94,21 @@ function WalletCell({ address }: { address: string }) {
     <span title={address} className="font-mono text-xs text-foreground">
       {shortenWallet(address)}
     </span>
+  );
+}
+
+function SocialProfileReminder() {
+  return (
+    <p className="border-b border-border px-5 py-2.5 text-xs text-muted">
+      Discord and X only show here if you{" "}
+      <Link
+        href="/profile"
+        className="font-medium text-accent-cyan hover:underline"
+      >
+        link your wallet in Profile
+      </Link>
+      .
+    </p>
   );
 }
 
@@ -440,6 +456,8 @@ function CurrentDrawTable({
         <span className="font-mono">{entrants.length} entrants</span>
       </div>
 
+      <SocialProfileReminder />
+
       <div className="overflow-x-auto">
         <table className="w-full min-w-[680px] text-left text-sm">
           <thead className="text-[11px] uppercase tracking-wider text-muted/80">
@@ -523,6 +541,7 @@ function CurrentDrawTable({
 function PastWinnersTable({ draws }: { draws: PastDraw[] }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-border bg-bg-elevated/70">
+      <SocialProfileReminder />
       <div className="overflow-x-auto">
         <table className="w-full min-w-[680px] text-left text-sm">
           <thead className="text-[11px] uppercase tracking-wider text-muted/80">
