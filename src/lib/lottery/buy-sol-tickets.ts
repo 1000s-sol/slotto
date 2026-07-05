@@ -35,6 +35,8 @@ export async function buySolTickets(
     count,
     nowSec,
     sendOpts?.fetchSolBalance,
+    vaults,
+    sendOpts?.tokenAccountExists,
   );
 
   return sendTransactionViaWallet(

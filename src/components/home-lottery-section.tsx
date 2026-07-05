@@ -170,6 +170,7 @@ export function HomeLotterySection({ preview = false }: { preview?: boolean }) {
   const [liquidQuoteLoading, setLiquidQuoteLoading] = useState(false);
   const [walletLamports, setWalletLamports] = useState<number | null>(null);
   const [holdsFreeEntry, setHoldsFreeEntry] = useState(false);
+  const [settlementError, setSettlementError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -245,10 +246,15 @@ export function HomeLotterySection({ preview = false }: { preview?: boolean }) {
   }, [preview]);
 
   useAutoSettleDraw(activeDraw, nowSec, refresh, (result) => {
-    // Settlement runs on the server keeper with no visitor interaction, so any
-    // failure is logged for debugging but never shown on the homepage.
-    if (!result.ok && result.error) {
+    if (result.ok) {
+      setSettlementError(null);
+      return;
+    }
+    if (result.error) {
       console.warn("[lottery] auto-settle:", result.error);
+      if (preview) {
+        setSettlementError(result.error);
+      }
     }
   });
 
@@ -918,6 +924,11 @@ export function HomeLotterySection({ preview = false }: { preview?: boolean }) {
                 No tickets were sold. The server keeper is closing this draw and
                 refunding the seed SOL — no wallet action needed.
               </p>
+            ) : null}
+            {preview && settlementError ? (
+              <div className="mt-4 rounded-xl border border-red-500/40 bg-red-950/30 px-4 py-3 text-sm text-red-200">
+                Auto-settle failed: {settlementError}
+              </div>
             ) : null}
             {phase.kind === "error" ? (
               <div className="mt-4 rounded-xl border border-red-500/40 bg-red-950/30 px-4 py-3 text-sm text-red-200">

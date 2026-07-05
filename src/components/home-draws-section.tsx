@@ -10,6 +10,7 @@ import {
 } from "@/lib/lottery/draws";
 import { fetchLotteryStateClient } from "@/lib/lottery/fetch-lottery-state-client";
 import { fetchPastWinnersClient } from "@/lib/lottery/fetch-past-winners-client";
+import { useAutoSettleDraw } from "@/lib/lottery/use-auto-settle-draw";
 import type { LotteryDrawView } from "@/lib/lottery/chain";
 import { fetchDrawEntrantsClient } from "@/lib/lottery/fetch-draw-entrants-client";
 import { DiscordLogo } from "@/components/discord-logo";
@@ -159,6 +160,8 @@ export function HomeDrawsSection({ preview = false }: { preview?: boolean }) {
   const needsSettlement = Boolean(
     inProgressDraw && drawNeedsSettlement(inProgressDraw, nowSec),
   );
+
+  useAutoSettleDraw(inProgressDraw, nowSec, refreshDraw);
 
   useEffect(() => {
     const tick = setInterval(() => {
@@ -352,11 +355,11 @@ export function HomeDrawsSection({ preview = false }: { preview?: boolean }) {
             drawAddress={drawAddress}
             drawState={drawState}
             settling={needsSettlement}
+            totalTickets={totalTickets}
             entrants={sortedEntrants}
             tokens={tokens}
             paidWith={paidWith}
             paidWithLoading={paidWithLoading}
-            totalTickets={totalTickets}
           />
         )
       ) : pastLoading ? (
@@ -377,27 +380,32 @@ function CurrentDrawTable({
   drawAddress,
   drawState,
   settling,
+  totalTickets,
   entrants,
   tokens,
   paidWith,
   paidWithLoading,
-  totalTickets,
 }: {
   drawId: number;
   drawAddress: string | null;
   drawState: number | null;
   settling: boolean;
+  totalTickets: number;
   entrants: Entrant[];
   tokens: Record<string, TokenMeta>;
   paidWith: Record<string, string[]>;
   paidWithLoading: boolean;
-  totalTickets: number;
 }) {
+  const settlingLabel =
+    totalTickets === 0
+      ? "Closing empty draw and refunding seed SOL…"
+      : "Drawing winner and sending prize…";
+
   return (
     <div className="overflow-hidden rounded-2xl border border-border bg-bg-elevated/70">
       {settling ? (
         <div className="border-b border-amber-500/30 bg-amber-950/20 px-5 py-3 text-sm text-amber-100">
-          Drawing winner and sending prize…
+          {settlingLabel}
         </div>
       ) : null}
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-5 py-3 text-xs text-muted">

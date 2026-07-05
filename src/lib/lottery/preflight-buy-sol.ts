@@ -64,6 +64,35 @@ export async function buildBuySolTicketsTransaction(
     .transaction();
 }
 
+/** Fee wallets must exist on-chain before SOL buys (program credits lamports directly). */
+async function preflightFeeRecipientAccounts(
+  vaults: LotteryVaultPubkeys,
+  accountExists?: (address: PublicKey) => Promise<boolean>,
+): Promise<void> {
+  if (!accountExists) return;
+
+  const recipients: { label: string; pubkey: PublicKey }[] = [
+    { label: "Team vault", pubkey: vaults.teamVault },
+    { label: "BUX vault", pubkey: vaults.buxVault },
+    { label: "Setup vault", pubkey: vaults.setupVault },
+    {
+      label: "Partner vault 1",
+      pubkey: new PublicKey(LOTTERY_PARTNER_VAULT_1),
+    },
+    {
+      label: "Partner vault 2",
+      pubkey: new PublicKey(LOTTERY_PARTNER_VAULT_2),
+    },
+  ];
+
+  for (const { label, pubkey } of recipients) {
+    if (await accountExists(pubkey)) continue;
+    throw new BuyPreflightError(
+      `${label} (${pubkey.toBase58()}) has no on-chain account. Send ~0.001 SOL to that address once on mainnet, then retry.`,
+    );
+  }
+}
+
 /** Client-side checks before opening Phantom. */
 export async function preflightBuySolTickets(
   connection: Connection,
@@ -73,6 +102,8 @@ export async function preflightBuySolTickets(
   count: number,
   nowSecFromUi?: number,
   fetchSolBalance?: (owner: PublicKey) => Promise<number>,
+  vaults?: LotteryVaultPubkeys,
+  accountExists?: (address: PublicKey) => Promise<boolean>,
 ): Promise<void> {
   if (!Number.isInteger(count) || count < 1 || count > MAX_SOL_TICKETS_PER_BUY) {
     throw new BuyPreflightError(
@@ -97,6 +128,10 @@ export async function preflightBuySolTickets(
     throw new BuyPreflightError(
       "Ticket sales have closed for this draw. Create a new draw in admin.",
     );
+  }
+
+  if (vaults) {
+    await preflightFeeRecipientAccounts(vaults, accountExists);
   }
 
   const required =

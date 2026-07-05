@@ -35,6 +35,7 @@
     "lottery:simulate-buy": "tsx scripts/lottery-simulate-buy-sol.ts",
     "lottery:keeper": "tsx scripts/lottery-keeper.ts",
     "lottery:init-chunk": "tsx scripts/lottery-init-ticket-chunk.ts",
+    "lottery:ensure-fee-wallets": "tsx scripts/lottery-ensure-fee-wallets.ts",
     "lottery:backfill-paid-with": "tsx scripts/backfill-draw-paid-with.ts",
     "lottery:mint-devnet-token": "tsx scripts/mint-devnet-spl.ts",
     "lottery:mint-free-entry": "tsx scripts/mint-free-entry-token.ts",
