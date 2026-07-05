@@ -134,7 +134,9 @@ export function HomeDrawsSection({ preview = false }: { preview?: boolean }) {
         return;
       }
       setDrawId(draw.drawId);
-      setDrawDisplayLabel(drawJson.displayLabel ?? `TEST-${draw.drawId}`);
+      setDrawDisplayLabel(
+        drawJson?.displayLabel ?? `TEST-${draw.drawId}`,
+      );
       setDrawAddress(draw.draw.toBase58());
       setTotalTickets(draw.totalTickets);
       setDrawState(draw.state);
