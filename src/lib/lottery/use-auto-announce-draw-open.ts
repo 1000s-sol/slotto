@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 
 import type { LotteryDrawView } from "./chain";
-import { drawSalesHaveOpened } from "./announce-draw-open";
+import { drawSalesHaveOpened } from "./draw-settlement";
 import { triggerDrawOpenAnnounceAction } from "./trigger-draw-open-announce-action";
 
 /**

@@ -22,3 +22,11 @@ export function drawNeedsSettlement(
 export function drawTerminalState(draw: LotteryDrawView): boolean {
   return draw.state === DrawState.Settled || draw.state === DrawState.Refunded;
 }
+
+/** Draw is in Selling and wall-clock sales window has started. */
+export function drawSalesHaveOpened(
+  draw: { state: number; salesOpenTs: number },
+  nowSec: number,
+): boolean {
+  return draw.state === DrawState.Selling && nowSec >= draw.salesOpenTs;
+}

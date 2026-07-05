@@ -2,7 +2,7 @@ import type { Connection, PublicKey } from "@solana/web3.js";
 
 import { announceDrawLiveChannels } from "./announce-draw-live-channels";
 import { chainUnixTs, fetchDrawById, fetchJackpotLamports, fetchLotteryDraw } from "./chain";
-import { DrawState } from "./constants";
+import { drawSalesHaveOpened } from "./draw-settlement";
 
 export type DrawOpenAnnounceResult = {
   ok: boolean;
@@ -10,14 +10,6 @@ export type DrawOpenAnnounceResult = {
   reason?: string;
   discordPosted?: number;
 };
-
-/** Draw is in Selling and wall-clock sales window has started. */
-export function drawSalesHaveOpened(
-  draw: { state: number; salesOpenTs: number },
-  nowSec: number,
-): boolean {
-  return draw.state === DrawState.Selling && nowSec >= draw.salesOpenTs;
-}
 
 export async function fetchDrawIdsNeedingOpenAnnounce(
   connection: Connection,

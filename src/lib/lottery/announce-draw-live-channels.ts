@@ -1,9 +1,6 @@
 import type { Connection, PublicKey } from "@solana/web3.js";
 
 import { notifyDiscordDrawLive } from "@/lib/discord-ticket-bot/post-draw-start";
-import { releaseDiscordDrawEmbedClaim } from "@/lib/lottery/discord-draw-embed-idempotency";
-import { withLotteryServerRpc } from "@/lib/lottery/server-rpc";
-import { lotteryTestMode } from "@/lib/lottery/test-mode";
 
 export type AnnounceDrawLiveResult =
   | { ok: true; discordPosted: number }
@@ -18,6 +15,7 @@ export async function announceDrawLiveChannels(
   let discordError: string | undefined;
 
   try {
+    const { withLotteryServerRpc } = await import("@/lib/lottery/server-rpc");
     const postDiscordLive = () =>
       withLotteryServerRpc((connection) =>
         notifyDiscordDrawLive(connection, drawId, opts),
@@ -37,6 +35,7 @@ export async function announceDrawLiveChannels(
     console.warn("[lottery announce live] Discord failed:", e);
   }
 
+  const { lotteryTestMode } = await import("@/lib/lottery/test-mode");
   if (lotteryTestMode()) {
     if (discordPosted > 0) {
       return { ok: true, discordPosted };
@@ -83,6 +82,9 @@ export async function forceAnnounceDiscordDrawLive(
   drawId: number,
   opts?: { seedLamports?: number; salesCloseTs?: number },
 ): Promise<AnnounceDrawLiveResult> {
+  const { releaseDiscordDrawEmbedClaim } = await import(
+    "@/lib/lottery/discord-draw-embed-idempotency"
+  );
   await releaseDiscordDrawEmbedClaim(drawId, "live");
   return announceDrawLiveChannels(drawId, opts);
 }
