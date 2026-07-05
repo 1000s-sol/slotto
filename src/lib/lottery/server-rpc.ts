@@ -30,6 +30,12 @@ function heliusUrlsForCluster(): string[] {
   return parseHeliusApiKeys().map((key) => heliusRpcUrl(cluster, key));
 }
 
+function rotateUrls(urls: string[]): string[] {
+  if (urls.length <= 1) return urls;
+  const start = Math.floor(Math.random() * urls.length);
+  return [...urls.slice(start), ...urls.slice(0, start)];
+}
+
 /** Server actions / API: rotate Helius keys on 429/401, then public cluster. */
 export async function withLotteryServerRpc<T>(
   fn: (connection: Connection) => Promise<T>,
@@ -81,4 +87,40 @@ export async function withLotteryServerRpc<T>(
   }
 
   throw lastError;
+}
+
+/**
+ * Helius keys only — for signature confirm/send where public RPC returns null
+ * status and causes false "Confirmation timed out" under load.
+ */
+export async function withLotteryHeliusRpc<T>(
+  fn: (connection: Connection) => Promise<T>,
+): Promise<T> {
+  const urls = rotateUrls([...new Set(heliusUrlsForCluster())]);
+  if (urls.length === 0) {
+    return withLotteryServerRpc(fn);
+  }
+
+  let lastError: unknown;
+  const passes = 4;
+
+  for (let pass = 0; pass < passes; pass += 1) {
+    for (const url of urls) {
+      try {
+        return await fn(makeConnection(url));
+      } catch (e) {
+        lastError = e;
+        const message = lotteryRpcErrorText(e);
+        if (!isRpcFallbackError(message)) throw e;
+        console.warn(
+          `[lottery rpc helius] ${url.slice(0, 48)}… failed (pass ${pass + 1}/${passes})`,
+        );
+      }
+    }
+    if (pass < passes - 1) {
+      await sleep(1200 * (pass + 1));
+    }
+  }
+
+  throw lastError ?? new Error("All Helius RPC endpoints failed");
 }

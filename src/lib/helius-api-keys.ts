@@ -7,7 +7,13 @@ export function parseHeliusApiKeys(): string[] {
     .filter(Boolean);
   if (multi && multi.length > 0) return multi;
   const single = process.env.HELIUS_API_KEY?.trim();
-  return single ? [single] : [];
+  const numbered: string[] = [];
+  for (let i = 2; i <= 8; i += 1) {
+    const k = process.env[`HELIUS_API_KEY_${i}`]?.trim();
+    if (k) numbered.push(k);
+  }
+  const keys = single ? [single, ...numbered] : numbered;
+  return [...new Set(keys)];
 }
 
 export function heliusRpcUrl(cluster: LotteryCluster, apiKey: string): string {

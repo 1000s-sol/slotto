@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { pollSignatureConfirmation } from "@/lib/lottery/confirm-signature-poll";
-import { withLotteryServerRpc } from "@/lib/lottery/server-rpc";
+import { withLotteryHeliusRpc } from "@/lib/lottery/server-rpc";
 import { lotteryRpcErrorText } from "@/lib/lottery/user-facing-error";
 
 export const dynamic = "force-dynamic";
@@ -29,7 +29,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const result = await withLotteryServerRpc((connection) =>
+    const result = await withLotteryHeliusRpc((connection) =>
       pollSignatureConfirmation(connection, signature, maxWaitMs),
     );
     return NextResponse.json(result);

@@ -15,7 +15,7 @@ import {
   resolveLotteryRpcUrl,
   resolvePublicSolanaRpcUrl,
 } from "@/lib/lottery/rpc-url";
-import { withLotteryServerRpc } from "@/lib/lottery/server-rpc";
+import { withLotteryHeliusRpc, withLotteryServerRpc } from "@/lib/lottery/server-rpc";
 import {
   appendDrawSplMintRow,
   batchUpdateDrawSplMintRows,
@@ -121,7 +121,7 @@ export async function adminBroadcastSignedTransactionAction(
   if (raw.length < 64 || raw.length > 1644) {
     throw new Error("Invalid transaction size");
   }
-  const signature = await withLotteryServerRpc((connection) =>
+  const signature = await withLotteryHeliusRpc((connection) =>
     connection.sendRawTransaction(raw, {
       skipPreflight: true,
       maxRetries: 3,
