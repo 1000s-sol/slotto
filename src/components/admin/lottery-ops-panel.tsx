@@ -395,6 +395,29 @@ export function LotteryOpsPanel({
         kind: "busy",
         label: `Confirm create_draw #${drawId} in Phantom…`,
       });
+      const createDrawSendOpts = walletSendOpts
+        ? {
+            ...walletSendOpts,
+            /** Poll draw account — not signature status (avoids Helius confirm spam). */
+            confirmSignature: async (signature: string) => {
+              void signature;
+              for (let attempt = 0; attempt < 40; attempt += 1) {
+                setPhase({
+                  kind: "busy",
+                  label: `Waiting for draw #${drawId} on-chain (${attempt + 1}/40)…`,
+                });
+                if (await adminDrawExistsOnServerAction(drawId)) {
+                  return { confirmed: true, error: null };
+                }
+                await new Promise((r) => setTimeout(r, 1_500));
+              }
+              return {
+                confirmed: false,
+                error: "Draw account not found on-chain yet",
+              };
+            },
+          }
+        : undefined;
       let sig: string;
       let rpcConfirmHiccup = false;
       try {
@@ -418,7 +441,7 @@ export function LotteryOpsPanel({
                 ticketChunk0,
               })
               .transaction(),
-          walletSendOpts,
+          createDrawSendOpts,
         );
       } catch (e) {
         const partialSig = walletSendErrorSignature(e);

@@ -19,7 +19,7 @@ export function lotteryWalletSendOptsForAdmin(
   return {
     fetchBlockhash: adminFetchRecentBlockhashAction,
     confirmSignature: (signature) =>
-      confirmSignatureViaApi(signature, 120_000),
+      confirmSignatureViaApi(signature, 30_000),
     signAndSendRaw: true,
     broadcastRawTransaction: async (raw) => {
       const { signature } = await adminBroadcastSignedTransactionAction(
