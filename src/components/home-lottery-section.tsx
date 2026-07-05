@@ -143,6 +143,7 @@ export function HomeLotterySection({ preview = false }: { preview?: boolean }) {
     setupVault: PublicKey;
   } | null>(null);
   const [settledDraw, setSettledDraw] = useState<LotteryDrawView | null>(null);
+  const [settledDrawLabel, setSettledDrawLabel] = useState<string | null>(null);
   const [jackpotLamports, setJackpotLamports] = useState<number | null>(null);
   const [winnerPrizeLamports, setWinnerPrizeLamports] = useState<number | null>(
     null,
@@ -213,6 +214,7 @@ export function HomeLotterySection({ preview = false }: { preview?: boolean }) {
         const inProgress = lotteryDrawViewFromJson(state.activeDraw);
         setActiveDraw(inProgress);
         setSettledDraw(null);
+        setSettledDrawLabel(null);
         setWinnerPrizeLamports(null);
         setWinnerSocial(null);
         setJackpotLamports(state.jackpotLamports);
@@ -223,6 +225,11 @@ export function HomeLotterySection({ preview = false }: { preview?: boolean }) {
           ? lotteryDrawViewFromJson(state.settledDraw)
           : null;
         setSettledDraw(settled);
+        setSettledDrawLabel(
+          settled
+            ? (state.settledDraw?.displayLabel ?? `#${settled.drawId}`)
+            : null,
+        );
         if (settled?.winner) {
           setWinnerPrizeLamports(
             state.settledDrawPrizeLamports ??
@@ -795,9 +802,7 @@ export function HomeLotterySection({ preview = false }: { preview?: boolean }) {
                 discord={winnerSocial?.discord}
                 x={winnerSocial?.x}
                 prizeSol={formatSolFromLamports(winnerPrizeLamports ?? 0)}
-                drawLabel={
-                  settledDraw.displayLabel ?? `#${settledDraw.drawId}`
-                }
+                drawLabel={settledDrawLabel ?? `#${settledDraw.drawId}`}
                 winningTicketId={settledDraw.winningTicketId}
               />
             ) : (
