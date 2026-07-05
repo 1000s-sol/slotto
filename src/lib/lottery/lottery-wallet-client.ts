@@ -2,6 +2,7 @@ import type { AnchorWallet } from "@solana/wallet-adapter-react";
 import { PublicKey } from "@solana/web3.js";
 
 import { fetchAccountExistsClient } from "./fetch-account-exists-client";
+import { confirmSignatureWithRetry } from "./confirm-signature-client";
 import { fetchMintTokenProgramClient } from "./fetch-mint-token-program-client";
 import { fetchTokenBalanceClient } from "./fetch-token-balance-client";
 import { simulateTransactionClient } from "./simulate-transaction-client";
@@ -33,57 +34,21 @@ async function fetchServerBlockhash(): Promise<{
   }>;
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function isOnChainFailureError(error: string | null): boolean {
-  if (!error) return false;
-  if (error === "Confirmation timed out") return false;
-  if (error === "Confirm request failed") return false;
-  return error.startsWith("{") || error.startsWith("[");
-}
-
 /** Retry short server polls — avoids Vercel killing one long 60s function. */
 async function confirmSignatureOnServer(
   signature: string,
 ): Promise<{ confirmed: boolean; error: string | null }> {
-  const deadline = Date.now() + 90_000;
-  let lastError: string | null = null;
-
-  while (Date.now() < deadline) {
-    try {
-      const res = await fetch("/api/lottery/confirm", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ signature, maxWaitMs: 8_000 }),
-      });
-      if (!res.ok) {
-        lastError = "Confirm request failed";
-        await sleep(2_000);
-        continue;
-      }
-      const result = (await res.json()) as {
-        confirmed: boolean;
-        error: string | null;
-      };
-      if (result.confirmed) {
-        return result;
-      }
-      if (isOnChainFailureError(result.error)) {
-        return result;
-      }
-      lastError = result.error;
-    } catch {
-      lastError = "Confirm request failed";
+  return confirmSignatureWithRetry(async (maxWaitMs) => {
+    const res = await fetch("/api/lottery/confirm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ signature, maxWaitMs }),
+    });
+    if (!res.ok) {
+      return { confirmed: false, error: "Confirm request failed" };
     }
-    await sleep(1_500);
-  }
-
-  return {
-    confirmed: false,
-    error: lastError ?? "Confirmation timed out",
-  };
+    return res.json() as Promise<{ confirmed: boolean; error: string | null }>;
+  });
 }
 
 async function broadcastSignedTransactionOnServer(

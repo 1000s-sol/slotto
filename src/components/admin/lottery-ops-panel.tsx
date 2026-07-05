@@ -422,7 +422,16 @@ export function LotteryOpsPanel({
         );
       } catch (e) {
         const partialSig = walletSendErrorSignature(e);
-        const existsOnChain = await adminDrawExistsOnServerAction(drawId);
+        let existsOnChain = false;
+        if (partialSig) {
+          for (let attempt = 0; attempt < 5; attempt += 1) {
+            if (await adminDrawExistsOnServerAction(drawId)) {
+              existsOnChain = true;
+              break;
+            }
+            await new Promise((r) => setTimeout(r, 2_000));
+          }
+        }
         if (existsOnChain) {
           sig = partialSig ?? "";
           rpcConfirmHiccup = true;

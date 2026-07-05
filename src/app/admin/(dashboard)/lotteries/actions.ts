@@ -136,13 +136,15 @@ export async function adminBroadcastSignedTransactionAction(
  */
 export async function adminConfirmSignatureAction(
   signature: string,
+  maxWaitMs = 8_000,
 ): Promise<{ confirmed: boolean; error: string | null }> {
   await requireAdmin();
   if (!signature || signature.length < 32) {
     return { confirmed: false, error: "Invalid signature" };
   }
+  const waitMs = Math.min(Math.max(Math.floor(maxWaitMs), 2_000), 55_000);
   return withLotteryServerRpc((connection) =>
-    pollSignatureConfirmation(connection, signature, 60_000),
+    pollSignatureConfirmation(connection, signature, waitMs),
   );
 }
 
