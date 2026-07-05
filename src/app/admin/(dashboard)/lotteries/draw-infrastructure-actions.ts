@@ -13,6 +13,7 @@ import {
   keypairToAnchorWallet,
   loadLotteryKeeperKeypair,
 } from "@/lib/lottery/keeper-wallet";
+import { lotteryKeeperSendOpts } from "@/lib/lottery/keeper-send-opts";
 import { withLotteryServerRpc } from "@/lib/lottery/server-rpc";
 import { globalConfigPda } from "@/lib/lottery/pdas";
 import { createLotteryReadOnlyProgram } from "@/lib/lottery/program";
@@ -43,6 +44,7 @@ export async function adminPrepareNewDrawInfrastructureAction(
       }
 
       const wallet = keypairToAnchorWallet(payer);
+      const sendOpts = lotteryKeeperSendOpts(connection);
       const mintPks = splMints
         .map((m) => m.trim())
         .filter(Boolean)
@@ -56,6 +58,7 @@ export async function adminPrepareNewDrawInfrastructureAction(
         {
           splMints: mintPks,
           chunkIndices: [1],
+          walletSendOpts: sendOpts,
         },
       );
 

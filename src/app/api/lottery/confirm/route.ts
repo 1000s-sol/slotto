@@ -1,16 +1,26 @@
 import { NextResponse } from "next/server";
 
+import { pollSignatureConfirmation } from "@/lib/lottery/confirm-signature-poll";
 import { withLotteryServerRpc } from "@/lib/lottery/server-rpc";
 import { lotteryRpcErrorText } from "@/lib/lottery/user-facing-error";
 
 export const dynamic = "force-dynamic";
+/** Per-request poll budget; client retries until its own deadline. */
+export const maxDuration = 60;
 
 /** Poll signature status via server RPC (Helius, with public fallback). */
 export async function POST(request: Request) {
   let signature: string;
+  let maxWaitMs = 8_000;
   try {
-    const body = (await request.json()) as { signature?: string };
+    const body = (await request.json()) as {
+      signature?: string;
+      maxWaitMs?: number;
+    };
     signature = (body.signature ?? "").trim();
+    if (typeof body.maxWaitMs === "number" && Number.isFinite(body.maxWaitMs)) {
+      maxWaitMs = Math.min(Math.max(Math.floor(body.maxWaitMs), 2_000), 55_000);
+    }
   } catch {
     return NextResponse.json({ error: "Invalid body" }, { status: 400 });
   }
@@ -19,37 +29,12 @@ export async function POST(request: Request) {
   }
 
   try {
-    const result = await withLotteryServerRpc(async (connection) => {
-      const deadline = Date.now() + 60_000;
-      let lastPollError: string | null = null;
-      while (Date.now() < deadline) {
-        try {
-          const status = await connection.getSignatureStatus(signature, {
-            searchTransactionHistory: true,
-          });
-          const value = status.value;
-          if (value) {
-            if (value.err) {
-              return { confirmed: false, error: JSON.stringify(value.err) };
-            }
-            const level = value.confirmationStatus;
-            if (level === "confirmed" || level === "finalized") {
-              return { confirmed: true, error: null };
-            }
-          }
-        } catch (e) {
-          lastPollError = lotteryRpcErrorText(e);
-        }
-        await new Promise((r) => setTimeout(r, 2000));
-      }
-      return {
-        confirmed: false,
-        error: lastPollError ?? "Confirmation timed out",
-      };
-    });
+    const result = await withLotteryServerRpc((connection) =>
+      pollSignatureConfirmation(connection, signature, maxWaitMs),
+    );
     return NextResponse.json(result);
   } catch (e) {
     const message = e instanceof Error ? e.message : "confirm failed";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: lotteryRpcErrorText(e) || message }, { status: 500 });
   }
 }

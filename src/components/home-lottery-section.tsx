@@ -49,6 +49,7 @@ import { drawNeedsSettlement } from "@/lib/lottery/draw-settlement";
 import { lotteryWalletSendOptsForBrowser } from "@/lib/lottery/lottery-wallet-client";
 import { useLotteryWallet } from "@/lib/lottery/use-lottery-wallet";
 import { formatLotteryBuyError } from "@/lib/lottery/user-facing-error";
+import { walletSendErrorSignature } from "@/lib/lottery/wallet-send-transaction";
 import {
   estimatePotFromTicketsLamports,
   formatSolFromLamports,
@@ -547,6 +548,11 @@ export function HomeLotterySection({ preview = false }: { preview?: boolean }) {
     }
     setPhase({ kind: "busy", label: "Confirm in your wallet…" });
     const sendOpts = lotteryWalletSendOptsForBrowser(wallet, sendTransaction);
+    const ticketsBefore = activeDraw.totalTickets;
+    const splSoldBefore =
+      payWith !== "SOL"
+        ? (activeDraw.splMints.find((r) => r.mint === payWith)?.sold ?? 0)
+        : 0;
     try {
       const sig =
         payWith === "SOL"
@@ -608,6 +614,53 @@ export function HomeLotterySection({ preview = false }: { preview?: boolean }) {
       setPhase({ kind: "idle" });
       setPurchase({ count, ids, payWith: boughtWith, signature: sig });
     } catch (e) {
+      const partialSig = walletSendErrorSignature(e);
+      if (partialSig && activeDraw) {
+        setPhase({ kind: "busy", label: "Checking on-chain…" });
+        await refresh();
+        const state = await fetchLotteryStateClient({ preview });
+        const updated = state.activeDraw
+          ? lotteryDrawViewFromJson(state.activeDraw)
+          : null;
+        const ticketsAfter = updated?.totalTickets ?? ticketsBefore;
+        const splSoldAfter =
+          payWith !== "SOL" && updated
+            ? (updated.splMints.find((r) => r.mint === payWith)?.sold ?? 0)
+            : splSoldBefore;
+        const ticketsIncreased = ticketsAfter >= ticketsBefore + count;
+        const splSoldIncreased =
+          payWith === "SOL" || splSoldAfter >= splSoldBefore + count;
+        if (updated && ticketsIncreased && splSoldIncreased) {
+          const firstId = ticketsBefore;
+          const lastId = ticketsBefore + count - 1;
+          const ids = count === 1 ? `#${firstId}` : `#${firstId}–#${lastId}`;
+          const boughtWith = payWith;
+          const metaKey = boughtWith === "SOL" ? SOL_MINT : boughtWith;
+          const meta = tokenMeta[metaKey];
+          const isSolPay = boughtWith === "SOL";
+          void notifyDiscordTicketSaleClient({
+            signature: partialSig,
+            wallet: wallet.publicKey.toBase58(),
+            drawId: activeDraw.drawId,
+            count,
+            payWith: boughtWith,
+            tokenSymbol: meta?.symbol ?? (isSolPay ? "SOL" : ""),
+            tokenName: isSolPay
+              ? "Solana"
+              : meta?.projectName?.trim() || meta?.symbol || "Token",
+            tokenImageUrl: meta?.imageUrl ?? null,
+          });
+          setActiveDraw(updated);
+          setPhase({ kind: "idle" });
+          setPurchase({
+            count,
+            ids,
+            payWith: boughtWith,
+            signature: partialSig,
+          });
+          return;
+        }
+      }
       setPhase({
         kind: "error",
         message: formatLotteryBuyError(e, { payWith }),
@@ -628,6 +681,7 @@ export function HomeLotterySection({ preview = false }: { preview?: boolean }) {
     sendTransaction,
     wallet,
     vaultPubkeys,
+    preview,
   ]);
 
   const countdownCells = countdown?.parts

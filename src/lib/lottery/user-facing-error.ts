@@ -263,6 +263,17 @@ export function formatLotteryBuyError(
     return "Insufficient token balance for this purchase.";
   }
 
+  if (
+    text.includes("Transaction not confirmed") ||
+    text.toLowerCase().includes("confirmation timed out")
+  ) {
+    return (
+      "Your transaction was sent but confirmation is taking longer than usual. " +
+      "Refresh the page — if your ticket count increased, the purchase succeeded. " +
+      "Otherwise wait a minute and try again (do not double-buy unless your balance was not charged)."
+    );
+  }
+
   if (text.length > 180) {
     return "Purchase failed. Please check your balance and try again.";
   }

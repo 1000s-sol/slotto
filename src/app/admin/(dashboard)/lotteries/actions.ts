@@ -2,6 +2,7 @@
 
 import { currentAdminAddress } from "@/lib/admin-session";
 import { fetchDrawById } from "@/lib/lottery/chain";
+import { pollSignatureConfirmation } from "@/lib/lottery/confirm-signature-poll";
 import {
   lotteryClusterLabel,
   resolveLotteryClusterEnv,
@@ -197,34 +198,9 @@ export async function adminConfirmSignatureAction(
   if (!signature || signature.length < 32) {
     return { confirmed: false, error: "Invalid signature" };
   }
-  return withLotteryServerRpc(async (connection) => {
-    const deadline = Date.now() + 60_000;
-    let lastPollError: string | null = null;
-    while (Date.now() < deadline) {
-      try {
-        const status = await connection.getSignatureStatus(signature, {
-          searchTransactionHistory: true,
-        });
-        const value = status.value;
-        if (value) {
-          if (value.err) {
-            return { confirmed: false, error: JSON.stringify(value.err) };
-          }
-          const level = value.confirmationStatus;
-          if (level === "confirmed" || level === "finalized") {
-            return { confirmed: true, error: null };
-          }
-        }
-      } catch (e) {
-        lastPollError = lotteryRpcErrorText(e);
-      }
-      await new Promise((r) => setTimeout(r, 2000));
-    }
-    return {
-      confirmed: false,
-      error: lastPollError ?? "Confirmation timed out",
-    };
-  });
+  return withLotteryServerRpc((connection) =>
+    pollSignatureConfirmation(connection, signature, 60_000),
+  );
 }
 
 /** Cluster the server uses for lottery reads/crank (from actual RPC URL, not env label alone). */
