@@ -45,6 +45,7 @@ import { sendTransactionViaWallet, walletSendErrorSignature } from "@/lib/lotter
 import { splMintDraftToOnChainArg } from "@/lib/lottery/project-tokens-for-draw";
 import {
   adminAnnounceDrawLiveAction,
+  adminRegisterDrawMetaAction,
   adminBuildSplMintDraftsForCreateDrawAction,
   adminRepairDrawSplFromChainAction,
   adminDrawExistsOnServerAction,
@@ -479,6 +480,8 @@ export function LotteryOpsPanel({
       // Sync mint list from chain but preserve UI caps saved above (displayCap ≠ on-chain cap).
       await adminRepairDrawSplFromChainAction(drawId);
 
+      const { displayLabel } = await adminRegisterDrawMetaAction(drawId);
+
       const announce = await adminAnnounceDrawLiveAction(
         drawId,
         seedLamports,
@@ -501,7 +504,7 @@ export function LotteryOpsPanel({
         : "";
       setPhase({
         kind: "ok",
-        message: `Draw #${drawId} created on ${serverClusterLabel ?? clusterLabel}${activeSpl.length ? ` with ${activeSpl.length} SPL mint(s)` : ""}.${ataNote}${xNote}${rpcNote}`,
+        message: `Draw ${displayLabel} (on-chain #${drawId}) created on ${serverClusterLabel ?? clusterLabel}${activeSpl.length ? ` with ${activeSpl.length} SPL mint(s)` : ""}.${ataNote}${xNote}${rpcNote}`,
         signature: sig || undefined,
         draw: draw.toBase58(),
       });

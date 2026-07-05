@@ -283,3 +283,20 @@ model DiscordTicketSaleNotify {
   drawId    Int
   postedAt  DateTime @default(now())
 }
+
+/// Public draw labels (#1, #2) vs test draws (TEST-11). On-chain draw id is unchanged.
+enum OnChainDrawKind {
+  TEST
+  PRODUCTION
+}
+
+model LotteryOnChainDrawMeta {
+  onChainDrawId Int              @id
+  kind          OnChainDrawKind
+  /// Sequential public number for PRODUCTION draws only (#1, #2, …).
+  displayNumber Int?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@unique([displayNumber])
+}

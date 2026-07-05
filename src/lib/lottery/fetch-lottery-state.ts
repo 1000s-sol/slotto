@@ -1,12 +1,17 @@
 import { Connection, PublicKey } from "@solana/web3.js";
 
-import { chainUnixTs, fetchJackpotLamports } from "./chain";
+import type { LotteryDrawView } from "./chain";
+import { chainUnixTs, fetchDrawById, fetchJackpotLamports } from "./chain";
 import { DrawState } from "./constants";
+import {
+  formatDrawDisplayLabel,
+  getDrawDisplayMeta,
+} from "./draw-display-db";
 import { globalConfigPda } from "./pdas";
 import { createLotteryReadOnlyProgram } from "./program";
 import {
+  fetchDrawCount,
   fetchInProgressDraw,
-  fetchLatestSettledDraw,
   fetchSettledDrawPrizeLamports,
   lotteryDrawViewToJson,
   type LotteryDrawViewJson,
@@ -30,6 +35,27 @@ export type LotteryStateSnapshot = {
   setupVault: string;
 };
 
+async function enrichDrawJson(
+  draw: LotteryDrawView,
+): Promise<LotteryDrawViewJson> {
+  const meta = await getDrawDisplayMeta(draw.drawId);
+  const base = lotteryDrawViewToJson(draw);
+  if (!meta) {
+    return {
+      ...base,
+      displayLabel: `TEST-${draw.drawId}`,
+      isTestDraw: true,
+      displayNumber: null,
+    };
+  }
+  return {
+    ...base,
+    displayLabel: formatDrawDisplayLabel(meta),
+    isTestDraw: meta.kind === "TEST",
+    displayNumber: meta.displayNumber,
+  };
+}
+
 /** Server-side snapshot for homepage (one RPC pass, no browser Helius spam). */
 export async function fetchLotteryState(
   connection: Connection,
@@ -50,9 +76,17 @@ export async function fetchLotteryState(
       );
     }
   } else {
-    const settled = await fetchLatestSettledDraw(connection, programId);
-    if (settled && isPastWinnerDrawVisible(settled.drawId)) {
-      settledDraw = lotteryDrawViewToJson(settled);
+    const n = await fetchDrawCount(connection, programId);
+    let settled: LotteryDrawView | null = null;
+    for (let id = n - 1; id >= 0; id -= 1) {
+      const candidate = await fetchDrawById(connection, programId, id);
+      if (candidate?.state !== DrawState.Settled || !candidate.winner) continue;
+      if (!(await isPastWinnerDrawVisible(candidate.drawId))) continue;
+      settled = candidate;
+      break;
+    }
+    if (settled) {
+      settledDraw = await enrichDrawJson(settled);
       settledDrawPrizeLamports = await fetchSettledDrawPrizeLamports(
         connection,
         settled,
@@ -69,7 +103,7 @@ export async function fetchLotteryState(
 
   return {
     activeDraw:
-      inProgress && showActiveDraw ? lotteryDrawViewToJson(inProgress) : null,
+      inProgress && showActiveDraw ? await enrichDrawJson(inProgress) : null,
     settledDraw,
     settledDrawPrizeLamports,
     jackpotLamports,

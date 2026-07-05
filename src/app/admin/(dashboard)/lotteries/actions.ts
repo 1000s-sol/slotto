@@ -38,11 +38,24 @@ import {
   type ProjectTokenDrawSettings,
 } from "@/lib/lottery/project-tokens-for-draw";
 import type { SplMintDraft } from "@/lib/lottery/spl-types";
+import {
+  formatDrawDisplayLabel,
+  registerOnChainDrawMeta,
+} from "@/lib/lottery/draw-display-db";
 
 async function requireAdmin() {
   const admin = await currentAdminAddress();
   if (!admin) throw new Error("Unauthorized");
   return admin;
+}
+
+/** Record public draw label (PRODUCTION #N or TEST-id) after create_draw. */
+export async function adminRegisterDrawMetaAction(
+  drawId: number,
+): Promise<{ displayLabel: string }> {
+  await requireAdmin();
+  const meta = await registerOnChainDrawMeta(drawId);
+  return { displayLabel: formatDrawDisplayLabel(meta) };
 }
 
 /** Official @slottogg_ "draw is live" post (no-op in test mode or when X not configured). */

@@ -9,6 +9,7 @@ import { drawStartBannerUrl } from "./banners";
 import { discordTicketBotConfigured } from "./config";
 import { postEmbedToChannel } from "./discord-channel";
 import { resolveDiscordNotifyChannelIds } from "./notify-channels";
+import { formatDrawLabelForId } from "@/lib/lottery/draw-display-db";
 import {
   claimDiscordDrawEmbed,
   releaseDiscordDrawEmbedClaim,
@@ -27,11 +28,11 @@ function formatCloseDate(salesCloseTs?: number): string | null {
 }
 
 function buildDrawStartEmbed(opts: {
-  drawId: number;
+  drawLabel: string;
   seedLamports?: number;
   salesCloseTs?: number;
 }) {
-  const lines = [`Draw **#${opts.drawId}** is now open for ticket sales.`];
+  const lines = [`Draw **${opts.drawLabel}** is now open for ticket sales.`];
   if (opts.seedLamports && opts.seedLamports > 0) {
     lines.push(`Seed jackpot: **${formatSolFromLamports(opts.seedLamports)} SOL**`);
   }
@@ -39,7 +40,7 @@ function buildDrawStartEmbed(opts: {
   if (closeDate) lines.push(`Sales close **${closeDate}**`);
 
   return {
-    title: `🎰 Slotto draw #${opts.drawId} is LIVE`,
+    title: `🎰 Slotto draw ${opts.drawLabel} is LIVE`,
     description: lines.join("\n"),
     color: 0xf5b942,
     image: { url: drawStartBannerUrl() },
@@ -76,7 +77,7 @@ export async function notifyDiscordDrawLive(
   }
 
   const embed = buildDrawStartEmbed({
-    drawId,
+    drawLabel: await formatDrawLabelForId(drawId),
     seedLamports,
     salesCloseTs,
   });

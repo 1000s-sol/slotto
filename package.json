@@ -36,6 +36,7 @@
     "lottery:keeper": "tsx scripts/lottery-keeper.ts",
     "lottery:init-chunk": "tsx scripts/lottery-init-ticket-chunk.ts",
     "lottery:ensure-fee-wallets": "tsx scripts/lottery-ensure-fee-wallets.ts",
+    "lottery:seed-draw-meta": "tsx scripts/lottery-seed-draw-meta.ts",
     "lottery:backfill-paid-with": "tsx scripts/backfill-draw-paid-with.ts",
     "lottery:mint-devnet-token": "tsx scripts/mint-devnet-spl.ts",
     "lottery:mint-free-entry": "tsx scripts/mint-free-entry-token.ts",
@@ -43,7 +44,8 @@
     "x:test-post": "tsx scripts/x-test-post.ts",
     "x:backfill-winner": "tsx scripts/x-backfill-draw-winner.ts",
     "discord:register-commands": "tsx scripts/discord-register-ticket-bot-commands.ts",
-    "discord:backfill-winner": "tsx scripts/discord-backfill-draw-winner.ts"
+    "discord:backfill-winner": "tsx scripts/discord-backfill-draw-winner.ts",
+    "discord:test-draw-notifs": "tsx scripts/discord-test-draw-notifs.ts"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.30.1",

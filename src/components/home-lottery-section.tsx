@@ -795,7 +795,9 @@ export function HomeLotterySection({ preview = false }: { preview?: boolean }) {
                 discord={winnerSocial?.discord}
                 x={winnerSocial?.x}
                 prizeSol={formatSolFromLamports(winnerPrizeLamports ?? 0)}
-                drawId={settledDraw.drawId}
+                drawLabel={
+                  settledDraw.displayLabel ?? `#${settledDraw.drawId}`
+                }
                 winningTicketId={settledDraw.winningTicketId}
               />
             ) : (

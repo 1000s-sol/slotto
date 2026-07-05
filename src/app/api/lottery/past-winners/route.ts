@@ -6,6 +6,10 @@ import {
   fetchSettledDrawPrizeLamports,
   lotteryDrawViewToJson,
 } from "@/lib/lottery/draws";
+import {
+  formatDrawDisplayLabel,
+  getDrawDisplayMetaMap,
+} from "@/lib/lottery/draw-display-db";
 import { isPastWinnerDrawVisible } from "@/lib/lottery/past-winners-filter";
 import { withLotteryServerRpc } from "@/lib/lottery/server-rpc";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
@@ -14,6 +18,8 @@ export const dynamic = "force-dynamic";
 
 export type PastWinnerApiRow = {
   drawId: number;
+  displayLabel: string;
+  displayNumber: number | null;
   salesCloseTs: number;
   winner: string;
   totalTickets: number;
@@ -35,10 +41,15 @@ export async function GET(request: Request) {
     const rows = await withLotteryServerRpc(async (connection) => {
       const programId = lotteryProgramId();
       const settled = await fetchPastSettledDraws(connection, programId);
+      const visible = settled.filter((d) => d.winner);
+      const metaMap = await getDrawDisplayMetaMap(
+        visible.map((d) => d.drawId),
+      );
       const out: PastWinnerApiRow[] = [];
-      for (const draw of settled) {
-        if (!draw.winner) continue;
-        if (!isPastWinnerDrawVisible(draw.drawId)) continue;
+      for (const draw of visible) {
+        if (!(await isPastWinnerDrawVisible(draw.drawId))) continue;
+        const meta = metaMap.get(draw.drawId);
+        if (!meta || meta.kind !== "PRODUCTION") continue;
         const prizeLamports = await fetchSettledDrawPrizeLamports(
           connection,
           draw,
@@ -46,6 +57,8 @@ export async function GET(request: Request) {
         const json = lotteryDrawViewToJson(draw);
         out.push({
           drawId: json.drawId,
+          displayLabel: formatDrawDisplayLabel(meta),
+          displayNumber: meta.displayNumber,
           salesCloseTs: json.salesCloseTs,
           winner: json.winner!,
           totalTickets: json.totalTickets,
@@ -53,7 +66,7 @@ export async function GET(request: Request) {
           prizeLamports,
         });
       }
-      return out.sort((a, b) => b.drawId - a.drawId);
+      return out.sort((a, b) => (b.displayNumber ?? 0) - (a.displayNumber ?? 0));
     });
     return NextResponse.json(
       { draws: rows },

@@ -19,6 +19,10 @@ export type LotteryDrawViewJson = {
   splMints: LotteryDrawView["splMints"];
   winningTicketId: number;
   winner: string | null;
+  /** Public label (#1, TEST-11, …). */
+  displayLabel?: string;
+  isTestDraw?: boolean;
+  displayNumber?: number | null;
 };
 
 export function lotteryDrawViewToJson(d: LotteryDrawView): LotteryDrawViewJson {

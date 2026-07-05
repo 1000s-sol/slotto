@@ -33,7 +33,7 @@ type Entrant = {
 };
 
 type PastDraw = {
-  drawNumber: number;
+  displayLabel: string;
   date: string;
   winnerWallet: string;
   discord: SocialProfile | null;
@@ -105,6 +105,7 @@ export function HomeDrawsSection({ preview = false }: { preview?: boolean }) {
   const [paidWithLoading, setPaidWithLoading] = useState(false);
   const [entrants, setEntrants] = useState<Entrant[]>([]);
   const [drawId, setDrawId] = useState<number | null>(null);
+  const [drawDisplayLabel, setDrawDisplayLabel] = useState<string | null>(null);
   const [drawAddress, setDrawAddress] = useState<string | null>(null);
   const [totalTickets, setTotalTickets] = useState(0);
   const [drawState, setDrawState] = useState<number | null>(null);
@@ -120,12 +121,12 @@ export function HomeDrawsSection({ preview = false }: { preview?: boolean }) {
     try {
       const state = await fetchLotteryStateClient({ preview });
       setNowSec(state.nowSec);
-      const draw = state.activeDraw
-        ? lotteryDrawViewFromJson(state.activeDraw)
-        : null;
+      const drawJson = state.activeDraw;
+      const draw = drawJson ? lotteryDrawViewFromJson(drawJson) : null;
       setInProgressDraw(draw);
       if (!draw) {
         setDrawId(null);
+        setDrawDisplayLabel(null);
         setDrawAddress(null);
         setTotalTickets(0);
         setDrawState(null);
@@ -133,6 +134,7 @@ export function HomeDrawsSection({ preview = false }: { preview?: boolean }) {
         return;
       }
       setDrawId(draw.drawId);
+      setDrawDisplayLabel(drawJson.displayLabel ?? `TEST-${draw.drawId}`);
       setDrawAddress(draw.draw.toBase58());
       setTotalTickets(draw.totalTickets);
       setDrawState(draw.state);
@@ -186,7 +188,7 @@ export function HomeDrawsSection({ preview = false }: { preview?: boolean }) {
         const socials = await fetchWalletSocialsClient([draw.winner]);
         const winnerSocial = socials[draw.winner];
         rows.push({
-          drawNumber: draw.drawId,
+          displayLabel: draw.displayLabel,
           date: formatDrawDateLabel(draw.salesCloseTs),
           winnerWallet: draw.winner,
           discord: winnerSocial?.discord ?? null,
@@ -352,6 +354,7 @@ export function HomeDrawsSection({ preview = false }: { preview?: boolean }) {
         ) : (
           <CurrentDrawTable
             drawId={drawId}
+            drawDisplayLabel={drawDisplayLabel}
             drawAddress={drawAddress}
             drawState={drawState}
             settling={needsSettlement}
@@ -377,6 +380,7 @@ export function HomeDrawsSection({ preview = false }: { preview?: boolean }) {
 
 function CurrentDrawTable({
   drawId,
+  drawDisplayLabel,
   drawAddress,
   drawState,
   settling,
@@ -387,6 +391,7 @@ function CurrentDrawTable({
   paidWithLoading,
 }: {
   drawId: number;
+  drawDisplayLabel: string | null;
   drawAddress: string | null;
   drawState: number | null;
   settling: boolean;
@@ -410,7 +415,7 @@ function CurrentDrawTable({
       ) : null}
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-5 py-3 text-xs text-muted">
         <span>
-          Draw #{drawId}
+          Draw {drawDisplayLabel ?? `#${drawId}`}
           {drawAddress ? (
             <>
               {" "}
@@ -535,11 +540,11 @@ function PastWinnersTable({ draws }: { draws: PastDraw[] }) {
           <tbody>
             {draws.map((d) => (
               <tr
-                key={d.drawNumber}
+                key={d.displayLabel + d.winnerWallet}
                 className="border-b border-border/60 last:border-b-0 hover:bg-surface/30"
               >
                 <td className="px-5 py-3 text-xs font-semibold text-muted">
-                  #{d.drawNumber}
+                  {d.displayLabel}
                 </td>
                 <td className="px-3 py-3 text-xs text-foreground">{d.date}</td>
                 <td className="px-3 py-3">

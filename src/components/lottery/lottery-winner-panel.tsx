@@ -45,14 +45,15 @@ export function LotteryWinnerPanel({
   discord,
   x,
   prizeSol,
-  drawId,
+  drawLabel,
   winningTicketId,
 }: {
   wallet: string;
   discord?: SocialProfile | null;
   x?: SocialProfile | null;
   prizeSol: string;
-  drawId: number;
+  /** Public label (#1, TEST-11, …). */
+  drawLabel: string;
   winningTicketId?: number | null;
 }) {
   const displayName = discord?.username ?? x?.username ?? null;
@@ -86,7 +87,7 @@ export function LotteryWinnerPanel({
         </div>
         <div className="mt-1 text-sm text-muted">SOL won</div>
         <p className="mt-4 text-center text-xs text-muted">
-          Draw #{drawId}
+          Draw {drawLabel}
           {winningTicketId != null && winningTicketId > 0
             ? ` · winning ticket #${winningTicketId}`
             : null}

@@ -17,6 +17,7 @@ import { drawWinnerBannerUrl } from "./banners";
 import { discordTicketBotConfigured } from "./config";
 import { mascotThumbnailUrl, postEmbedToChannel } from "./discord-channel";
 import { resolveDiscordNotifyChannelIds } from "./notify-channels";
+import { formatDrawLabelForId } from "@/lib/lottery/draw-display-db";
 import {
   claimDiscordDrawEmbed,
   releaseDiscordDrawEmbedClaim,
@@ -75,7 +76,7 @@ function winnerSocialLine(
 }
 
 function buildDrawWinnerEmbed(opts: {
-  drawId: number;
+  drawLabel: string;
   winnerLabel: string;
   winnerWallet: string;
   winningTicketId: number;
@@ -90,9 +91,9 @@ function buildDrawWinnerEmbed(opts: {
       : `${opts.totalTickets.toLocaleString()} tickets sold`;
 
   const embed: Record<string, unknown> = {
-    title: `🏆 Slotto draw #${opts.drawId} — winner!`,
+    title: `🏆 Slotto draw ${opts.drawLabel} — winner!`,
     description: [
-      `Draw **#${opts.drawId}** has settled.`,
+      `Draw **${opts.drawLabel}** has settled.`,
       opts.socialLine,
     ]
       .filter(Boolean)
@@ -163,8 +164,9 @@ export async function notifyDiscordDrawWinner(
 
   const prizeSol = formatSolFromLamports(prizeLamports);
   const siteUrl = getSiteUrl().replace(/\/$/, "") || "https://slotto.gg";
+  const drawLabel = await formatDrawLabelForId(drawId);
   const embed = buildDrawWinnerEmbed({
-    drawId,
+    drawLabel,
     winnerLabel,
     winnerWallet: draw.winner,
     winningTicketId: draw.winningTicketId,
