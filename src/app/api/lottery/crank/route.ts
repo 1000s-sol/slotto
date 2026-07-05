@@ -3,6 +3,10 @@ import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 
 import { fetchDrawIdsNeedingCrank } from "@/lib/lottery/crank-draw";
+import {
+  fetchDrawIdsNeedingOpenAnnounce,
+  runAnnounceDrawOpenIfNeeded,
+} from "@/lib/lottery/announce-draw-open";
 import { lotteryProgramId } from "@/lib/lottery/config";
 import { loadLotteryKeeperKeypair } from "@/lib/lottery/keeper-wallet";
 import { isRpcRateLimitError } from "@/lib/lottery/rpc-url";
@@ -69,12 +73,25 @@ async function handleCrank(request: Request) {
       });
     }
 
+    const openIds = await withLotteryServerRpc((connection) =>
+      fetchDrawIdsNeedingOpenAnnounce(connection, lotteryProgramId()),
+    );
+    const openResults = [];
+    for (const id of openIds) {
+      openResults.push({ drawId: id, ...(await runAnnounceDrawOpenIfNeeded(id)) });
+    }
+
     const ids = await withLotteryServerRpc((connection) =>
       fetchDrawIdsNeedingCrank(connection, lotteryProgramId()),
     );
 
     if (ids.length === 0) {
-      return NextResponse.json({ ok: true, results: [], message: "No draws need crank" });
+      return NextResponse.json({
+        ok: true,
+        results: [],
+        openAnnounce: openResults,
+        message: "No draws need crank",
+      });
     }
 
     const results = [];
@@ -86,6 +103,7 @@ async function handleCrank(request: Request) {
     return NextResponse.json({
       ok: results.every((r) => r.ok),
       results,
+      openAnnounce: openResults,
     });
   } catch (e) {
     const message = lotteryRpcErrorText(e);

@@ -68,42 +68,47 @@ export async function notifyDiscordDrawLive(
     return { posted: 0, skipped: true, reason: "already posted" };
   }
 
-  const programId = lotteryProgramId();
-  const draw = await fetchDrawById(connection, programId, drawId);
-  const salesCloseTs = opts?.salesCloseTs ?? draw?.salesCloseTs;
-  let seedLamports = opts?.seedLamports;
-  if (seedLamports == null && draw) {
-    seedLamports = await fetchJackpotLamports(connection, draw.prizeVault);
-  }
-
-  const embed = buildDrawStartEmbed({
-    drawLabel: await formatDrawLabelForId(drawId),
-    seedLamports,
-    salesCloseTs,
-  });
-  const siteUrl = getSiteUrl().replace(/\/$/, "") || "https://slotto.gg";
-
-  let posted = 0;
-  const failures: string[] = [];
-  for (const channelId of channelIds) {
-    try {
-      await postEmbedToChannel(channelId, embed, siteUrl);
-      posted += 1;
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      failures.push(`${channelId}: ${msg}`);
-      console.warn("[discord draw live]", channelId, e);
+  try {
+    const programId = lotteryProgramId();
+    const draw = await fetchDrawById(connection, programId, drawId);
+    const salesCloseTs = opts?.salesCloseTs ?? draw?.salesCloseTs;
+    let seedLamports = opts?.seedLamports;
+    if (seedLamports == null && draw) {
+      seedLamports = await fetchJackpotLamports(connection, draw.prizeVault);
     }
-  }
 
-  if (posted === 0) {
+    const embed = buildDrawStartEmbed({
+      drawLabel: await formatDrawLabelForId(drawId),
+      seedLamports,
+      salesCloseTs,
+    });
+    const siteUrl = getSiteUrl().replace(/\/$/, "") || "https://slotto.gg";
+
+    let posted = 0;
+    const failures: string[] = [];
+    for (const channelId of channelIds) {
+      try {
+        await postEmbedToChannel(channelId, embed, siteUrl);
+        posted += 1;
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        failures.push(`${channelId}: ${msg}`);
+        console.warn("[discord draw live]", channelId, e);
+      }
+    }
+
+    if (posted === 0) {
+      await releaseDiscordDrawEmbedClaim(drawId, "live");
+      return {
+        posted: 0,
+        skipped: true,
+        reason: failures.join("; ") || "post failed",
+      };
+    }
+
+    return { posted, skipped: false };
+  } catch (e) {
     await releaseDiscordDrawEmbedClaim(drawId, "live");
-    return {
-      posted: 0,
-      skipped: true,
-      reason: failures.join("; ") || "post failed",
-    };
+    throw e;
   }
-
-  return { posted, skipped: false };
 }

@@ -66,6 +66,7 @@ import {
 } from "@/lib/lottery/spl-mint-ui";
 import type { SplMintUiRow } from "@/lib/lottery/spl-types";
 import { useAutoSettleDraw } from "@/lib/lottery/use-auto-settle-draw";
+import { useAutoAnnounceDrawOpen } from "@/lib/lottery/use-auto-announce-draw-open";
 
 type Phase =
   | { kind: "idle" }
@@ -265,6 +266,8 @@ export function HomeLotterySection({ preview = false }: { preview?: boolean }) {
       }
     }
   });
+
+  useAutoAnnounceDrawOpen(activeDraw, nowSec);
 
   useEffect(() => {
     let cancelled = false;

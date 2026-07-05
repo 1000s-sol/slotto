@@ -15,6 +15,7 @@ import {
   adminFetchGlobalConfigAction,
   adminFetchProjectTokensForDrawAction,
   adminMintsExistOnClusterAction,
+  adminPostDiscordDrawLiveAction,
   adminPostDrawLiveTweetAction,
   adminRepairDrawSplFromChainAction,
   adminSaveSplRowsForDrawAction,
@@ -394,36 +395,69 @@ export function LotteryCurrentDrawSpl({
         <h2 className="text-lg font-semibold">
           Edit draw #{drawId} — SPL settings
         </h2>
-        <button
-          type="button"
-          disabled={busy}
-          className="rounded-lg border border-border px-3 py-1.5 text-sm hover:bg-bg-elevated disabled:opacity-50"
-          onClick={async () => {
-            setBusy(true);
-            setMsg(null);
-            try {
-              const res = await adminPostDrawLiveTweetAction(
-                drawId,
-                undefined,
-                draw.salesCloseTs,
-              );
-              if (res.ok) {
-                setMsgTone("ok");
-                setMsg("Posted draw-live to @slottogg_ (or already claimed).");
-              } else {
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={busy}
+            className="rounded-lg border border-border px-3 py-1.5 text-sm hover:bg-bg-elevated disabled:opacity-50"
+            onClick={async () => {
+              setBusy(true);
+              setMsg(null);
+              try {
+                const res = await adminPostDiscordDrawLiveAction(drawId, {
+                  force: true,
+                  salesCloseTs: draw.salesCloseTs,
+                });
+                if (res.ok) {
+                  setMsgTone("ok");
+                  setMsg(
+                    `Posted draw-live to Discord (${res.posted} channel${res.posted === 1 ? "" : "s"}).`,
+                  );
+                } else {
+                  setMsgTone("error");
+                  setMsg(res.reason);
+                }
+              } catch (e) {
                 setMsgTone("error");
-                setMsg(res.reason);
+                setMsg(e instanceof Error ? e.message : "Discord post failed");
+              } finally {
+                setBusy(false);
               }
-            } catch (e) {
-              setMsgTone("error");
-              setMsg(e instanceof Error ? e.message : "X post failed");
-            } finally {
-              setBusy(false);
-            }
-          }}
-        >
-          Post draw live to X
-        </button>
+            }}
+          >
+            Post draw live to Discord
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            className="rounded-lg border border-border px-3 py-1.5 text-sm hover:bg-bg-elevated disabled:opacity-50"
+            onClick={async () => {
+              setBusy(true);
+              setMsg(null);
+              try {
+                const res = await adminPostDrawLiveTweetAction(
+                  drawId,
+                  undefined,
+                  draw.salesCloseTs,
+                );
+                if (res.ok) {
+                  setMsgTone("ok");
+                  setMsg("Posted draw-live to @slottogg_ (or already claimed).");
+                } else {
+                  setMsgTone("error");
+                  setMsg(res.reason);
+                }
+              } catch (e) {
+                setMsgTone("error");
+                setMsg(e instanceof Error ? e.message : "X post failed");
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            Post draw live to X
+          </button>
+        </div>
       </div>
       {!selling ? (
         <p className="text-sm text-amber-100">

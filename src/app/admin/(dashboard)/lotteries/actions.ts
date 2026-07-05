@@ -69,67 +69,10 @@ export async function adminAnnounceDrawLiveAction(
   | { ok: false; reason: string; discordPosted?: number }
 > {
   await requireAdmin();
-
-  let discordPosted = 0;
-  let discordError: string | undefined;
-  try {
-    const { notifyDiscordDrawLive } = await import(
-      "@/lib/discord-ticket-bot/post-draw-start"
-    );
-    const discord = await withLotteryServerRpc((connection) =>
-      notifyDiscordDrawLive(connection, drawId, {
-        seedLamports,
-        salesCloseTs,
-      }),
-    );
-    discordPosted = discord.posted;
-    if (discord.skipped && discord.reason) {
-      discordError = discord.reason;
-    }
-  } catch (e) {
-    discordError = e instanceof Error ? e.message : "Discord post failed";
-    console.warn("[admin announce] Discord draw-live failed:", e);
-  }
-
-  const { lotteryTestMode } = await import("@/lib/lottery/test-mode");
-  if (lotteryTestMode()) {
-    if (discordPosted > 0) {
-      return { ok: true, discordPosted };
-    }
-    return {
-      ok: false,
-      reason: discordError ?? "Discord draw-live did not post",
-      discordPosted: 0,
-    };
-  }
-
-  const { xPostingConfigured } = await import("@/lib/x/post-tweet");
-  if (!xPostingConfigured()) {
-    if (discordPosted > 0) {
-      return { ok: true, discordPosted };
-    }
-    return {
-      ok: false,
-      reason:
-        discordError ??
-        "X posting not configured on Vercel (set SLOTTO_X_POSTING_ENABLED=true and SLOTTO_X_* keys).",
-      discordPosted,
-    };
-  }
-  try {
-    const { announceDrawLive } = await import("@/lib/lottery/announce-draw");
-    await announceDrawLive({ drawId, seedLamports, salesCloseTs });
-    return { ok: true, discordPosted };
-  } catch (e) {
-    if (discordPosted > 0) {
-      return { ok: true, discordPosted };
-    }
-    return {
-      ok: false,
-      reason: e instanceof Error ? e.message : "X post failed",
-      discordPosted,
-    };
-  }
+  const { announceDrawLiveChannels } = await import(
+    "@/lib/lottery/announce-draw-live-channels"
+  );
+  return announceDrawLiveChannels(drawId, { seedLamports, salesCloseTs });
 }
 
 export type AdminGlobalConfigView = {
@@ -340,6 +283,50 @@ export async function adminRepairDrawSplFromChainAction(
     onChainDrawId,
   );
   return { ok: true, count: drafts.length };
+}
+
+/** Post draw-live embed to Discord (test channel or /slotto-setup guilds). */
+export async function adminPostDiscordDrawLiveAction(
+  drawId: number,
+  opts?: { force?: boolean; seedLamports?: number; salesCloseTs?: number },
+): Promise<{ ok: true; posted: number } | { ok: false; reason: string }> {
+  await requireAdmin();
+  if (!Number.isFinite(drawId) || drawId < 0) {
+    return { ok: false, reason: "Invalid draw id" };
+  }
+
+  if (opts?.force) {
+    const { forceAnnounceDiscordDrawLive } = await import(
+      "@/lib/lottery/announce-draw-live-channels"
+    );
+    const result = await forceAnnounceDiscordDrawLive(drawId, {
+      seedLamports: opts?.seedLamports,
+      salesCloseTs: opts?.salesCloseTs,
+    });
+    if (result.ok) {
+      return { ok: true, posted: result.discordPosted };
+    }
+    return { ok: false, reason: result.reason };
+  }
+
+  try {
+    const { announceDrawLiveChannels } = await import(
+      "@/lib/lottery/announce-draw-live-channels"
+    );
+    const result = await announceDrawLiveChannels(drawId, {
+      seedLamports: opts?.seedLamports,
+      salesCloseTs: opts?.salesCloseTs,
+    });
+    if (result.ok) {
+      return { ok: true, posted: result.discordPosted };
+    }
+    return { ok: false, reason: result.reason };
+  } catch (e) {
+    return {
+      ok: false,
+      reason: e instanceof Error ? e.message : "Discord post failed",
+    };
+  }
 }
 
 /** Re-post @slottogg_ draw-live tweet (idempotent claim). */

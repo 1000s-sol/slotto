@@ -43,6 +43,7 @@ import { lotteryWalletSendOptsForAdmin } from "@/lib/lottery/lottery-admin-walle
 import { useLotteryWallet } from "@/lib/lottery/use-lottery-wallet";
 import { sendTransactionViaWallet, walletSendErrorSignature } from "@/lib/lottery/wallet-send-transaction";
 import { splMintDraftToOnChainArg } from "@/lib/lottery/project-tokens-for-draw";
+import { formatDrawDateLabel } from "@/lib/lottery/draws";
 import {
   adminAnnounceDrawLiveAction,
   adminRegisterDrawMetaAction,
@@ -482,11 +483,22 @@ export function LotteryOpsPanel({
 
       const { displayLabel } = await adminRegisterDrawMetaAction(drawId);
 
-      const announce = await adminAnnounceDrawLiveAction(
-        drawId,
-        seedLamports,
-        closeTs,
-      );
+      const nowSec = Math.floor(Date.now() / 1000);
+      let liveNote: string;
+      if (openTs <= nowSec) {
+        const announce = await adminAnnounceDrawLiveAction(
+          drawId,
+          seedLamports,
+          closeTs,
+        );
+        liveNote = announce.ok
+          ? announce.discordPosted > 0
+            ? " Posted draw-live to Discord."
+            : " Posted draw-live to @slottogg_."
+          : ` Draw-live announce: ${announce.reason}`;
+      } else {
+        liveNote = ` Draw-live will post when sales open (${formatDrawDateLabel(openTs)}).`;
+      }
 
       await refreshConfig();
       await onLiveDrawChange();
@@ -494,11 +506,7 @@ export function LotteryOpsPanel({
         skippedTeamAta.length > 0
           ? ` Team ATA skipped for ${skippedTeamAta.join(", ")} (mint not found on server RPC — usually devnet server + mainnet tokens; SPL buys disabled until cluster is mainnet).`
           : "";
-      const xNote = announce.ok
-        ? announce.discordPosted > 0
-          ? " Posted draw-live to Discord test channel."
-          : " Posted draw-live to @slottogg_."
-        : ` Draw-live announce: ${announce.reason}`;
+      const xNote = liveNote;
       const rpcNote = rpcConfirmHiccup
         ? " Draw is on-chain; RPC confirmation polling hit a transient error."
         : "";
