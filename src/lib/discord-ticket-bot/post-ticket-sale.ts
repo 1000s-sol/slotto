@@ -12,6 +12,7 @@ import { ticketSaleBannerUrl } from "./banners";
 import { mascotThumbnailUrl, postEmbedToChannel } from "./discord-channel";
 import { resolveDiscordNotifyChannelIds } from "./notify-channels";
 import { verifyLotteryBuySignature } from "./verify-buy-tx";
+import { formatDrawLabelForId } from "@/lib/lottery/draw-display-db";
 import { recordLotteryTicketPurchase } from "@/lib/lottery/draw-paid-with-db";
 
 const WRAPPED_SOL_MINT = "So11111111111111111111111111111111111111112";
@@ -42,7 +43,7 @@ function buildTicketSaleEmbed(opts: {
   tokenName: string;
   tokenImageUrl: string | null;
   jackpotSol: string | null;
-  drawId: number;
+  drawLabel: string;
   signature: string;
 }) {
   const ticketWord = opts.count === 1 ? "ticket" : "tickets";
@@ -51,7 +52,7 @@ function buildTicketSaleEmbed(opts: {
     ticketSaleBannerUrl(opts.tokenSymbol) ?? opts.tokenImageUrl;
   const embed: Record<string, unknown> = {
     title: "🎟️ New Slotto ticket purchase",
-    description: `Someone just bought **${opts.count}** ${ticketWord} in draw **#${opts.drawId}**.`,
+    description: `Someone just bought **${opts.count}** ${ticketWord} in draw **${opts.drawLabel}**.`,
     color: 0xf5b942,
     thumbnail: { url: mascotThumbnailUrl() },
     ...(bannerUrl ? { image: { url: bannerUrl } } : {}),
@@ -144,6 +145,7 @@ export async function notifyDiscordTicketSale(
 
   const buyerLabel = await buyerLabelForWallet(wallet);
   const siteUrl = getSiteUrl().replace(/\/$/, "") || "https://slotto.gg";
+  const drawLabel = await formatDrawLabelForId(input.drawId);
   const embed = buildTicketSaleEmbed({
     buyerLabel,
     count: input.count,
@@ -152,7 +154,7 @@ export async function notifyDiscordTicketSale(
     tokenName: input.tokenName || input.tokenSymbol || "Token",
     tokenImageUrl: input.tokenImageUrl,
     jackpotSol,
-    drawId: input.drawId,
+    drawLabel,
     signature,
   });
 

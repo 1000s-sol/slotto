@@ -1,11 +1,15 @@
 import { Prisma } from "@prisma/client";
 
-import { getAnnounceSiteUrl } from "@/lib/site-metadata";
-import { prisma } from "@/lib/prisma";
+import { formatDrawLabelForId } from "@/lib/lottery/draw-display-db";
 import { lotteryXPostingEnabled } from "@/lib/lottery/test-mode";
+import { prisma } from "@/lib/prisma";
+import { getAnnounceSiteUrl } from "@/lib/site-metadata";
+import { normalizeXHandle } from "@/lib/social-profile-url";
+import { getSocialByWallets } from "@/lib/user-profile-db";
+import { loadSocialBannerBytes } from "@/lib/x/load-social-banner";
+import { postTweet, uploadTweetMedia } from "@/lib/x/post-tweet";
 
 import { formatSolFromLamports } from "./draws";
-import { postTweet } from "@/lib/x/post-tweet";
 
 type AnnouncementKind = "LIVE" | "ENDED";
 
@@ -25,6 +29,7 @@ async function claimAndPost(
   onChainDrawId: number,
   kind: AnnouncementKind,
   text: string,
+  mediaIds?: string[],
 ): Promise<void> {
   if (!lotteryXPostingEnabled()) return;
 
@@ -41,7 +46,7 @@ async function claimAndPost(
   }
 
   try {
-    const res = await postTweet(text);
+    const res = await postTweet(text, mediaIds?.length ? { mediaIds } : undefined);
     await prisma.lotteryDrawAnnouncement.update({
       where,
       data: { tweetId: res?.id ?? null },
@@ -69,6 +74,29 @@ function formatCloseDate(salesCloseTs?: number): string | null {
   });
 }
 
+async function winnerXMention(wallet: string): Promise<string> {
+  try {
+    const map = await getSocialByWallets([wallet]);
+    const handle = normalizeXHandle(map[wallet]?.x?.username ?? "");
+    if (handle) return `@${handle}`;
+  } catch (e) {
+    console.warn("[lottery announce] winner X lookup failed:", e);
+  }
+  return shortWallet(wallet);
+}
+
+async function winnerBannerMediaId(): Promise<string | undefined> {
+  try {
+    const banner = await loadSocialBannerBytes("winner.GIF");
+    if (!banner) return undefined;
+    const mediaId = await uploadTweetMedia(banner);
+    return mediaId ?? undefined;
+  } catch (e) {
+    console.warn("[lottery announce] winner banner upload failed:", e);
+    return undefined;
+  }
+}
+
 /** Official post when a new draw is created / opens for sales. */
 export async function announceDrawLive(opts: {
   drawId: number;
@@ -78,7 +106,8 @@ export async function announceDrawLive(opts: {
   if (!lotteryXPostingEnabled()) return;
 
   const siteUrl = getAnnounceSiteUrl();
-  const lines = [`🎰 Slotto draw #${opts.drawId} is LIVE!`];
+  const drawLabel = await formatDrawLabelForId(opts.drawId);
+  const lines = [`🎰 Slotto draw ${drawLabel} is LIVE!`];
   if (opts.seedLamports && opts.seedLamports > 0) {
     lines.push(`Seed jackpot: ${formatSolFromLamports(opts.seedLamports)} SOL`);
   }
@@ -101,24 +130,31 @@ export async function announceDrawEnded(opts: {
   if (!lotteryXPostingEnabled()) return;
 
   const siteUrl = getAnnounceSiteUrl();
+  const drawLabel = await formatDrawLabelForId(opts.drawId);
   let text: string;
+  let mediaIds: string[] | undefined;
 
   if (opts.refunded || !opts.winner) {
     text = [
-      `Slotto draw #${opts.drawId} closed with no tickets sold — the seed rolls into the next draw.`,
+      `Slotto draw ${drawLabel} closed with no tickets sold — the seed rolls into the next draw.`,
       "New draw soon 👇",
       siteUrl,
     ].join("\n");
   } else {
-    const lines = [`🏆 Slotto draw #${opts.drawId} settled!`];
-    lines.push(`Winner: ${shortWallet(opts.winner)}`);
+    const [winnerLine, mediaId] = await Promise.all([
+      winnerXMention(opts.winner),
+      winnerBannerMediaId(),
+    ]);
+    const lines = [`🏆 Slotto draw ${drawLabel} settled!`];
+    lines.push(`Winner: ${winnerLine}`);
     if (opts.prizeLamports && opts.prizeLamports > 0) {
       lines.push(`Prize: ${formatSolFromLamports(opts.prizeLamports)} SOL`);
     }
     lines.push("Next draw soon — play 👇");
     lines.push(siteUrl);
     text = lines.join("\n");
+    if (mediaId) mediaIds = [mediaId];
   }
 
-  await claimAndPost(opts.drawId, "ENDED", text);
+  await claimAndPost(opts.drawId, "ENDED", text, mediaIds);
 }
