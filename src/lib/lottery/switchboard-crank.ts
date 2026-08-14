@@ -105,6 +105,76 @@ async function loadSwitchboardSdk(): Promise<RandomnessSdk> {
   }
 }
 
+function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    p,
+    new Promise<T>((_, rej) =>
+      setTimeout(() => rej(new Error(`TIMEOUT ${label} after ${ms}ms`)), ms),
+    ),
+  ]);
+}
+
+function isOracleSelectionError(e: unknown): boolean {
+  const msg = (e instanceof Error ? e.message : String(e)).toLowerCase();
+  return (
+    msg.includes("no eligible randomness oracle") ||
+    msg.includes("no randomness oracle candidates") ||
+    msg.includes("timeout commitix")
+  );
+}
+
+/**
+ * Crossbar "eligible oracle" filtering is what blocked draw #14. If it fails
+ * or hangs, commit with an on-chain queue oracle (the path that actually settled).
+ */
+async function commitIxWithOnChainOracleFallback(
+  sb: RandomnessSdk,
+  sbProgram: Awaited<
+    ReturnType<RandomnessSdk["AnchorUtils"]["loadProgramFromConnection"]>
+  >,
+  randomness: InstanceType<RandomnessSdk["Randomness"]>,
+  queue: PublicKey,
+) {
+  try {
+    return await withTimeout(
+      randomness.commitIx(queue),
+      15_000,
+      "commitIx",
+    );
+  } catch (e) {
+    if (!isOracleSelectionError(e)) {
+      console.warn(
+        "[switchboard] commitIx failed, trying on-chain oracles:",
+        e instanceof Error ? e.message : e,
+      );
+    }
+  }
+
+  const queueAccount = new sb.Queue(sbProgram, queue);
+  const oracleKeys: PublicKey[] = await queueAccount.fetchOracleKeys();
+  if (oracleKeys.length === 0) {
+    throw new Error("Switchboard queue has no on-chain oracles");
+  }
+  const data = await randomness.loadData();
+  const authority = data.authority as PublicKey;
+  let lastErr: unknown;
+  for (let i = 0; i < oracleKeys.length; i += 1) {
+    const oracle = oracleKeys[i]!;
+    try {
+      return await withTimeout(
+        randomness.commitIx(queue, authority, oracle),
+        20_000,
+        `commitIx-oracle-${i}`,
+      );
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  throw lastErr instanceof Error
+    ? lastErr
+    : new Error("All on-chain Switchboard oracle commits failed");
+}
+
 /**
  * Commit Switchboard randomness + `request_vrf` in one transaction.
  * Randomness account must be created beforehand (see docs/switchboard-vrf.md).
@@ -126,7 +196,12 @@ export async function requestSwitchboardVrf(
 
   const randomness = new Randomness(sbProgram, randomnessAccount);
 
-  const commitIx = await randomness.commitIx(queue);
+  const commitIx = await commitIxWithOnChainOracleFallback(
+    sb,
+    sbProgram,
+    randomness,
+    queue,
+  );
   if (!commitIx) {
     throw new Error("Switchboard commitIx missing (SDK / queue mismatch)");
   }

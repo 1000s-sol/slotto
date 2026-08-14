@@ -295,6 +295,9 @@ model LotteryOnChainDrawMeta {
   kind          OnChainDrawKind
   /// Sequential public number for PRODUCTION draws only (#1, #2, …).
   displayNumber Int?
+  /// Switchboard randomness pubkey created for this draw. Reused across cranks
+  /// so we never pay RandomnessInit rent twice while SalesClosed.
+  switchboardRandomness String?
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
 

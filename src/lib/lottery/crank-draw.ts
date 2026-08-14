@@ -1,6 +1,7 @@
 import {
   Connection,
   Keypair,
+  LAMPORTS_PER_SOL,
   PublicKey,
   SYSVAR_CLOCK_PUBKEY,
 } from "@solana/web3.js";
@@ -22,6 +23,10 @@ import {
   ticketSlotInChunk,
 } from "./stub-settle";
 import { lotteryVrfMode } from "./vrf-mode";
+import {
+  getStoredDrawRandomness,
+  storeDrawRandomness,
+} from "./draw-randomness-db";
 
 const STATE_NAMES = [
   "Selling",
@@ -30,6 +35,9 @@ const STATE_NAMES = [
   "Settled",
   "Refunded",
 ] as const;
+
+/** Abort RandomnessInit below this so cron cannot drain the keeper. */
+const MIN_KEEPER_LAMPORTS_FOR_CREATE = Math.floor(0.05 * LAMPORTS_PER_SOL);
 
 export type CrankDrawResult = {
   drawId: number;
@@ -160,11 +168,39 @@ export async function crankDraw(
           "Switchboard VRF crank requires keeper Keypair (pass to crankDraw).",
         );
       }
-      actions.push("create_switchboard_randomness");
-      switchboardRandomness = await createDrawRandomnessAccount(
-        connection,
-        keeper,
-      );
+      /**
+       * One RandomnessInit per draw. Reuse env override, then DB, then create
+       * once and persist. Creating on every failed crank was the SOL drain.
+       */
+      const existing =
+        process.env.LOTTERY_RANDOMNESS_ACCOUNT?.trim() ||
+        (await getStoredDrawRandomness(drawId));
+      if (existing) {
+        switchboardRandomness = new PublicKey(existing);
+        actions.push(`reuse_switchboard_randomness ${existing}`);
+      } else {
+        const keeperLamports = await connection.getBalance(
+          keeper.publicKey,
+          "confirmed",
+        );
+        if (keeperLamports < MIN_KEEPER_LAMPORTS_FOR_CREATE) {
+          throw new Error(
+            `Keeper underfunded for Switchboard RandomnessInit (${keeperLamports} lamports, need ${MIN_KEEPER_LAMPORTS_FOR_CREATE}). Refusing to create another account.`,
+          );
+        }
+        actions.push("create_switchboard_randomness");
+        switchboardRandomness = await createDrawRandomnessAccount(
+          connection,
+          keeper,
+        );
+        await storeDrawRandomness(
+          drawId,
+          switchboardRandomness.toBase58(),
+        );
+        actions.push(
+          `stored_switchboard_randomness ${switchboardRandomness.toBase58()}`,
+        );
+      }
       actions.push("commit_vrf + request_vrf");
       const reqSig = await requestSwitchboardVrf(
         connection,
