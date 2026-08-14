@@ -9,8 +9,6 @@ import { runTriggerLotteryCrank } from "./trigger-lottery-crank-impl";
 import { withLotteryServerRpc } from "./server-rpc";
 import { lotteryRpcErrorText } from "./user-facing-error";
 
-export const maxDuration = 120;
-
 export type CrankTriggerResult = {
   ok: boolean;
   error?: string;
