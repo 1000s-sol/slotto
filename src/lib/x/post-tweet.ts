@@ -133,10 +133,12 @@ async function appendChunk(
   mime: string,
 ): Promise<void> {
   const form = new FormData();
+  const copy = new ArrayBuffer(chunk.byteLength);
+  new Uint8Array(copy).set(chunk);
   form.append("command", "APPEND");
   form.append("media_id", mediaId);
   form.append("segment_index", String(segmentIndex));
-  form.append("media", new Blob([chunk], { type: mime }), filename);
+  form.append("media", new Blob([copy], { type: mime }), filename);
 
   const res = await fetch(UPLOAD_ENDPOINT, {
     method: "POST",
