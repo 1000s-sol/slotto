@@ -81,7 +81,12 @@ export async function fetchLotteryState(
     for (let id = n - 1; id >= 0; id -= 1) {
       const candidate = await fetchDrawById(connection, programId, id);
       if (candidate?.state !== DrawState.Settled || !candidate.winner) continue;
-      if (!(await isPastWinnerDrawVisible(candidate.drawId))) continue;
+      if (
+        !options?.preview &&
+        !(await isPastWinnerDrawVisible(candidate.drawId))
+      ) {
+        continue;
+      }
       settled = candidate;
       break;
     }

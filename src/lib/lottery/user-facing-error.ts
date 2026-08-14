@@ -312,6 +312,13 @@ export function formatLotteryAdminError(error: unknown): string {
 /** Crank / auto-settle errors shown on the homepage. */
 export function formatLotterySettlementError(error: unknown): string {
   const text = combinedErrorText(error);
+  if (
+    text.includes("Server Components render") ||
+    text.includes("digest property") ||
+    /\bdigest\b/i.test(text)
+  ) {
+    return "Settlement timed out in the browser. Refresh — the draw may already be settled.";
+  }
   if (text.includes("Unknown action")) {
     return "Settlement already completed or duplicate crank — refresh the page.";
   }

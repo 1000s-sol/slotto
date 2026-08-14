@@ -1,11 +1,15 @@
 "use server";
 
-import { fetchDrawIdsNeedingCrank } from "./crank-draw";
+import { fetchDrawById, chainUnixTs } from "./chain";
 import { lotteryProgramId } from "./config";
+import { drawNeedsSettlement } from "./draw-settlement";
 import { loadLotteryKeeperKeypair } from "./keeper-wallet";
 import { allowUiSettlementCrank } from "./public-crank";
 import { runTriggerLotteryCrank } from "./trigger-lottery-crank-impl";
 import { withLotteryServerRpc } from "./server-rpc";
+import { lotteryRpcErrorText } from "./user-facing-error";
+
+export const maxDuration = 120;
 
 export type CrankTriggerResult = {
   ok: boolean;
@@ -22,34 +26,44 @@ export type CrankUiResult = {
 export async function triggerLotteryCrank(
   drawId: number,
 ): Promise<CrankTriggerResult> {
-  if (!Number.isFinite(drawId) || drawId < 0) {
-    return { ok: false, error: "Invalid draw id" };
+  try {
+    if (!Number.isFinite(drawId) || drawId < 0) {
+      return { ok: false, error: "Invalid draw id" };
+    }
+
+    if (!allowUiSettlementCrank()) {
+      return {
+        ok: false,
+        error:
+          "UI settlement crank disabled — waiting on server cron. Refresh shortly.",
+      };
+    }
+
+    if (!loadLotteryKeeperKeypair()) {
+      return {
+        ok: false,
+        error:
+          "Keeper not configured on Vercel (set LOTTERY_KEEPER_SECRET_KEY)",
+      };
+    }
+
+    const needsCrank = await withLotteryServerRpc(async (connection) => {
+      const draw = await fetchDrawById(
+        connection,
+        lotteryProgramId(),
+        drawId,
+      );
+      if (!draw) return false;
+      const nowSec = await chainUnixTs(connection);
+      return drawNeedsSettlement(draw, nowSec);
+    });
+
+    if (!needsCrank) {
+      return { ok: true };
+    }
+
+    return await runTriggerLotteryCrank(drawId);
+  } catch (e) {
+    return { ok: false, error: lotteryRpcErrorText(e) };
   }
-
-  if (!allowUiSettlementCrank()) {
-    return {
-      ok: false,
-      error:
-        "UI settlement crank disabled — waiting on server cron. Refresh shortly.",
-    };
-  }
-
-  if (!loadLotteryKeeperKeypair()) {
-    return {
-      ok: false,
-      error:
-        "Keeper not configured on Vercel (set LOTTERY_KEEPER_SECRET_KEY)",
-    };
-  }
-
-  const needsCrank = await withLotteryServerRpc(async (connection) => {
-    const ids = await fetchDrawIdsNeedingCrank(connection, lotteryProgramId());
-    return ids.includes(drawId);
-  });
-
-  if (!needsCrank) {
-    return { ok: true };
-  }
-
-  return runTriggerLotteryCrank(drawId);
 }
