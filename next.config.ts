@@ -42,7 +42,19 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: true,
   },
   async headers() {
-    return [{ source: "/:path*", headers: SECURITY_HEADERS }];
+    return [
+      {
+        source: "/socials/:path*",
+        headers: [
+          ...SECURITY_HEADERS,
+          {
+            key: "Cache-Control",
+            value: "public, max-age=86400, stale-while-revalidate=604800",
+          },
+        ],
+      },
+      { source: "/:path*", headers: SECURITY_HEADERS },
+    ];
   },
   transpilePackages: [
     "@coral-xyz/anchor",

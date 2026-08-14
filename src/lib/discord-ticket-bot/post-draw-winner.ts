@@ -15,9 +15,14 @@ import type { WalletSocialPublic } from "@/lib/social-profile-url";
 import { buyerLabelForWallet, shortWallet } from "./buyer-label";
 import { drawWinnerBannerUrl } from "./banners";
 import { discordTicketBotConfigured } from "./config";
-import { mascotThumbnailUrl, postEmbedToChannel } from "./discord-channel";
+import {
+  mascotThumbnailUrl,
+  postEmbedToChannel,
+  postEmbedToChannelWithFiles,
+} from "./discord-channel";
 import { resolveDiscordNotifyChannelIds } from "./notify-channels";
 import { formatDrawLabelForId } from "@/lib/lottery/draw-display-db";
+import { loadSocialBannerBytes } from "@/lib/x/load-social-banner";
 import {
   claimDiscordDrawEmbed,
   releaseDiscordDrawEmbedClaim,
@@ -175,13 +180,23 @@ export async function notifyDiscordDrawWinner(
     settleTx,
     socialLine: winnerSocialLine(draw.winner, socialMap[draw.winner]),
   });
+  const winnerBanner = await loadSocialBannerBytes("winner.GIF");
 
   let posted = 0;
   const failures: string[] = [];
 
   for (const channelId of channelIds) {
     try {
-      await postEmbedToChannel(channelId, embed, siteUrl);
+      if (winnerBanner) {
+        await postEmbedToChannelWithFiles(
+          channelId,
+          embed,
+          [{ ...winnerBanner, filename: "winner.gif" }],
+          siteUrl,
+        );
+      } else {
+        await postEmbedToChannel(channelId, embed, siteUrl);
+      }
       posted += 1;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
