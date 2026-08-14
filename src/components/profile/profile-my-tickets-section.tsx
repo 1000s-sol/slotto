@@ -1,13 +1,9 @@
 "use client";
 
-import { useConnection } from "@solana/wallet-adapter-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
-import { lotteryProgramId } from "@/lib/lottery/config";
-import {
-  fetchWalletDrawTickets,
-  type WalletDrawTickets,
-} from "@/lib/lottery/wallet-tickets";
+import type { WalletDrawTickets } from "@/lib/lottery/wallet-tickets";
+import { WRAPPED_SOL_MINT } from "@/lib/token-usd-prices";
 
 type TickerItem = {
   mint: string;
@@ -15,8 +11,6 @@ type TickerItem = {
   priceUsd: number | null;
   logoUrl: string | null;
 };
-
-const SOL_MINT = "So11111111111111111111111111111111111111112";
 
 function TokenThumb({ item, size = 18 }: { item: TickerItem | undefined; size?: number }) {
   const dim = `${size}px`;
@@ -51,81 +45,33 @@ function TokenThumb({ item, size = 18 }: { item: TickerItem | undefined; size?: 
   );
 }
 
-function mergeTicketRows(
-  perWallet: WalletDrawTickets[][],
-): WalletDrawTickets[] {
-  const byDraw = new Map<number, WalletDrawTickets>();
-
-  for (const rows of perWallet) {
-    for (const row of rows) {
-      const prev = byDraw.get(row.drawId);
-      if (!prev) {
-        byDraw.set(row.drawId, { ...row, ticketIds: [...row.ticketIds] });
-        continue;
-      }
-      prev.yourTickets += row.yourTickets;
-      prev.ticketIds.push(...row.ticketIds);
-      if (row.outcomeVariant === "won") {
-        prev.outcomeVariant = "won";
-        prev.outcomeLabel = row.outcomeLabel;
-      } else if (
-        row.outcomeVariant === "live" &&
-        prev.outcomeVariant !== "won"
-      ) {
-        prev.outcomeVariant = "live";
-        prev.outcomeLabel = row.outcomeLabel;
-      } else if (
-        row.outcomeVariant === "pending" &&
-        prev.outcomeVariant === "lost"
-      ) {
-        prev.outcomeVariant = "pending";
-        prev.outcomeLabel = row.outcomeLabel;
-      }
-    }
-  }
-
-  return [...byDraw.values()].sort((a, b) => b.drawId - a.drawId);
-}
-
 export function ProfileMyTicketsSection() {
-  const { connection } = useConnection();
-  const programId = useMemo(() => lotteryProgramId(), []);
   const [tokens, setTokens] = useState<Record<string, TickerItem>>({});
-  const [wallets, setWallets] = useState<string[]>([]);
+  const [wallets, setWallets] = useState<string[] | null>(null);
   const [rows, setRows] = useState<WalletDrawTickets[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  const refreshProfile = useCallback(async () => {
-    const res = await fetch("/api/profile/me", { cache: "no-store" });
-    const json = (await res.json()) as {
-      profile?: { wallets?: string[] } | null;
-    };
-    setWallets(json.profile?.wallets ?? []);
-  }, []);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const refreshTickets = useCallback(async () => {
-    if (wallets.length === 0) {
-      setRows([]);
-      return;
-    }
     setLoading(true);
+    setError(null);
     try {
-      const perWallet = await Promise.all(
-        wallets.map((w) =>
-          fetchWalletDrawTickets(connection, programId, w),
-        ),
-      );
-      setRows(mergeTicketRows(perWallet));
+      const res = await fetch("/api/profile/tickets", { cache: "no-store" });
+      const json = (await res.json()) as {
+        rows?: WalletDrawTickets[];
+        wallets?: string[];
+        error?: string;
+      };
+      setWallets(json.wallets ?? []);
+      setRows(json.rows ?? []);
+      if (!res.ok && json.error) setError(json.error);
     } catch {
       setRows([]);
+      setError("Could not load tickets.");
     } finally {
       setLoading(false);
     }
-  }, [connection, programId, wallets]);
-
-  useEffect(() => {
-    void refreshProfile();
-  }, [refreshProfile]);
+  }, []);
 
   useEffect(() => {
     void refreshTickets();
@@ -156,16 +102,20 @@ export function ProfileMyTicketsSection() {
         My tickets
       </h2>
 
-      {wallets.length === 0 ? (
+      {wallets === null || loading ? (
+        <p className="text-sm text-muted">Loading your tickets…</p>
+      ) : wallets.length === 0 ? (
         <p className="rounded-2xl border border-border bg-bg-elevated/70 p-6 text-sm text-muted">
           Link one or more wallets on your profile to see lottery tickets across all of
           them.
         </p>
-      ) : loading ? (
-        <p className="text-sm text-muted">Loading your tickets…</p>
+      ) : error ? (
+        <p className="rounded-2xl border border-border bg-bg-elevated/70 p-6 text-sm text-muted">
+          {error}
+        </p>
       ) : rows.length === 0 ? (
         <p className="rounded-2xl border border-border bg-bg-elevated/70 p-6 text-sm text-muted">
-          No tickets found for your linked wallets on the current lottery program.
+          No tickets on past public draws for your linked wallets.
         </p>
       ) : (
         <div className="overflow-hidden rounded-2xl border border-border bg-bg-elevated/70">
@@ -177,9 +127,7 @@ export function ProfileMyTicketsSection() {
                   <th className="px-3 py-3 font-medium">Date</th>
                   <th className="px-3 py-3 text-right font-medium">Tickets</th>
                   <th className="px-3 py-3 font-medium">Paid with</th>
-                  <th className="px-5 py-3 text-right font-medium">
-                    Win % / won
-                  </th>
+                  <th className="px-5 py-3 text-right font-medium">Won</th>
                 </tr>
               </thead>
               <tbody>
@@ -188,8 +136,8 @@ export function ProfileMyTicketsSection() {
                     key={r.drawId}
                     className="border-b border-border/60 last:border-b-0 hover:bg-surface/30"
                   >
-                    <td className="px-5 py-3 text-xs font-semibold text-muted">
-                      #{r.drawId}
+                    <td className="px-5 py-3 text-xs font-semibold text-foreground">
+                      {r.displayLabel}
                     </td>
                     <td className="px-3 py-3 text-xs text-foreground">
                       {r.isLive ? (
@@ -206,7 +154,12 @@ export function ProfileMyTicketsSection() {
                     </td>
                     <td className="px-3 py-3">
                       <div className="flex items-center gap-1.5">
-                        <TokenThumb item={tokens[SOL_MINT]} />
+                        {(r.paidWithMints.length > 0
+                          ? r.paidWithMints
+                          : [WRAPPED_SOL_MINT]
+                        ).map((mint) => (
+                          <TokenThumb key={mint} item={tokens[mint]} />
+                        ))}
                       </div>
                     </td>
                     <td className="px-5 py-3 text-right font-mono tabular-nums">

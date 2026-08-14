@@ -78,6 +78,16 @@ export async function getDrawDisplayMetaMap(
   );
 }
 
+/** On-chain ids for public draws (#1, #2, …), newest display number first. */
+export async function listProductionOnChainDrawIds(): Promise<number[]> {
+  const rows = await prisma.lotteryOnChainDrawMeta.findMany({
+    where: { kind: "PRODUCTION" },
+    select: { onChainDrawId: true },
+    orderBy: { displayNumber: "desc" },
+  });
+  return rows.map((r) => r.onChainDrawId);
+}
+
 export async function formatDrawLabelForId(onChainDrawId: number): Promise<string> {
   const meta = await getDrawDisplayMeta(onChainDrawId);
   if (!meta) return `TEST-${onChainDrawId}`;
