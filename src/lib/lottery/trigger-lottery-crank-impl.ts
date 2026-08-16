@@ -56,7 +56,15 @@ async function crankOnRpc(
       draw.state === DrawState.Refunded
     ) {
       lastFinalState = draw.state === DrawState.Settled ? "Settled" : "Refunded";
-      break;
+      try {
+        await postSettleAnnouncements(connection, drawId, {
+          finalState: lastFinalState,
+          winner: draw.winner,
+        });
+      } catch (e) {
+        console.warn("[lottery announce] ended hook failed:", e);
+      }
+      return { ok: true, finalState: lastFinalState };
     }
 
     const result = await crankDraw(
@@ -89,6 +97,15 @@ async function crankOnRpc(
   }
 
   if (isTerminalState(lastFinalState)) {
+    try {
+      const settled = await fetchDrawById(connection, programId, drawId);
+      await postSettleAnnouncements(connection, drawId, {
+        finalState: lastFinalState,
+        winner: settled?.winner ?? null,
+      });
+    } catch (e) {
+      console.warn("[lottery announce] ended hook failed:", e);
+    }
     return { ok: true, finalState: lastFinalState };
   }
 

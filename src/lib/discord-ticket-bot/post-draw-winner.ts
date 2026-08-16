@@ -158,64 +158,76 @@ export async function notifyDiscordDrawWinner(
     return { posted: 0, skipped: true, reason: "already posted" };
   }
 
-  const [prizeLamports, winnerLabel, settleTx, socialMap] = await Promise.all([
-    fetchSettledDrawPrizeLamports(connection, draw),
-    buyerLabelForWallet(draw.winner),
-    fetchSettleTxSignature(connection, draw),
-    getSocialByWallets([draw.winner]).catch(
-      (): Record<string, WalletSocialPublic> => ({}),
-    ),
-  ]);
+  try {
+    const settleTx = await Promise.race([
+      fetchSettleTxSignature(connection, draw),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 4_000)),
+    ]);
 
-  const prizeSol = formatSolFromLamports(prizeLamports);
-  const siteUrl = getSiteUrl().replace(/\/$/, "") || "https://slotto.gg";
-  const drawLabel = await formatDrawLabelForId(drawId);
-  const embed = buildDrawWinnerEmbed({
-    drawLabel,
-    winnerLabel,
-    winnerWallet: draw.winner,
-    winningTicketId: draw.winningTicketId,
-    totalTickets: draw.totalTickets,
-    prizeSol,
-    settleTx,
-    socialLine: winnerSocialLine(draw.winner, socialMap[draw.winner]),
-  });
-  const winnerBanner = await loadSocialBannerBytes("winner.GIF");
+    const [prizeLamports, winnerLabel, socialMap] = await Promise.all([
+      fetchSettledDrawPrizeLamports(connection, draw),
+      buyerLabelForWallet(draw.winner),
+      getSocialByWallets([draw.winner]).catch(
+        (): Record<string, WalletSocialPublic> => ({}),
+      ),
+    ]);
 
-  let posted = 0;
-  const failures: string[] = [];
+    const prizeSol = formatSolFromLamports(prizeLamports);
+    const siteUrl = getSiteUrl().replace(/\/$/, "") || "https://slotto.gg";
+    const drawLabel = await formatDrawLabelForId(drawId);
+    const embed = buildDrawWinnerEmbed({
+      drawLabel,
+      winnerLabel,
+      winnerWallet: draw.winner,
+      winningTicketId: draw.winningTicketId,
+      totalTickets: draw.totalTickets,
+      prizeSol,
+      settleTx,
+      socialLine: winnerSocialLine(draw.winner, socialMap[draw.winner]),
+    });
+    const winnerBanner = await loadSocialBannerBytes("winner.GIF");
 
-  for (const channelId of channelIds) {
-    try {
-      if (winnerBanner) {
-        await postEmbedToChannelWithFiles(
-          channelId,
-          embed,
-          [{ ...winnerBanner, filename: "winner.gif" }],
-          siteUrl,
-        );
-      } else {
-        await postEmbedToChannel(channelId, embed, siteUrl);
+    let posted = 0;
+    const failures: string[] = [];
+
+    for (const channelId of channelIds) {
+      try {
+        if (winnerBanner) {
+          await postEmbedToChannelWithFiles(
+            channelId,
+            embed,
+            [{ ...winnerBanner, filename: "winner.gif" }],
+            siteUrl,
+          );
+        } else {
+          await postEmbedToChannel(channelId, embed, siteUrl);
+        }
+        posted += 1;
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        failures.push(`${channelId}: ${msg}`);
       }
-      posted += 1;
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      failures.push(`${channelId}: ${msg}`);
     }
-  }
 
-  if (failures.length > 0) {
-    console.warn("[discord draw winner] partial post failures:", failures.join("; "));
-  }
+    if (failures.length > 0) {
+      console.warn(
+        "[discord draw winner] partial post failures:",
+        failures.join("; "),
+      );
+    }
 
-  if (posted === 0) {
+    if (posted === 0) {
+      await releaseDiscordDrawEmbedClaim(drawId, "ended");
+      return {
+        posted: 0,
+        skipped: true,
+        reason: failures.join("; ") || "post failed",
+      };
+    }
+
+    return { posted, skipped: false };
+  } catch (e) {
     await releaseDiscordDrawEmbedClaim(drawId, "ended");
-    return {
-      posted: 0,
-      skipped: true,
-      reason: failures.join("; ") || "post failed",
-    };
+    throw e;
   }
-
-  return { posted, skipped: false };
 }
