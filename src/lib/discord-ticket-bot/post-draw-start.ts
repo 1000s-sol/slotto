@@ -12,6 +12,7 @@ import { resolveDiscordNotifyChannelIds } from "./notify-channels";
 import { formatDrawLabelForId } from "@/lib/lottery/draw-display-db";
 import {
   claimDiscordDrawEmbed,
+  confirmDiscordDrawEmbed,
   releaseDiscordDrawEmbedClaim,
 } from "@/lib/lottery/discord-draw-embed-idempotency";
 
@@ -58,7 +59,9 @@ export async function notifyDiscordDrawLive(
     return { posted: 0, skipped: true, reason: "Discord bot not configured" };
   }
 
-  const channelIds = await resolveDiscordNotifyChannelIds();
+  const channelIds = await resolveDiscordNotifyChannelIds({
+    onChainDrawId: drawId,
+  });
   if (channelIds.length === 0) {
     return { posted: 0, skipped: true, reason: "no notify channels configured" };
   }
@@ -106,6 +109,7 @@ export async function notifyDiscordDrawLive(
       };
     }
 
+    await confirmDiscordDrawEmbed(drawId, "live");
     return { posted, skipped: false };
   } catch (e) {
     await releaseDiscordDrawEmbedClaim(drawId, "live");

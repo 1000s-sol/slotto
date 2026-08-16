@@ -2,6 +2,15 @@ import { getSiteUrl } from "@/lib/site-metadata";
 
 import { discordTicketBotToken } from "./config";
 
+export function isDiscordMissingPermissions(error: unknown): boolean {
+  const msg = error instanceof Error ? error.message : String(error);
+  return (
+    msg.includes("50013") ||
+    msg.includes("Missing Permissions") ||
+    /Discord POST 403/.test(msg)
+  );
+}
+
 export async function discordApi(
   path: string,
   init: RequestInit,

@@ -39,6 +39,22 @@ export async function postSettleAnnouncements(
     const { notifyDiscordDrawWinner } = await import(
       "@/lib/discord-ticket-bot/post-draw-winner"
     );
-    await notifyDiscordDrawWinner(connection, drawId);
+    try {
+      const discord = await notifyDiscordDrawWinner(connection, drawId);
+      if (discord.skipped) {
+        console.warn(
+          "[lottery announce] Discord winner skipped:",
+          discord.reason ?? "unknown",
+        );
+      } else {
+        console.info(
+          "[lottery announce] Discord winner posted to",
+          discord.posted,
+          "channel(s)",
+        );
+      }
+    } catch (e) {
+      console.warn("[lottery announce] Discord winner hook failed:", e);
+    }
   }
 }

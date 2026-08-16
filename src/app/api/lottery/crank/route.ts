@@ -4,6 +4,10 @@ import { NextResponse } from "next/server";
 
 import { fetchDrawIdsNeedingCrank } from "@/lib/lottery/crank-draw";
 import {
+  fetchDrawIdsNeedingEndedAnnounce,
+  runAnnounceDrawEndedIfNeeded,
+} from "@/lib/lottery/announce-draw-ended";
+import {
   fetchDrawIdsNeedingOpenAnnounce,
   runAnnounceDrawOpenIfNeeded,
 } from "@/lib/lottery/announce-draw-open";
@@ -81,15 +85,27 @@ async function handleCrank(request: Request) {
       openResults.push({ drawId: id, ...(await runAnnounceDrawOpenIfNeeded(id)) });
     }
 
+    const endedIds = await withLotteryServerRpc((connection) =>
+      fetchDrawIdsNeedingEndedAnnounce(connection, lotteryProgramId()),
+    );
+    const endedResults = [];
+    for (const id of endedIds) {
+      endedResults.push({
+        drawId: id,
+        ...(await runAnnounceDrawEndedIfNeeded(id)),
+      });
+    }
+
     const ids = await withLotteryServerRpc((connection) =>
       fetchDrawIdsNeedingCrank(connection, lotteryProgramId()),
     );
 
     if (ids.length === 0) {
       return NextResponse.json({
-        ok: true,
+        ok: endedResults.every((r) => r.ok),
         results: [],
         openAnnounce: openResults,
+        endedAnnounce: endedResults,
         message: "No draws need crank",
       });
     }
@@ -101,9 +117,10 @@ async function handleCrank(request: Request) {
     }
 
     return NextResponse.json({
-      ok: results.every((r) => r.ok),
+      ok: results.every((r) => r.ok) && endedResults.every((r) => r.ok),
       results,
       openAnnounce: openResults,
+      endedAnnounce: endedResults,
     });
   } catch (e) {
     const message = lotteryRpcErrorText(e);

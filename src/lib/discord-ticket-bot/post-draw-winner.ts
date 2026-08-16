@@ -16,6 +16,7 @@ import { buyerLabelForWallet, shortWallet } from "./buyer-label";
 import { drawWinnerBannerUrl } from "./banners";
 import { discordTicketBotConfigured } from "./config";
 import {
+  isDiscordMissingPermissions,
   mascotThumbnailUrl,
   postEmbedToChannel,
   postEmbedToChannelWithFiles,
@@ -25,6 +26,7 @@ import { formatDrawLabelForId } from "@/lib/lottery/draw-display-db";
 import { loadSocialBannerBytes } from "@/lib/x/load-social-banner";
 import {
   claimDiscordDrawEmbed,
+  confirmDiscordDrawEmbed,
   releaseDiscordDrawEmbedClaim,
 } from "@/lib/lottery/discord-draw-embed-idempotency";
 
@@ -148,7 +150,9 @@ export async function notifyDiscordDrawWinner(
     return { posted: 0, skipped: true, reason: "draw not settled" };
   }
 
-  const channelIds = await resolveDiscordNotifyChannelIds();
+  const channelIds = await resolveDiscordNotifyChannelIds({
+    onChainDrawId: drawId,
+  });
   if (channelIds.length === 0) {
     return { posted: 0, skipped: true, reason: "no notify channels configured" };
   }
@@ -193,12 +197,17 @@ export async function notifyDiscordDrawWinner(
     for (const channelId of channelIds) {
       try {
         if (winnerBanner) {
-          await postEmbedToChannelWithFiles(
-            channelId,
-            embed,
-            [{ ...winnerBanner, filename: "winner.gif" }],
-            siteUrl,
-          );
+          try {
+            await postEmbedToChannelWithFiles(
+              channelId,
+              embed,
+              [{ ...winnerBanner, filename: "winner.gif" }],
+              siteUrl,
+            );
+          } catch (e) {
+            if (!isDiscordMissingPermissions(e)) throw e;
+            await postEmbedToChannel(channelId, embed, siteUrl);
+          }
         } else {
           await postEmbedToChannel(channelId, embed, siteUrl);
         }
@@ -225,6 +234,7 @@ export async function notifyDiscordDrawWinner(
       };
     }
 
+    await confirmDiscordDrawEmbed(drawId, "ended");
     return { posted, skipped: false };
   } catch (e) {
     await releaseDiscordDrawEmbedClaim(drawId, "ended");

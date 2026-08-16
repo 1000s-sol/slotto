@@ -57,6 +57,33 @@ export async function triggerLotteryCrank(
     });
 
     if (!needsCrank) {
+      try {
+        const { DrawState } = await import("./constants");
+        const { postSettleAnnouncements } = await import(
+          "./post-settle-announcements"
+        );
+        await withLotteryServerRpc(async (connection) => {
+          const draw = await fetchDrawById(
+            connection,
+            lotteryProgramId(),
+            drawId,
+          );
+          if (
+            !draw ||
+            (draw.state !== DrawState.Settled &&
+              draw.state !== DrawState.Refunded)
+          ) {
+            return;
+          }
+          await postSettleAnnouncements(connection, drawId, {
+            finalState:
+              draw.state === DrawState.Settled ? "Settled" : "Refunded",
+            winner: draw.winner,
+          });
+        });
+      } catch (e) {
+        console.warn("[lottery crank] ended announce retry failed:", e);
+      }
       return { ok: true };
     }
 

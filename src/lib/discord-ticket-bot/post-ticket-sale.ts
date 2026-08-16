@@ -128,7 +128,9 @@ export async function notifyDiscordTicketSale(
     );
   }
 
-  const channelIds = await resolveDiscordNotifyChannelIds();
+  const channelIds = await resolveDiscordNotifyChannelIds({
+    onChainDrawId: input.drawId,
+  });
   if (channelIds.length === 0) {
     await prisma.discordTicketSaleNotify.create({
       data: { signature, drawId: input.drawId },
