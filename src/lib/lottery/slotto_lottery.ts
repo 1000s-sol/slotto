@@ -512,6 +512,36 @@ export type SlottoLottery = {
       "args": []
     },
     {
+      "name": "resetVrf",
+      "docs": [
+        "Authority-only recovery: if stuck in VrfRequested, clear vrf_request and return to SalesClosed so keeper can request_vrf again."
+      ],
+      "discriminator": [
+        86,
+        175,
+        191,
+        34,
+        82,
+        119,
+        138,
+        86
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "globalConfig"
+        },
+        {
+          "name": "draw",
+          "writable": true
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "settle",
       "discriminator": [
         175,
