@@ -240,45 +240,113 @@ export async function requestSwitchboardVrf(
   return sig;
 }
 
-/** Reveal Switchboard randomness (run after commit/request, before settle). */
+type SwitchboardGateway = {
+  fetchRandomnessReveal: (
+    params: Record<string, unknown>,
+  ) => Promise<unknown>;
+};
+
+/**
+ * Reveal Switchboard randomness (after commit/request, before settle).
+ *
+ * The assigned oracle gateway can 503 while another Crossbar gateway still
+ * returns a valid reveal for the same account (live draw #19). Keep the SDK
+ * `revealIx()` account layout, but retry `fetchRandomnessReveal` on healthy
+ * gateways when the assigned host fails.
+ */
 export async function revealSwitchboardVrf(
   connection: Connection,
   payer: Keypair,
   randomnessAccount: PublicKey,
 ): Promise<string> {
   const sb = await loadSwitchboardSdk();
-  const { AnchorUtils, Randomness } = sb;
+  const { AnchorUtils, Randomness, Gateway } = sb as RandomnessSdk & {
+    Gateway: {
+      new (url: string): SwitchboardGateway;
+      prototype: SwitchboardGateway;
+    };
+  };
   const sbProgram = await AnchorUtils.loadProgramFromConnection(
     connection,
     switchboardWalletFromKeypair(payer),
   );
   const randomness = new Randomness(sbProgram, randomnessAccount);
 
-  const revealIx = await randomness.revealIx();
-  if (!revealIx) {
-    throw new Error("Switchboard revealIx missing (randomness not ready to reveal)");
+  let fallbackGateways = [
+    "https://141.95.126.78.xip.switchboard-oracles.xyz/mainnet",
+  ];
+  try {
+    const { CrossbarClient } = await import("@switchboard-xyz/common");
+    const urls = await CrossbarClient.default().fetchGateways("mainnet");
+    fallbackGateways = [...urls, ...fallbackGateways].filter(
+      (u, i, arr) => !!u && arr.indexOf(u) === i,
+    );
+  } catch (e) {
+    console.warn(
+      "[switchboard] Crossbar fetchGateways failed:",
+      e instanceof Error ? e.message : e,
+    );
   }
-  const { blockhash, lastValidBlockHeight } =
-    await connection.getLatestBlockhash("confirmed");
 
-  const tx = new VersionedTransaction(
-    new TransactionMessage({
-      payerKey: payer.publicKey,
-      recentBlockhash: blockhash,
-      instructions: [revealIx],
-    }).compileToV0Message(),
-  );
-  tx.sign([payer]);
+  const gatewayProto = Gateway.prototype as SwitchboardGateway;
+  const originalFetch = gatewayProto.fetchRandomnessReveal;
+  gatewayProto.fetchRandomnessReveal = async function patchedFetch(
+    this: SwitchboardGateway,
+    params: Record<string, unknown>,
+  ) {
+    try {
+      return await originalFetch.call(this, params);
+    } catch (assignedErr) {
+      console.warn(
+        "[switchboard] assigned gateway reveal failed; trying Crossbar gateways:",
+        assignedErr instanceof Error ? assignedErr.message : assignedErr,
+      );
+      let lastErr: unknown = assignedErr;
+      for (const url of fallbackGateways) {
+        try {
+          const gw = new Gateway(url);
+          const result = await originalFetch.call(gw, params);
+          console.info("[switchboard] reveal via fallback gateway", url);
+          return result;
+        } catch (e) {
+          lastErr = e;
+        }
+      }
+      throw lastErr;
+    }
+  };
 
-  const sig = await connection.sendTransaction(tx, {
-    skipPreflight: false,
-    maxRetries: 3,
-  });
-  await connection.confirmTransaction(
-    { signature: sig, blockhash, lastValidBlockHeight },
-    "confirmed",
-  );
-  return sig;
+  try {
+    const revealIx = await randomness.revealIx();
+    if (!revealIx) {
+      throw new Error(
+        "Switchboard revealIx missing (randomness not ready to reveal)",
+      );
+    }
+    const { blockhash, lastValidBlockHeight } =
+      await connection.getLatestBlockhash("confirmed");
+
+    const tx = new VersionedTransaction(
+      new TransactionMessage({
+        payerKey: payer.publicKey,
+        recentBlockhash: blockhash,
+        instructions: [revealIx],
+      }).compileToV0Message(),
+    );
+    tx.sign([payer]);
+
+    const sig = await connection.sendTransaction(tx, {
+      skipPreflight: false,
+      maxRetries: 3,
+    });
+    await connection.confirmTransaction(
+      { signature: sig, blockhash, lastValidBlockHeight },
+      "confirmed",
+    );
+    return sig;
+  } finally {
+    gatewayProto.fetchRandomnessReveal = originalFetch;
+  }
 }
 
 /** Preview winning ticket from revealed randomness (keeper helper). */
