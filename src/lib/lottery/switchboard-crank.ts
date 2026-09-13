@@ -2,6 +2,7 @@ import {
   Connection,
   Keypair,
   PublicKey,
+  SystemProgram,
   type Transaction,
   TransactionMessage,
   type VersionedTransaction as Web3VersionedTransaction,
@@ -240,24 +241,160 @@ export async function requestSwitchboardVrf(
   return sig;
 }
 
-/** Reveal Switchboard randomness (run after commit/request, before settle). */
+type SwitchboardRevealResponse = {
+  signature: string;
+  recovery_id: number;
+  value: string | number[];
+};
+
+/**
+ * Reveal Switchboard randomness (after commit/request, before settle).
+ *
+ * The assigned oracle gateway can 503 while another Crossbar gateway still
+ * returns a valid reveal for the same account. Build the reveal ix ourselves so
+ * we can retry healthy gateways without relying on SDK `revealIx()` alone.
+ */
 export async function revealSwitchboardVrf(
   connection: Connection,
   payer: Keypair,
   randomnessAccount: PublicKey,
 ): Promise<string> {
   const sb = await loadSwitchboardSdk();
-  const { AnchorUtils, Randomness } = sb;
+  const {
+    AnchorUtils,
+    Randomness,
+    Gateway,
+    Oracle,
+    State,
+    SOL_NATIVE_MINT,
+    SPL_TOKEN_PROGRAM_ID,
+    SPL_ASSOCIATED_TOKEN_ACCOUNT_PROGRAM_ID,
+    SPL_SYSVAR_SLOT_HASHES_ID,
+    getAssociatedTokenAddressSync,
+  } = sb as RandomnessSdk & {
+    Gateway: new (url: string) => {
+      fetchRandomnessReveal: (
+        params: Record<string, unknown>,
+      ) => Promise<SwitchboardRevealResponse>;
+    };
+    Oracle: new (
+      program: unknown,
+      pubkey: PublicKey,
+    ) => {
+      loadData: () => Promise<{ gatewayUri: number[] }>;
+    };
+    State: { keyFromSeed: (program: unknown) => PublicKey };
+    SOL_NATIVE_MINT: PublicKey;
+    SPL_TOKEN_PROGRAM_ID: PublicKey;
+    SPL_ASSOCIATED_TOKEN_ACCOUNT_PROGRAM_ID: PublicKey;
+    SPL_SYSVAR_SLOT_HASHES_ID: PublicKey;
+    getAssociatedTokenAddressSync: (
+      mint: PublicKey,
+      owner: PublicKey,
+    ) => PublicKey;
+  };
+  const bs58 = (await import("bs58")).default;
   const sbProgram = await AnchorUtils.loadProgramFromConnection(
     connection,
     switchboardWalletFromKeypair(payer),
   );
   const randomness = new Randomness(sbProgram, randomnessAccount);
-
-  const revealIx = await randomness.revealIx();
-  if (!revealIx) {
-    throw new Error("Switchboard revealIx missing (randomness not ready to reveal)");
+  const data = await randomness.loadData();
+  if (!data?.seedSlot || Number(data.seedSlot) === 0) {
+    throw new Error("Switchboard randomness not committed yet");
   }
+
+  const oracle = new Oracle(sbProgram, data.oracle);
+  const oracleData = await oracle.loadData();
+  const assignedGateway = String.fromCharCode(...oracleData.gatewayUri).replace(
+    /\0+$/,
+    "",
+  );
+
+  let fallbackGateways = [
+    "https://141.95.126.78.xip.switchboard-oracles.xyz/mainnet",
+  ];
+  try {
+    const { CrossbarClient } = await import("@switchboard-xyz/common");
+    const urls = await CrossbarClient.default().fetchGateways("mainnet");
+    fallbackGateways = [...urls, ...fallbackGateways].filter(
+      (u, i, arr) => !!u && arr.indexOf(u) === i,
+    );
+  } catch (e) {
+    console.warn(
+      "[switchboard] Crossbar fetchGateways failed:",
+      e instanceof Error ? e.message : e,
+    );
+  }
+
+  const gatewayUrls = [assignedGateway, ...fallbackGateways].filter(
+    (u, i, arr) => !!u && arr.indexOf(u) === i,
+  );
+  const revealParams = {
+    randomnessAccount,
+    slothash: bs58.encode(Buffer.from(data.seedSlothash)),
+    slot: Number(data.seedSlot),
+    rpc: connection.rpcEndpoint,
+  };
+
+  let reveal: SwitchboardRevealResponse | undefined;
+  let lastErr: unknown;
+  for (const url of gatewayUrls) {
+    try {
+      const gw = new Gateway(url);
+      reveal = await gw.fetchRandomnessReveal(revealParams);
+      if (url !== assignedGateway) {
+        console.info("[switchboard] reveal via fallback gateway", url);
+      }
+      break;
+    } catch (e) {
+      lastErr = e;
+      console.warn(
+        "[switchboard] reveal gateway failed:",
+        url,
+        e instanceof Error ? e.message : e,
+      );
+    }
+  }
+  if (!reveal) {
+    throw lastErr instanceof Error
+      ? lastErr
+      : new Error("Switchboard reveal failed on all gateways");
+  }
+
+  const stats = PublicKey.findProgramAddressSync(
+    [Buffer.from("OracleRandomnessStats"), data.oracle.toBuffer()],
+    sbProgram.programId,
+  )[0];
+
+  const revealIx = sbProgram.instruction.randomnessReveal(
+    {
+      signature: Buffer.from(reveal.signature, "base64"),
+      recoveryId: reveal.recovery_id,
+      value: reveal.value,
+    },
+    {
+      accounts: {
+        randomness: randomnessAccount,
+        oracle: data.oracle,
+        queue: data.queue,
+        stats,
+        authority: data.authority,
+        payer: payer.publicKey,
+        recentSlothashes: SPL_SYSVAR_SLOT_HASHES_ID,
+        systemProgram: SystemProgram.programId,
+        rewardEscrow: getAssociatedTokenAddressSync(
+          SOL_NATIVE_MINT,
+          randomnessAccount,
+        ),
+        tokenProgram: SPL_TOKEN_PROGRAM_ID,
+        associatedTokenProgram: SPL_ASSOCIATED_TOKEN_ACCOUNT_PROGRAM_ID,
+        wrappedSolMint: SOL_NATIVE_MINT,
+        programState: State.keyFromSeed(sbProgram),
+      },
+    },
+  );
+
   const { blockhash, lastValidBlockHeight } =
     await connection.getLatestBlockhash("confirmed");
 
