@@ -13,6 +13,7 @@ import { fetchDrawById } from "./chain";
 import { DrawState } from "./constants";
 import { ticketChunkPda } from "./pdas";
 import type { SlottoLotteryProgram } from "./program";
+import { globalConfigPda } from "./pdas";
 import { switchboardQueueForCluster } from "./switchboard-config";
 import {
   ticketChunkIndex,
@@ -156,11 +157,18 @@ async function commitIxWithOnChainOracleFallback(
   if (oracleKeys.length === 0) {
     throw new Error("Switchboard queue has no on-chain oracles");
   }
+  // Prefer oracles whose public gateway responds (assigned host for draw #19
+  // is 503 — rebinding to a healthy oracle is the recovery path).
+  const orderedKeys = await preferOraclesWithHealthyGateways(
+    sb,
+    sbProgram,
+    oracleKeys,
+  );
   const data = await randomness.loadData();
   const authority = data.authority as PublicKey;
   let lastErr: unknown;
-  for (let i = 0; i < oracleKeys.length; i += 1) {
-    const oracle = oracleKeys[i]!;
+  for (let i = 0; i < orderedKeys.length; i += 1) {
+    const oracle = orderedKeys[i]!;
     try {
       return await withTimeout(
         randomness.commitIx(queue, authority, oracle),
@@ -174,6 +182,103 @@ async function commitIxWithOnChainOracleFallback(
   throw lastErr instanceof Error
     ? lastErr
     : new Error("All on-chain Switchboard oracle commits failed");
+}
+
+async function preferOraclesWithHealthyGateways(
+  sb: RandomnessSdk,
+  sbProgram: Awaited<
+    ReturnType<RandomnessSdk["AnchorUtils"]["loadProgramFromConnection"]>
+  >,
+  oracleKeys: PublicKey[],
+): Promise<PublicKey[]> {
+  const { Oracle } = sb as RandomnessSdk & {
+    Oracle: new (
+      program: unknown,
+      pubkey: PublicKey,
+    ) => {
+      loadData: () => Promise<{ gatewayUri: number[] }>;
+    };
+  };
+  const healthy: PublicKey[] = [];
+  const unknown: PublicKey[] = [];
+  for (const key of oracleKeys) {
+    try {
+      const od = await new Oracle(sbProgram, key).loadData();
+      const url = String.fromCharCode(...od.gatewayUri).replace(/\0+$/, "");
+      if (!url) {
+        unknown.push(key);
+        continue;
+      }
+      const ok = await gatewayResponds(url);
+      if (ok) healthy.push(key);
+      else unknown.push(key);
+    } catch {
+      unknown.push(key);
+    }
+  }
+  return [...healthy, ...unknown];
+}
+
+async function gatewayResponds(gatewayUrl: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${gatewayUrl.replace(/\/$/, "")}/gateway/api/v1`, {
+      method: "GET",
+      signal: AbortSignal.timeout(4_000),
+    });
+    // Any non-network response means the host is up (401/404/405 still fine).
+    return res.status !== 502 && res.status !== 503 && res.status !== 504;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Authority recovery: VrfRequested → SalesClosed and clear vrf_request so we
+ * can bind a fresh randomness account (e.g. when the assigned oracle gateway
+ * is down and cannot sign reveal).
+ */
+export async function resetDrawVrf(
+  program: SlottoLotteryProgram,
+  programId: PublicKey,
+  authority: Keypair,
+  drawPubkey: PublicKey,
+): Promise<string> {
+  return program.methods
+    .resetVrf()
+    .accounts({
+      authority: authority.publicKey,
+      globalConfig: globalConfigPda(programId),
+      draw: drawPubkey,
+    })
+    .signers([authority])
+    .rpc();
+}
+
+/** True when the oracle assigned to this randomness account's gateway is down. */
+export async function isAssignedOracleGatewayDown(
+  connection: Connection,
+  payer: Keypair,
+  randomnessAccount: PublicKey,
+): Promise<{ down: boolean; gatewayUrl: string }> {
+  const sb = await loadSwitchboardSdk();
+  const { AnchorUtils, Randomness, Oracle } = sb as RandomnessSdk & {
+    Oracle: new (
+      program: unknown,
+      pubkey: PublicKey,
+    ) => {
+      loadData: () => Promise<{ gatewayUri: number[] }>;
+    };
+  };
+  const sbProgram = await AnchorUtils.loadProgramFromConnection(
+    connection,
+    switchboardWalletFromKeypair(payer),
+  );
+  const data = await new Randomness(sbProgram, randomnessAccount).loadData();
+  const od = await new Oracle(sbProgram, data.oracle).loadData();
+  const gatewayUrl = String.fromCharCode(...od.gatewayUri).replace(/\0+$/, "");
+  if (!gatewayUrl) return { down: true, gatewayUrl: "" };
+  const down = !(await gatewayResponds(gatewayUrl));
+  return { down, gatewayUrl };
 }
 
 /**
@@ -253,17 +358,12 @@ type SwitchboardGateway = {
   ) => Promise<SwitchboardRevealResponse>;
 };
 
-/** Known-healthy mainnet gateway (assigned oracle host for draw #19 is 503). */
-const SWITCHBOARD_REVEAL_FALLBACK_GATEWAY =
-  "https://141.95.126.78.xip.switchboard-oracles.xyz/mainnet";
-
 /**
  * Reveal Switchboard randomness (after commit/request, before settle).
  *
- * Do not rely on SDK `revealIx()` + Gateway.prototype patching: Next/Vercel
- * can duplicate the Gateway module so the patch never runs, and the assigned
- * oracle gateway stays on 503. Fetch the reveal ourselves across gateways,
- * then build `randomnessReveal` with the same accounts as the SDK.
+ * Fetch reveal from the **assigned** oracle gateway only (other gateways
+ * return payloads that fail on-chain with InvalidSecpSignature), then build
+ * `randomnessReveal` with the same accounts as the SDK.
  */
 export async function revealSwitchboardVrf(
   connection: Connection,
@@ -317,50 +417,28 @@ export async function revealSwitchboardVrf(
     /\0+$/,
     "",
   );
-
-  let gatewayUrls = [assignedGateway, SWITCHBOARD_REVEAL_FALLBACK_GATEWAY];
-  try {
-    const { CrossbarClient } = await import("@switchboard-xyz/common");
-    const urls = await CrossbarClient.default().fetchGateways("mainnet");
-    gatewayUrls = [assignedGateway, ...urls, SWITCHBOARD_REVEAL_FALLBACK_GATEWAY];
-  } catch (e) {
-    console.warn(
-      "[switchboard] Crossbar fetchGateways failed:",
-      e instanceof Error ? e.message : e,
-    );
+  if (!assignedGateway) {
+    throw new Error("Switchboard oracle gateway URI missing");
   }
-  gatewayUrls = gatewayUrls.filter((u, i, arr) => !!u && arr.indexOf(u) === i);
 
+  // Only the assigned oracle can produce a valid secp signature. Other Crossbar
+  // gateways may return a reveal payload, but settle fails with InvalidSecpSignature.
   const revealParams = {
     randomnessAccount,
     slothash: bs58.encode(Buffer.from(data.seedSlothash)),
     slot: Number(data.seedSlot),
     rpc: connection.rpcEndpoint,
   };
-
-  let reveal: SwitchboardRevealResponse | undefined;
-  let lastErr: unknown;
-  for (const url of gatewayUrls) {
-    try {
-      const gw = new Gateway(url);
-      reveal = await gw.fetchRandomnessReveal(revealParams);
-      if (url !== assignedGateway) {
-        console.info("[switchboard] reveal via fallback gateway", url);
-      }
-      break;
-    } catch (e) {
-      lastErr = e;
-      console.warn(
-        "[switchboard] reveal gateway failed:",
-        url,
-        e instanceof Error ? e.message : e,
-      );
-    }
-  }
-  if (!reveal) {
-    throw lastErr instanceof Error
-      ? lastErr
-      : new Error("Switchboard reveal failed on all gateways");
+  let reveal: SwitchboardRevealResponse;
+  try {
+    reveal = await new Gateway(assignedGateway).fetchRandomnessReveal(
+      revealParams,
+    );
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    throw new Error(
+      `Assigned Switchboard oracle gateway reveal failed (${assignedGateway}): ${msg}`,
+    );
   }
 
   const stats = PublicKey.findProgramAddressSync(

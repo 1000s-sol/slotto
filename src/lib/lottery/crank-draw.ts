@@ -13,7 +13,9 @@ import { createLotteryReadOnlyProgram } from "./program";
 import type { SlottoLotteryProgram } from "./program";
 import {
   createDrawRandomnessAccount,
+  isAssignedOracleGatewayDown,
   requestSwitchboardVrf,
+  resetDrawVrf,
   revealSwitchboardVrf,
   settleDrawWithSwitchboard,
 } from "./switchboard-crank";
@@ -275,6 +277,66 @@ export async function crankDraw(
           lower.includes("randomness value missing") ||
           lower.includes("randomness not resolved")
         ) {
+          // Assigned oracle gateway can 503; other gateways cannot sign for it
+          // (InvalidSecpSignature). Reset VRF and re-bind a fresh randomness
+          // account on a healthy oracle so the next crank can settle.
+          const { down, gatewayUrl } = await isAssignedOracleGatewayDown(
+            connection,
+            keeper,
+            randomnessAccount,
+          );
+          if (down) {
+            actions.push(
+              `oracle gateway down (${gatewayUrl || "unknown"}) — reset_vrf + re-request`,
+            );
+            const resetSig = await resetDrawVrf(
+              program,
+              programId,
+              keeper,
+              draw.draw,
+            );
+            signatures.push(resetSig);
+            const keeperLamports = await connection.getBalance(
+              keeper.publicKey,
+              "confirmed",
+            );
+            if (keeperLamports < MIN_KEEPER_LAMPORTS_FOR_CREATE) {
+              throw new Error(
+                `Keeper underfunded for Switchboard RandomnessInit after reset_vrf (${keeperLamports} lamports, need ${MIN_KEEPER_LAMPORTS_FOR_CREATE}).`,
+              );
+            }
+            actions.push("create_switchboard_randomness (recovery)");
+            const freshRandomness = await createDrawRandomnessAccount(
+              connection,
+              keeper,
+            );
+            await storeDrawRandomness(drawId, freshRandomness.toBase58());
+            actions.push(
+              `stored_switchboard_randomness ${freshRandomness.toBase58()}`,
+            );
+            actions.push("commit_vrf + request_vrf (recovery)");
+            const reqSig = await requestSwitchboardVrf(
+              connection,
+              program,
+              keeper,
+              draw.draw,
+              freshRandomness,
+            );
+            signatures.push(reqSig);
+            draw = (await fetchDrawById(connection, programId, drawId))!;
+            actions.push(
+              "recovery requested — re-crank shortly to reveal + settle",
+            );
+            return {
+              drawId,
+              initialState,
+              finalState: stateLabel(draw.state),
+              actions,
+              signatures,
+              winner: draw.winner,
+              winningTicketId: draw.winningTicketId,
+            };
+          }
           actions.push(`settle waiting (${msg})`);
           draw = (await fetchDrawById(connection, programId, drawId))!;
           return {
