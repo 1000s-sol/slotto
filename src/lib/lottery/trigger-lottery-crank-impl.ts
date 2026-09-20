@@ -119,7 +119,7 @@ async function crankOnRpc(
       totalSigs === 0
         ? `Crank incomplete (still ${lastFinalState})`
         : lastFinalState === "VrfRequested"
-          ? `VRF requested (still ${lastFinalState}) — wait ~10s then click Settle again`
+          ? `VRF requested (still ${lastFinalState}) — wait ~10s then click Settle again. If the assigned Switchboard oracle is down, Settle will reset once and re-request on a healthy oracle.`
           : `Crank in progress (still ${lastFinalState}) — click Settle again`,
   };
 }

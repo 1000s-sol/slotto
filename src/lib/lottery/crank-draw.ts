@@ -13,8 +13,10 @@ import { createLotteryReadOnlyProgram } from "./program";
 import type { SlottoLotteryProgram } from "./program";
 import {
   createDrawRandomnessAccount,
+  isAssignedOracleGatewayDown,
   isInvalidQuoteError,
   requestSwitchboardVrf,
+  resetDrawVrf,
   revealSwitchboardVrf,
   settleDrawWithSwitchboard,
 } from "./switchboard-crank";
@@ -40,6 +42,13 @@ const STATE_NAMES = [
 /** Abort RandomnessInit below this so cron cannot drain the keeper. */
 const MIN_KEEPER_LAMPORTS_FOR_CREATE = Math.floor(0.05 * LAMPORTS_PER_SOL);
 
+/**
+ * One dead-gateway reset per draw per cooldown. Without this, concurrent
+ * cranks (draw #20) did RequestVrf → ResetVrf in a loop and burned SOL.
+ */
+const deadGatewayRecoveryAt = new Map<number, number>();
+const DEAD_GATEWAY_RECOVERY_COOLDOWN_MS = 120_000;
+
 export type CrankDrawResult = {
   drawId: number;
   initialState: string;
@@ -52,6 +61,130 @@ export type CrankDrawResult = {
 
 function stateLabel(state: number): string {
   return STATE_NAMES[state] ?? `unknown(${state})`;
+}
+
+/**
+ * When the assigned Switchboard oracle gateway is down, reset_vrf + fresh
+ * RandomnessInit (healthy oracle preferred at commit) + request_vrf.
+ * Returns true if recovery txs were sent. Cooldown prevents burn loops.
+ */
+async function tryRecoverDeadOracleGateway(opts: {
+  connection: Connection;
+  program: SlottoLotteryProgram;
+  programId: PublicKey;
+  drawId: number;
+  drawPubkey: PublicKey;
+  keeper: Keypair;
+  randomnessAccount: PublicKey;
+  actions: string[];
+  signatures: string[];
+}): Promise<boolean> {
+  const {
+    connection,
+    program,
+    programId,
+    drawId,
+    drawPubkey,
+    keeper,
+    randomnessAccount,
+    actions,
+    signatures,
+  } = opts;
+
+  const last = deadGatewayRecoveryAt.get(drawId) ?? 0;
+  if (Date.now() - last < DEAD_GATEWAY_RECOVERY_COOLDOWN_MS) {
+    actions.push(
+      `dead-gateway recovery cooldown (${Math.ceil(
+        (DEAD_GATEWAY_RECOVERY_COOLDOWN_MS - (Date.now() - last)) / 1000,
+      )}s left)`,
+    );
+    return false;
+  }
+
+  const { down, gatewayUrl } = await isAssignedOracleGatewayDown(
+    connection,
+    keeper,
+    randomnessAccount,
+  );
+  if (!down) {
+    return false;
+  }
+
+  // Stamp cooldown before txs so concurrent cranks do not double-reset.
+  deadGatewayRecoveryAt.set(drawId, Date.now());
+
+  actions.push(
+    `oracle gateway down (${gatewayUrl || "unknown"}) — reset_vrf + re-request`,
+  );
+  try {
+    const resetSig = await resetDrawVrf(
+      program,
+      programId,
+      keeper,
+      drawPubkey,
+    );
+    signatures.push(resetSig);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    const after = await fetchDrawById(connection, programId, drawId);
+    if (after?.state === DrawState.SalesClosed) {
+      actions.push(
+        `reset_vrf already applied (concurrent) — ${msg.slice(0, 80)}`,
+      );
+    } else if (after?.state === DrawState.VrfRequested) {
+      // Likely unauthorized or transient; do not create another randomness.
+      deadGatewayRecoveryAt.delete(drawId);
+      throw e;
+    } else {
+      actions.push(`reset_vrf skipped (${msg.slice(0, 80)})`);
+      return false;
+    }
+  }
+
+  // Another crank may have already re-requested while we raced.
+  {
+    const afterReset = await fetchDrawById(connection, programId, drawId);
+    if (afterReset?.state === DrawState.VrfRequested) {
+      actions.push(
+        "already VrfRequested after reset race — next pass will reveal + settle",
+      );
+      return true;
+    }
+    if (afterReset?.state !== DrawState.SalesClosed) {
+      return false;
+    }
+  }
+
+  const keeperLamports = await connection.getBalance(
+    keeper.publicKey,
+    "confirmed",
+  );
+  if (keeperLamports < MIN_KEEPER_LAMPORTS_FOR_CREATE) {
+    throw new Error(
+      `Keeper underfunded for Switchboard RandomnessInit after reset_vrf (${keeperLamports} lamports, need ${MIN_KEEPER_LAMPORTS_FOR_CREATE}).`,
+    );
+  }
+
+  actions.push("create_switchboard_randomness (dead-gateway recovery)");
+  const freshRandomness = await createDrawRandomnessAccount(
+    connection,
+    keeper,
+  );
+  await storeDrawRandomness(drawId, freshRandomness.toBase58());
+  actions.push(
+    `stored_switchboard_randomness ${freshRandomness.toBase58()}`,
+  );
+
+  actions.push("commit_vrf + request_vrf (dead-gateway recovery)");
+  const reqSig = await requestSwitchboardVrf(
+    connection,
+    program,
+    keeper,
+    drawPubkey,
+    freshRandomness,
+  );
+  signatures.push(reqSig);
+  return true;
 }
 
 /** Switchboard randomness pubkey for reveal/settle (session → on-chain draw → env override). */
@@ -301,6 +434,7 @@ export async function crankDraw(
       // ("Invalid account discriminator" / already revealed). `settle` reads
       // the revealed value directly on-chain and fails cleanly only if it is
       // genuinely unresolved, so a reveal error must not block settlement.
+      let revealGatewayFailed = false;
       try {
         actions.push("reveal_vrf");
         const revealSig = await revealSwitchboardVrf(
@@ -310,9 +444,12 @@ export async function crankDraw(
         );
         signatures.push(revealSig);
       } catch (e) {
-        actions.push(
-          `reveal_vrf skipped (${e instanceof Error ? e.message : "error"})`,
-        );
+        const revealMsg = e instanceof Error ? e.message : String(e);
+        revealGatewayFailed =
+          /gateway|503|err_bad_response|fetchrandomnessreveal/i.test(
+            revealMsg,
+          );
+        actions.push(`reveal_vrf skipped (${revealMsg.slice(0, 160)})`);
       }
       actions.push("settle (switchboard)");
       try {
@@ -328,18 +465,52 @@ export async function crankDraw(
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         const lower = msg.toLowerCase();
-        // Never auto reset_vrf here. Draw #20 was RequestVrf → ResetVrf in a
-        // loop (InvalidSecp / gateway flaps). Leave VrfRequested and retry.
-        actions.push(`settle waiting (${msg.slice(0, 160)})`);
-        draw = (await fetchDrawById(connection, programId, drawId))!;
-        if (
+        const unresolved =
           lower.includes("not resolved yet") ||
           lower.includes("not ready to reveal") ||
           lower.includes("randomness value missing") ||
           lower.includes("randomness not resolved") ||
-          lower.includes("is not vrfrequested") ||
           lower.includes("invalidsecpsignature") ||
           lower.includes("invalid secp") ||
+          revealGatewayFailed;
+
+        // Assigned oracle gateway 503: other hosts return InvalidSecpSignature.
+        // Reset once (cooldown), bind a fresh randomness account to a healthy
+        // oracle, re-request — next pass reveals + settles.
+        if (unresolved) {
+          const recovered = await tryRecoverDeadOracleGateway({
+            connection,
+            program,
+            programId,
+            drawId,
+            drawPubkey: draw.draw,
+            keeper,
+            randomnessAccount,
+            actions,
+            signatures,
+          });
+          draw = (await fetchDrawById(connection, programId, drawId))!;
+          if (recovered) {
+            actions.push(
+              "dead-gateway recovery requested — next pass will reveal + settle",
+            );
+            return {
+              drawId,
+              initialState,
+              finalState: stateLabel(draw.state),
+              actions,
+              signatures,
+              winner: draw.winner,
+              winningTicketId: draw.winningTicketId,
+            };
+          }
+        }
+
+        actions.push(`settle waiting (${msg.slice(0, 160)})`);
+        draw = (await fetchDrawById(connection, programId, drawId))!;
+        if (
+          unresolved ||
+          lower.includes("is not vrfrequested") ||
           lower.includes("gateway")
         ) {
           return {
