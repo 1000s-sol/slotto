@@ -4,6 +4,7 @@ import {
   PublicKey,
   SystemProgram,
   type Transaction,
+  type TransactionInstruction,
   TransactionMessage,
   type VersionedTransaction as Web3VersionedTransaction,
   VersionedTransaction,
@@ -26,6 +27,115 @@ const RANDOMNESS_ACCOUNT_MIN_LEN = 184;
 const REVEAL_SLOT_OFFSET = 144;
 const VALUE_OFFSET = 152;
 const VALUE_LEN = 32;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+function isBlockhashExpiredError(e: unknown): boolean {
+  const msg = (e instanceof Error ? e.message : String(e)).toLowerCase();
+  return (
+    msg.includes("block height exceeded") ||
+    msg.includes("blockhash not found") ||
+    msg.includes("has expired") ||
+    msg.includes("transaction expired")
+  );
+}
+
+async function waitForSignatureConfirmed(
+  connection: Connection,
+  signature: string,
+  timeoutMs: number,
+): Promise<boolean> {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const { value } = await connection.getSignatureStatus(signature, {
+      searchTransactionHistory: true,
+    });
+    if (value?.err) {
+      throw new Error(
+        `Transaction failed: ${JSON.stringify(value.err)} (${signature})`,
+      );
+    }
+    if (
+      value?.confirmationStatus === "confirmed" ||
+      value?.confirmationStatus === "finalized"
+    ) {
+      return true;
+    }
+    await sleep(750);
+  }
+  const { value } = await connection.getSignatureStatus(signature, {
+    searchTransactionHistory: true,
+  });
+  if (value?.err) {
+    throw new Error(
+      `Transaction failed: ${JSON.stringify(value.err)} (${signature})`,
+    );
+  }
+  return (
+    value?.confirmationStatus === "confirmed" ||
+    value?.confirmationStatus === "finalized"
+  );
+}
+
+/**
+ * Send a keeper tx and poll signature status. Retries with a fresh blockhash
+ * instead of throwing "block height exceeded" when RPC is slow (draw #20).
+ */
+async function sendAndConfirmKeeperTx(
+  connection: Connection,
+  signers: Keypair[],
+  buildInstructions: () =>
+    | Promise<TransactionInstruction[]>
+    | TransactionInstruction[],
+  label: string,
+): Promise<string> {
+  let lastErr: unknown;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      const ixs = await buildInstructions();
+      const { blockhash } = await connection.getLatestBlockhash("confirmed");
+      const tx = new VersionedTransaction(
+        new TransactionMessage({
+          payerKey: signers[0]!.publicKey,
+          recentBlockhash: blockhash,
+          instructions: ixs,
+        }).compileToV0Message(),
+      );
+      tx.sign(signers);
+
+      const sig = await connection.sendTransaction(tx, {
+        skipPreflight: false,
+        maxRetries: 2,
+      });
+
+      const landed = await waitForSignatureConfirmed(connection, sig, 40_000);
+      if (landed) return sig;
+
+      console.warn(
+        `[switchboard] ${label} attempt ${attempt + 1}: not confirmed, retrying`,
+        sig.slice(0, 16),
+      );
+      lastErr = new Error(
+        `Signature ${sig} not confirmed in time — retrying`,
+      );
+    } catch (e) {
+      lastErr = e;
+      if (isBlockhashExpiredError(e)) {
+        console.warn(
+          `[switchboard] ${label} attempt ${attempt + 1}: blockhash expired, retrying`,
+        );
+        await sleep(400);
+        continue;
+      }
+      throw e;
+    }
+  }
+  throw lastErr instanceof Error
+    ? lastErr
+    : new Error(`${label} failed to confirm — click Settle again`);
+}
 
 function switchboardWalletFromKeypair(payer: Keypair) {
   return {
@@ -74,24 +184,11 @@ export async function createDrawRandomnessAccount(
     payer.publicKey,
   );
 
-  const { blockhash, lastValidBlockHeight } =
-    await connection.getLatestBlockhash("confirmed");
-  const tx = new VersionedTransaction(
-    new TransactionMessage({
-      payerKey: payer.publicKey,
-      recentBlockhash: blockhash,
-      instructions: [createIx],
-    }).compileToV0Message(),
-  );
-  tx.sign([payer, randomnessKp]);
-
-  const sig = await connection.sendTransaction(tx, {
-    skipPreflight: false,
-    maxRetries: 3,
-  });
-  await connection.confirmTransaction(
-    { signature: sig, blockhash, lastValidBlockHeight },
-    "confirmed",
+  await sendAndConfirmKeeperTx(
+    connection,
+    [payer, randomnessKp],
+    () => [createIx as TransactionInstruction],
+    "RandomnessInit",
   );
 
   return rng.pubkey;
@@ -332,53 +429,65 @@ export async function requestSwitchboardVrf(
         build(),
         20_000,
         `commitIx-${label}`,
-      )) as import("@solana/web3.js").TransactionInstruction;
+      )) as TransactionInstruction;
       if (!commitIx) {
         continue;
       }
 
-      const { blockhash, lastValidBlockHeight } =
-        await connection.getLatestBlockhash("confirmed");
-      const tx = new VersionedTransaction(
-        new TransactionMessage({
-          payerKey: payer.publicKey,
-          recentBlockhash: blockhash,
-          instructions: [commitIx, requestIx],
-        }).compileToV0Message(),
-      );
-      tx.sign([payer]);
-
-      const sim = await connection.simulateTransaction(tx, {
-        sigVerify: true,
-        commitment: "confirmed",
-      });
-      if (sim.value.err) {
-        const logs = (sim.value.logs ?? []).join("\n");
-        const err = new Error(
-          `Simulation failed. ${JSON.stringify(sim.value.err)}\n${logs}`,
+      // Simulate with a throwaway blockhash first (InvalidQuote filter).
+      {
+        const { blockhash: simHash } =
+          await connection.getLatestBlockhash("confirmed");
+        const simTx = new VersionedTransaction(
+          new TransactionMessage({
+            payerKey: payer.publicKey,
+            recentBlockhash: simHash,
+            instructions: [commitIx, requestIx],
+          }).compileToV0Message(),
         );
-        lastErr = err;
-        if (isInvalidQuoteError(err)) {
-          console.warn(
-            `[switchboard] commit+request ${label} InvalidQuote — trying next oracle`,
+        simTx.sign([payer]);
+        const sim = await connection.simulateTransaction(simTx, {
+          sigVerify: true,
+          commitment: "confirmed",
+        });
+        if (sim.value.err) {
+          const logs = (sim.value.logs ?? []).join("\n");
+          const err = new Error(
+            `Simulation failed. ${JSON.stringify(sim.value.err)}\n${logs}`,
           );
-          continue;
+          lastErr = err;
+          if (isInvalidQuoteError(err)) {
+            console.warn(
+              `[switchboard] commit+request ${label} InvalidQuote — trying next oracle`,
+            );
+            continue;
+          }
+          throw err;
         }
-        throw err;
       }
 
-      const sig = await connection.sendTransaction(tx, {
-        skipPreflight: true,
-        maxRetries: 3,
-      });
-      await connection.confirmTransaction(
-        { signature: sig, blockhash, lastValidBlockHeight },
-        "confirmed",
+      // Fresh commit quote + blockhash on each send attempt (quotes go stale).
+      const sig = await sendAndConfirmKeeperTx(
+        connection,
+        [payer],
+        async () => {
+          const freshCommit = (await withTimeout(
+            build(),
+            20_000,
+            `commitIx-${label}-send`,
+          )) as TransactionInstruction;
+          return [freshCommit, requestIx];
+        },
+        `commit+request-${label}`,
       );
       return sig;
     } catch (e) {
       lastErr = e;
-      if (isInvalidQuoteError(e) || isOracleSelectionError(e)) {
+      if (
+        isInvalidQuoteError(e) ||
+        isOracleSelectionError(e) ||
+        isBlockhashExpiredError(e)
+      ) {
         console.warn(
           `[switchboard] commit+request ${label} failed:`,
           e instanceof Error ? e.message.slice(0, 180) : e,
@@ -528,27 +637,12 @@ export async function revealSwitchboardVrf(
     },
   );
 
-  const { blockhash, lastValidBlockHeight } =
-    await connection.getLatestBlockhash("confirmed");
-
-  const tx = new VersionedTransaction(
-    new TransactionMessage({
-      payerKey: payer.publicKey,
-      recentBlockhash: blockhash,
-      instructions: [revealIx],
-    }).compileToV0Message(),
+  return sendAndConfirmKeeperTx(
+    connection,
+    [payer],
+    () => [revealIx as TransactionInstruction],
+    "randomnessReveal",
   );
-  tx.sign([payer]);
-
-  const sig = await connection.sendTransaction(tx, {
-    skipPreflight: false,
-    maxRetries: 3,
-  });
-  await connection.confirmTransaction(
-    { signature: sig, blockhash, lastValidBlockHeight },
-    "confirmed",
-  );
-  return sig;
 }
 
 /** Preview winning ticket from revealed randomness (keeper helper). */

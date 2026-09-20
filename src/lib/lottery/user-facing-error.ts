@@ -341,6 +341,13 @@ export function formatLotterySettlementError(error: unknown): string {
   ) {
     return "Switchboard VRF commit failed (InvalidQuote). Click Settle again — the keeper will rotate oracles / recreate randomness.";
   }
+  if (
+    text.includes("block height exceeded") ||
+    text.includes("has expired") ||
+    text.includes("not confirmed in time")
+  ) {
+    return "Solana RPC was too slow and the tx expired. Click Settle again.";
+  }
   if (/is not vrfrequested/i.test(text)) {
     return "VRF was reset mid-settle — click Settle again to re-request, then wait a few seconds for settle.";
   }
