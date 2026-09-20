@@ -125,63 +125,65 @@ function isOracleSelectionError(e: unknown): boolean {
   );
 }
 
+/** Switchboard RandomnessCommit rejected the oracle quote (stale / wrong oracle). */
+export function isInvalidQuoteError(e: unknown): boolean {
+  const msg = (e instanceof Error ? e.message : String(e)).toLowerCase();
+  return (
+    msg.includes("invalidquote") ||
+    msg.includes("invalid quote") ||
+    msg.includes("0x1771") ||
+    msg.includes("error number: 6001") ||
+    msg.includes("error code: invalidquote")
+  );
+}
+
 /**
  * Crossbar "eligible oracle" filtering is what blocked draw #14. If it fails
  * or hangs, commit with an on-chain queue oracle (the path that actually settled).
+ *
+ * Important: `commitIx` can resolve successfully with a quote that still fails
+ * on-chain as InvalidQuote (draw #20). Callers must simulate / rotate oracles.
  */
-async function commitIxWithOnChainOracleFallback(
+async function listCommitIxBuilders(
   sb: RandomnessSdk,
   sbProgram: Awaited<
     ReturnType<RandomnessSdk["AnchorUtils"]["loadProgramFromConnection"]>
   >,
   randomness: InstanceType<RandomnessSdk["Randomness"]>,
   queue: PublicKey,
-) {
-  try {
-    return await withTimeout(
-      randomness.commitIx(queue),
-      15_000,
-      "commitIx",
-    );
-  } catch (e) {
-    if (!isOracleSelectionError(e)) {
-      console.warn(
-        "[switchboard] commitIx failed, trying on-chain oracles:",
-        e instanceof Error ? e.message : e,
-      );
-    }
-  }
+): Promise<Array<{ label: string; build: () => Promise<unknown> }>> {
+  const builders: Array<{ label: string; build: () => Promise<unknown> }> = [
+    {
+      label: "crossbar-default",
+      build: () => randomness.commitIx(queue),
+    },
+  ];
 
-  const queueAccount = new sb.Queue(sbProgram, queue);
-  const oracleKeys: PublicKey[] = await queueAccount.fetchOracleKeys();
-  if (oracleKeys.length === 0) {
-    throw new Error("Switchboard queue has no on-chain oracles");
-  }
-  // Prefer oracles whose public gateway responds (assigned host for draw #19
-  // is 503 — rebinding to a healthy oracle is the recovery path).
-  const orderedKeys = await preferOraclesWithHealthyGateways(
-    sb,
-    sbProgram,
-    oracleKeys,
-  );
-  const data = await randomness.loadData();
-  const authority = data.authority as PublicKey;
-  let lastErr: unknown;
-  for (let i = 0; i < orderedKeys.length; i += 1) {
-    const oracle = orderedKeys[i]!;
-    try {
-      return await withTimeout(
-        randomness.commitIx(queue, authority, oracle),
-        20_000,
-        `commitIx-oracle-${i}`,
-      );
-    } catch (e) {
-      lastErr = e;
+  try {
+    const queueAccount = new sb.Queue(sbProgram, queue);
+    const oracleKeys: PublicKey[] = await queueAccount.fetchOracleKeys();
+    if (oracleKeys.length === 0) return builders;
+    const orderedKeys = await preferOraclesWithHealthyGateways(
+      sb,
+      sbProgram,
+      oracleKeys,
+    );
+    const data = await randomness.loadData();
+    const authority = data.authority as PublicKey;
+    for (let i = 0; i < orderedKeys.length; i += 1) {
+      const oracle = orderedKeys[i]!;
+      builders.push({
+        label: `oracle-${i}-${oracle.toBase58().slice(0, 8)}`,
+        build: () => randomness.commitIx(queue, authority, oracle),
+      });
     }
+  } catch (e) {
+    console.warn(
+      "[switchboard] could not enumerate on-chain oracles for commit:",
+      e instanceof Error ? e.message : e,
+    );
   }
-  throw lastErr instanceof Error
-    ? lastErr
-    : new Error("All on-chain Switchboard oracle commits failed");
+  return builders;
 }
 
 async function preferOraclesWithHealthyGateways(
@@ -284,6 +286,10 @@ export async function isAssignedOracleGatewayDown(
 /**
  * Commit Switchboard randomness + `request_vrf` in one transaction.
  * Randomness account must be created beforehand (see docs/switchboard-vrf.md).
+ *
+ * Rotates Crossbar + on-chain oracles and **simulates** each commit before
+ * broadcast — `commitIx` can succeed while RandomnessCommit still fails with
+ * InvalidQuote (6001 / 0x1771) on-chain.
  */
 export async function requestSwitchboardVrf(
   connection: Connection,
@@ -301,16 +307,16 @@ export async function requestSwitchboardVrf(
   );
 
   const randomness = new Randomness(sbProgram, randomnessAccount);
-
-  const commitIx = await commitIxWithOnChainOracleFallback(
+  const builders = await listCommitIxBuilders(
     sb,
     sbProgram,
     randomness,
     queue,
   );
-  if (!commitIx) {
+  if (builders.length === 0) {
     throw new Error("Switchboard commitIx missing (SDK / queue mismatch)");
   }
+
   const requestIx = await program.methods
     .requestVrf()
     .accounts({ draw: drawPubkey })
@@ -323,27 +329,79 @@ export async function requestSwitchboardVrf(
     ])
     .instruction();
 
-  const { blockhash, lastValidBlockHeight } =
-    await connection.getLatestBlockhash("confirmed");
+  let lastErr: unknown;
+  for (const { label, build } of builders) {
+    try {
+      const commitIx = (await withTimeout(
+        build(),
+        20_000,
+        `commitIx-${label}`,
+      )) as import("@solana/web3.js").TransactionInstruction;
+      if (!commitIx) {
+        continue;
+      }
 
-  const tx = new VersionedTransaction(
-    new TransactionMessage({
-      payerKey: payer.publicKey,
-      recentBlockhash: blockhash,
-      instructions: [commitIx, requestIx],
-    }).compileToV0Message(),
-  );
-  tx.sign([payer]);
+      const { blockhash, lastValidBlockHeight } =
+        await connection.getLatestBlockhash("confirmed");
+      const tx = new VersionedTransaction(
+        new TransactionMessage({
+          payerKey: payer.publicKey,
+          recentBlockhash: blockhash,
+          instructions: [commitIx, requestIx],
+        }).compileToV0Message(),
+      );
+      tx.sign([payer]);
 
-  const sig = await connection.sendTransaction(tx, {
-    skipPreflight: false,
-    maxRetries: 3,
-  });
-  await connection.confirmTransaction(
-    { signature: sig, blockhash, lastValidBlockHeight },
-    "confirmed",
-  );
-  return sig;
+      const sim = await connection.simulateTransaction(tx, {
+        sigVerify: true,
+        commitment: "confirmed",
+      });
+      if (sim.value.err) {
+        const logs = (sim.value.logs ?? []).join("\n");
+        const err = new Error(
+          `Simulation failed. ${JSON.stringify(sim.value.err)}\n${logs}`,
+        );
+        lastErr = err;
+        if (isInvalidQuoteError(err)) {
+          console.warn(
+            `[switchboard] commit+request ${label} InvalidQuote — trying next oracle`,
+          );
+          continue;
+        }
+        throw err;
+      }
+
+      const sig = await connection.sendTransaction(tx, {
+        skipPreflight: true,
+        maxRetries: 3,
+      });
+      await connection.confirmTransaction(
+        { signature: sig, blockhash, lastValidBlockHeight },
+        "confirmed",
+      );
+      return sig;
+    } catch (e) {
+      lastErr = e;
+      if (isInvalidQuoteError(e) || isOracleSelectionError(e)) {
+        console.warn(
+          `[switchboard] commit+request ${label} failed:`,
+          e instanceof Error ? e.message.slice(0, 180) : e,
+        );
+        continue;
+      }
+      const msg = e instanceof Error ? e.message : String(e);
+      if (msg.includes("0x1771") || /invalidquote/i.test(msg)) {
+        continue;
+      }
+      throw e;
+    }
+  }
+
+  throw lastErr instanceof Error
+    ? lastErr
+    : new Error(
+        "All Switchboard commit oracles failed (InvalidQuote). Recreate randomness and retry.",
+      );
 }
 
 type SwitchboardRevealResponse = {

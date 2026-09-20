@@ -14,6 +14,7 @@ import type { SlottoLotteryProgram } from "./program";
 import {
   createDrawRandomnessAccount,
   isAssignedOracleGatewayDown,
+  isInvalidQuoteError,
   requestSwitchboardVrf,
   resetDrawVrf,
   revealSwitchboardVrf,
@@ -204,14 +205,57 @@ export async function crankDraw(
         );
       }
       actions.push("commit_vrf + request_vrf");
-      const reqSig = await requestSwitchboardVrf(
-        connection,
-        program,
-        keeper,
-        draw.draw,
-        switchboardRandomness,
-      );
-      signatures.push(reqSig);
+      try {
+        const reqSig = await requestSwitchboardVrf(
+          connection,
+          program,
+          keeper,
+          draw.draw,
+          switchboardRandomness,
+        );
+        signatures.push(reqSig);
+      } catch (e) {
+        // Stored randomness can be stuck with quotes that always InvalidQuote.
+        // One fresh RandomnessInit (not every crank) usually clears it.
+        if (
+          !isInvalidQuoteError(e) ||
+          process.env.LOTTERY_RANDOMNESS_ACCOUNT?.trim()
+        ) {
+          throw e;
+        }
+        const keeperLamports = await connection.getBalance(
+          keeper.publicKey,
+          "confirmed",
+        );
+        if (keeperLamports < MIN_KEEPER_LAMPORTS_FOR_CREATE) {
+          throw new Error(
+            `Switchboard InvalidQuote on commit, and keeper underfunded to recreate randomness (${keeperLamports} lamports, need ${MIN_KEEPER_LAMPORTS_FOR_CREATE}).`,
+          );
+        }
+        actions.push(
+          "InvalidQuote on commit — recreate_switchboard_randomness once",
+        );
+        switchboardRandomness = await createDrawRandomnessAccount(
+          connection,
+          keeper,
+        );
+        await storeDrawRandomness(
+          drawId,
+          switchboardRandomness.toBase58(),
+        );
+        actions.push(
+          `stored_switchboard_randomness ${switchboardRandomness.toBase58()}`,
+        );
+        actions.push("commit_vrf + request_vrf (after InvalidQuote recreate)");
+        const reqSig = await requestSwitchboardVrf(
+          connection,
+          program,
+          keeper,
+          draw.draw,
+          switchboardRandomness,
+        );
+        signatures.push(reqSig);
+      }
     } else {
       actions.push("request_vrf (stub)");
       const sig = await program.methods
