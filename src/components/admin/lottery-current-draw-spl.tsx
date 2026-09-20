@@ -21,6 +21,7 @@ import {
   adminSaveSplRowsForDrawAction,
   adminSettleDrawAction,
 } from "@/app/admin/(dashboard)/lotteries/actions";
+import { adminPrepareNewDrawInfrastructureAction } from "@/app/admin/(dashboard)/lotteries/draw-infrastructure-actions";
 import { splDbMintsMatchChain } from "@/lib/lottery/sync-draw-spl-from-chain";
 import { lotteryWalletSendOptsForAdmin } from "@/lib/lottery/lottery-admin-wallet-client";
 import { useLotteryWallet } from "@/lib/lottery/use-lottery-wallet";
@@ -231,6 +232,30 @@ export function LotteryCurrentDrawSpl({
     } catch (e) {
       setMsgTone("error");
       setMsg(e instanceof Error ? e.message : "Save failed");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const onRetryDrawPrep = async () => {
+    setBusy(true);
+    setMsg(null);
+    try {
+      const mints = chainMints.map((m) => m.mint);
+      const prep = await adminPrepareNewDrawInfrastructureAction(drawId, mints);
+      if (!prep.ok) {
+        setMsgTone("error");
+        setMsg(formatLotteryAdminError(prep.error));
+        return;
+      }
+      setMsgTone("ok");
+      setMsg(
+        `Prep OK — ${prep.teamAta} team ATA tx(s), ${prep.chunks} chunk init(s).`,
+      );
+      await onDrawChange?.();
+    } catch (e) {
+      setMsgTone("error");
+      setMsg(formatLotteryAdminError(e));
     } finally {
       setBusy(false);
     }
@@ -652,6 +677,16 @@ export function LotteryCurrentDrawSpl({
             </table>
           </div>
           <div className="flex flex-wrap gap-2">
+            {selling ? (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void onRetryDrawPrep()}
+                className="rounded-xl border border-accent-gold/50 px-4 py-2 text-sm font-semibold text-accent-gold hover:bg-accent-gold/10 disabled:opacity-50"
+              >
+                Retry prep (ATAs + chunk 1)
+              </button>
+            ) : null}
             {selling && chainMints.length > 0 ? (
               <button
                 type="button"

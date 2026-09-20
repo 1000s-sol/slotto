@@ -1,10 +1,15 @@
 import type { AnchorWallet } from "@solana/wallet-adapter-react";
+import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { Connection, PublicKey } from "@solana/web3.js";
 
 import type { LotteryDrawView } from "./chain";
 import { TICKETS_PER_CHUNK } from "./constants";
 import { ensureTeamTokenAta } from "./ensure-team-token-ata";
 import { initTicketChunk } from "./init-ticket-chunk";
+import {
+  buyerAssociatedTokenAddress,
+  resolveMintTokenProgram,
+} from "./mint-token-program";
 import { globalConfigPda, ticketChunkPda } from "./pdas";
 import { createLotteryReadOnlyProgram } from "./program";
 import { ticketChunkIndicesForRange } from "./ticket-chunks";
@@ -34,6 +39,20 @@ async function chunkInitialized(
 ): Promise<boolean> {
   const info = await connection.getAccountInfo(chunkPk, "confirmed");
   return info != null && info.data.length > 0;
+}
+
+async function teamAtaExists(
+  connection: Connection,
+  mint: PublicKey,
+  teamVault: PublicKey,
+  resolveTokenProgram?: (mint: PublicKey) => Promise<PublicKey>,
+): Promise<boolean> {
+  const tokenProgram = resolveTokenProgram
+    ? await resolveTokenProgram(mint)
+    : ((await resolveMintTokenProgram(connection, mint)) ?? TOKEN_PROGRAM_ID);
+  const ata = buyerAssociatedTokenAddress(mint, teamVault, tokenProgram);
+  const info = await connection.getAccountInfo(ata, "confirmed");
+  return info != null;
 }
 
 /**
@@ -68,6 +87,16 @@ export async function ensureDrawReadyForSales(
     draw.splMints.map((r) => new PublicKey(r.mint));
 
   for (const mint of mints) {
+    if (
+      await teamAtaExists(
+        connection,
+        mint,
+        cfg.teamVault,
+        opts?.walletSendOpts?.resolveTokenProgram,
+      )
+    ) {
+      continue;
+    }
     const sig = await ensureTeamTokenAta(
       connection,
       authority,
@@ -94,6 +123,7 @@ export async function ensureDrawReadyForSales(
       programId,
       draw.draw,
       idx,
+      opts?.walletSendOpts,
     );
     chunkSigs.push(sig);
   }
@@ -108,6 +138,7 @@ export async function ensureTicketChunksForPurchase(
   programId: PublicKey,
   draw: LotteryDrawView,
   count: number,
+  sendOpts?: Parameters<typeof ensureTeamTokenAta>[4],
 ): Promise<string[]> {
   const base = draw.totalTickets;
   const indices = ticketChunkIndicesToFund(base, count);
@@ -117,7 +148,14 @@ export async function ensureTicketChunksForPurchase(
     const chunkPk = ticketChunkPda(programId, draw.draw, idx);
     if (await chunkInitialized(connection, chunkPk)) continue;
     sigs.push(
-      await initTicketChunk(connection, authority, programId, draw.draw, idx),
+      await initTicketChunk(
+        connection,
+        authority,
+        programId,
+        draw.draw,
+        idx,
+        sendOpts,
+      ),
     );
   }
   return sigs;
