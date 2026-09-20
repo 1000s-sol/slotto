@@ -4,6 +4,9 @@ import {
   lotteryClusterLabel,
 } from "@/lib/lottery/cluster";
 
+/** Settlement crank can take multiple VRF passes; align with /api/lottery/crank. */
+export const maxDuration = 120;
+
 export default function AdminLotteriesPage() {
   const clusterLabel = lotteryClusterLabel(lotteryCluster());
 
