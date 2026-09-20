@@ -222,6 +222,31 @@ function isOracleSelectionError(e: unknown): boolean {
   );
 }
 
+export { isOracleSelectionError };
+
+/** True when a randomness account has never been committed (safe to commitIx). */
+export async function isFreshUncommittedRandomness(
+  connection: Connection,
+  payer: Keypair,
+  randomnessAccount: PublicKey,
+): Promise<boolean> {
+  try {
+    const sb = await loadSwitchboardSdk();
+    const { AnchorUtils, Randomness } = sb;
+    const sbProgram = await AnchorUtils.loadProgramFromConnection(
+      connection,
+      switchboardWalletFromKeypair(payer),
+    );
+    const data = await new Randomness(
+      sbProgram,
+      randomnessAccount,
+    ).loadData();
+    return !data?.seedSlot || Number(data.seedSlot) === 0;
+  } catch {
+    return false;
+  }
+}
+
 /** Switchboard RandomnessCommit rejected the oracle quote (stale / wrong oracle). */
 export function isInvalidQuoteError(e: unknown): boolean {
   const msg = (e instanceof Error ? e.message : String(e)).toLowerCase();
@@ -233,6 +258,14 @@ export function isInvalidQuoteError(e: unknown): boolean {
     msg.includes("error code: invalidquote")
   );
 }
+
+/**
+ * Known-reachable mainnet oracle gateway host (draw #19/#20). Prefer this even
+ * when Crossbar says "no eligible" and when Vercel egress flakes on probes.
+ */
+const KNOWN_HEALTHY_MAINNET_ORACLE = new PublicKey(
+  "5wCwgqgPtFB9jwjZxLVkM717SGaZKmXXpvXYsyLehu69",
+);
 
 /**
  * Crossbar "eligible oracle" filtering is what blocked draw #14. If it fails
@@ -254,6 +287,22 @@ async function listCommitIxBuilders(
   queue: PublicKey,
 ): Promise<Array<{ label: string; build: () => Promise<unknown> }>> {
   const builders: Array<{ label: string; build: () => Promise<unknown> }> = [];
+  const data = await randomness.loadData();
+  const authority = data.authority as PublicKey;
+
+  const pushOracle = (label: string, oracle: PublicKey) => {
+    if (builders.some((b) => b.label === label)) return;
+    builders.push({
+      label,
+      build: () => randomness.commitIx(queue, authority, oracle),
+    });
+  };
+
+  // Always try the known-good host first (skips Crossbar eligibility filter).
+  pushOracle(
+    `known-healthy-${KNOWN_HEALTHY_MAINNET_ORACLE.toBase58().slice(0, 8)}`,
+    KNOWN_HEALTHY_MAINNET_ORACLE,
+  );
 
   try {
     const queueAccount = new sb.Queue(sbProgram, queue);
@@ -264,24 +313,17 @@ async function listCommitIxBuilders(
         sbProgram,
         oracleKeys,
       );
-      const data = await randomness.loadData();
-      const authority = data.authority as PublicKey;
-      // Healthy gateways only — a successful commit to a 503 host is useless.
       for (let i = 0; i < healthy.length; i += 1) {
         const oracle = healthy[i]!;
-        builders.push({
-          label: `healthy-${i}-${oracle.toBase58().slice(0, 8)}`,
-          build: () => randomness.commitIx(queue, authority, oracle),
-        });
+        pushOracle(`healthy-${i}-${oracle.toBase58().slice(0, 8)}`, oracle);
       }
-      // Last resorts (may still InvalidQuote / 503 — only if nothing healthy).
-      if (builders.length === 0) {
+      // Only if probes found nobody healthy (egress flake) — still try on-chain
+      // keys with an explicit oracle so we never depend on Crossbar alone.
+      if (healthy.length === 0) {
         for (let i = 0; i < unhealthy.length; i += 1) {
           const oracle = unhealthy[i]!;
-          builders.push({
-            label: `unhealthy-${i}-${oracle.toBase58().slice(0, 8)}`,
-            build: () => randomness.commitIx(queue, authority, oracle),
-          });
+          if (oracle.equals(KNOWN_HEALTHY_MAINNET_ORACLE)) continue;
+          pushOracle(`onchain-${i}-${oracle.toBase58().slice(0, 8)}`, oracle);
         }
       }
     }
@@ -292,7 +334,7 @@ async function listCommitIxBuilders(
     );
   }
 
-  // Crossbar last — it re-picked the dead 141.95.98.113 oracle on draw #20.
+  // Crossbar last — often returns "No eligible randomness oracle candidates".
   builders.push({
     label: "crossbar-default",
     build: () => randomness.commitIx(queue),
@@ -322,8 +364,9 @@ async function partitionOraclesByGatewayHealth(
         const od = await new Oracle(sbProgram, key).loadData();
         const url = String.fromCharCode(...od.gatewayUri).replace(/\0+$/, "");
         if (!url) return { key, healthy: false };
-        const ok = await gatewayResponds(url);
-        return { key, healthy: ok };
+        const status = await probeGateway(url);
+        // "unknown" (timeout) — do not rank as healthy; known-healthy is first anyway.
+        return { key, healthy: status === "up" };
       } catch {
         return { key, healthy: false };
       }
@@ -352,15 +395,25 @@ async function preferOraclesWithHealthyGateways(
 }
 
 async function gatewayResponds(gatewayUrl: string): Promise<boolean> {
+  const status = await probeGateway(gatewayUrl);
+  return status === "up";
+}
+
+/** Distinguish confirmed-down (503) from probe/network unknown (do not treat as dead). */
+async function probeGateway(
+  gatewayUrl: string,
+): Promise<"up" | "down" | "unknown"> {
   try {
     const res = await fetch(`${gatewayUrl.replace(/\/$/, "")}/gateway/api/v1`, {
       method: "GET",
       signal: AbortSignal.timeout(1_500),
     });
-    // Any non-network response means the host is up (401/404/405 still fine).
-    return res.status !== 502 && res.status !== 503 && res.status !== 504;
+    if (res.status === 502 || res.status === 503 || res.status === 504) {
+      return "down";
+    }
+    return "up";
   } catch {
-    return false;
+    return "unknown";
   }
 }
 
@@ -412,8 +465,10 @@ export async function isAssignedOracleGatewayDown(
   const od = await new Oracle(sbProgram, data.oracle).loadData();
   const gatewayUrl = String.fromCharCode(...od.gatewayUri).replace(/\0+$/, "");
   if (!gatewayUrl) return { down: true, gatewayUrl: "" };
-  const down = !(await gatewayResponds(gatewayUrl));
-  return { down, gatewayUrl };
+  // Only treat confirmed 503/502/504 as down. Probe timeouts must not trigger
+  // reset_vrf (Vercel egress flakes looked like "all oracles dead").
+  const status = await probeGateway(gatewayUrl);
+  return { down: status === "down", gatewayUrl };
 }
 
 /**

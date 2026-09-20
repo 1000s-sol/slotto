@@ -14,7 +14,9 @@ import type { SlottoLotteryProgram } from "./program";
 import {
   createDrawRandomnessAccount,
   isAssignedOracleGatewayDown,
+  isFreshUncommittedRandomness,
   isInvalidQuoteError,
+  isOracleSelectionError,
   requestSwitchboardVrf,
   resetDrawVrf,
   revealSwitchboardVrf,
@@ -319,16 +321,32 @@ export async function crankDraw(
         );
       }
       /**
-       * One RandomnessInit per draw. Reuse env override, then DB, then create
-       * once and persist. Creating on every failed crank was the SOL drain.
+       * Prefer a fresh unused Randomness account. Reusing a prior commit that
+       * bound a dead oracle (draw #20) makes Crossbar report "no eligible"
+       * and leaves Settle stuck in SalesClosed.
        */
       const existing =
         process.env.LOTTERY_RANDOMNESS_ACCOUNT?.trim() ||
         (await getStoredDrawRandomness(drawId));
+      let reuseOk = false;
       if (existing) {
-        switchboardRandomness = new PublicKey(existing);
-        actions.push(`reuse_switchboard_randomness ${existing}`);
-      } else {
+        const pk = new PublicKey(existing);
+        const fresh = await isFreshUncommittedRandomness(
+          connection,
+          keeper,
+          pk,
+        );
+        if (fresh) {
+          switchboardRandomness = pk;
+          reuseOk = true;
+          actions.push(`reuse_switchboard_randomness ${existing}`);
+        } else {
+          actions.push(
+            `skip_stale_switchboard_randomness ${existing} (already committed or unreadable)`,
+          );
+        }
+      }
+      if (!reuseOk) {
         const keeperLamports = await connection.getBalance(
           keeper.publicKey,
           "confirmed",
@@ -351,6 +369,9 @@ export async function crankDraw(
           `stored_switchboard_randomness ${switchboardRandomness.toBase58()}`,
         );
       }
+      if (!switchboardRandomness) {
+        throw new Error("Switchboard randomness account missing after create/reuse");
+      }
       actions.push("commit_vrf + request_vrf");
       try {
         const reqSig = await requestSwitchboardVrf(
@@ -362,12 +383,11 @@ export async function crankDraw(
         );
         signatures.push(reqSig);
       } catch (e) {
-        // Stored randomness can be stuck with quotes that always InvalidQuote.
-        // One fresh RandomnessInit (not every crank) usually clears it.
-        if (
-          !isInvalidQuoteError(e) ||
-          process.env.LOTTERY_RANDOMNESS_ACCOUNT?.trim()
-        ) {
+        // Stale / Crossbar-empty / InvalidQuote — one fresh RandomnessInit.
+        const canRecreate =
+          (isInvalidQuoteError(e) || isOracleSelectionError(e)) &&
+          !process.env.LOTTERY_RANDOMNESS_ACCOUNT?.trim();
+        if (!canRecreate) {
           throw e;
         }
         const keeperLamports = await connection.getBalance(
@@ -376,11 +396,11 @@ export async function crankDraw(
         );
         if (keeperLamports < MIN_KEEPER_LAMPORTS_FOR_CREATE) {
           throw new Error(
-            `Switchboard InvalidQuote on commit, and keeper underfunded to recreate randomness (${keeperLamports} lamports, need ${MIN_KEEPER_LAMPORTS_FOR_CREATE}).`,
+            `Switchboard commit failed (${e instanceof Error ? e.message.slice(0, 80) : "error"}), and keeper underfunded to recreate randomness (${keeperLamports} lamports, need ${MIN_KEEPER_LAMPORTS_FOR_CREATE}).`,
           );
         }
         actions.push(
-          "InvalidQuote on commit — recreate_switchboard_randomness once",
+          "commit failed — recreate_switchboard_randomness once",
         );
         switchboardRandomness = await createDrawRandomnessAccount(
           connection,
@@ -393,7 +413,7 @@ export async function crankDraw(
         actions.push(
           `stored_switchboard_randomness ${switchboardRandomness.toBase58()}`,
         );
-        actions.push("commit_vrf + request_vrf (after InvalidQuote recreate)");
+        actions.push("commit_vrf + request_vrf (after recreate)");
         const reqSig = await requestSwitchboardVrf(
           connection,
           program,
