@@ -53,8 +53,8 @@ async function requireAdmin() {
 }
 
 /**
- * Admin one-click settle: one crank pass so the button returns quickly.
- * Click again after ~10s if still VrfRequested / SalesClosed.
+ * Admin settle: a few passes so one click can request VRF then settle after
+ * the oracle reveals — without hanging for minutes or auto-resetting.
  */
 export async function adminSettleDrawAction(
   drawId: number,
@@ -65,9 +65,9 @@ export async function adminSettleDrawAction(
   }
   try {
     return await runTriggerLotteryCrank(drawId, {
-      maxPasses: 1,
-      vrfWaitMs: 0,
-      stepWaitMs: 0,
+      maxPasses: 5,
+      vrfWaitMs: 6_000,
+      stepWaitMs: 2_000,
     });
   } catch (e) {
     return { ok: false, error: lotteryRpcErrorText(e) };

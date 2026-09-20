@@ -13,10 +13,8 @@ import { createLotteryReadOnlyProgram } from "./program";
 import type { SlottoLotteryProgram } from "./program";
 import {
   createDrawRandomnessAccount,
-  isAssignedOracleGatewayDown,
   isInvalidQuoteError,
   requestSwitchboardVrf,
-  resetDrawVrf,
   revealSwitchboardVrf,
   settleDrawWithSwitchboard,
 } from "./switchboard-crank";
@@ -330,104 +328,29 @@ export async function crankDraw(
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         const lower = msg.toLowerCase();
-        // Normal: oracle has not revealed yet. Wait for the next crank pass.
-        // Do NOT reset_vrf here — gateway health flaps were wiping VrfRequested
-        // right after a successful RequestVrf (draw #20 burn loop).
+        // Never auto reset_vrf here. Draw #20 was RequestVrf → ResetVrf in a
+        // loop (InvalidSecp / gateway flaps). Leave VrfRequested and retry.
+        actions.push(`settle waiting (${msg.slice(0, 160)})`);
+        draw = (await fetchDrawById(connection, programId, drawId))!;
         if (
           lower.includes("not resolved yet") ||
           lower.includes("not ready to reveal") ||
           lower.includes("randomness value missing") ||
-          lower.includes("randomness not resolved")
-        ) {
-          actions.push(`settle waiting (${msg})`);
-          draw = (await fetchDrawById(connection, programId, drawId))!;
-          return {
-            drawId,
-            initialState,
-            finalState: stateLabel(draw.state),
-            actions,
-            signatures,
-            winner: draw.winner,
-            winningTicketId: draw.winningTicketId,
-          };
-        }
-        // Concurrent reset / race: treat as wait, not hard fail.
-        if (lower.includes("is not vrfrequested")) {
-          actions.push(`settle skipped (${msg})`);
-          draw = (await fetchDrawById(connection, programId, drawId))!;
-          return {
-            drawId,
-            initialState,
-            finalState: stateLabel(draw.state),
-            actions,
-            signatures,
-            winner: draw.winner,
-            winningTicketId: draw.winningTicketId,
-          };
-        }
-        // Stuck after reveal with wrong/dead oracle signature — then reset.
-        if (
+          lower.includes("randomness not resolved") ||
+          lower.includes("is not vrfrequested") ||
           lower.includes("invalidsecpsignature") ||
           lower.includes("invalid secp") ||
-          lower.includes("gateway reveal failed")
+          lower.includes("gateway")
         ) {
-          const { down, gatewayUrl } = await isAssignedOracleGatewayDown(
-            connection,
-            keeper,
-            randomnessAccount,
-          );
-          if (down || lower.includes("invalidsecpsignature") || lower.includes("invalid secp")) {
-            actions.push(
-              `oracle reveal unusable (${gatewayUrl || "unknown"}): ${msg.slice(0, 120)} — reset_vrf + re-request`,
-            );
-            const resetSig = await resetDrawVrf(
-              program,
-              programId,
-              keeper,
-              draw.draw,
-            );
-            signatures.push(resetSig);
-            const keeperLamports = await connection.getBalance(
-              keeper.publicKey,
-              "confirmed",
-            );
-            if (keeperLamports < MIN_KEEPER_LAMPORTS_FOR_CREATE) {
-              throw new Error(
-                `Keeper underfunded for Switchboard RandomnessInit after reset_vrf (${keeperLamports} lamports, need ${MIN_KEEPER_LAMPORTS_FOR_CREATE}).`,
-              );
-            }
-            actions.push("create_switchboard_randomness (recovery)");
-            const freshRandomness = await createDrawRandomnessAccount(
-              connection,
-              keeper,
-            );
-            await storeDrawRandomness(drawId, freshRandomness.toBase58());
-            actions.push(
-              `stored_switchboard_randomness ${freshRandomness.toBase58()}`,
-            );
-            actions.push("commit_vrf + request_vrf (recovery)");
-            const reqSig = await requestSwitchboardVrf(
-              connection,
-              program,
-              keeper,
-              draw.draw,
-              freshRandomness,
-            );
-            signatures.push(reqSig);
-            draw = (await fetchDrawById(connection, programId, drawId))!;
-            actions.push(
-              "recovery requested — re-crank shortly to reveal + settle",
-            );
-            return {
-              drawId,
-              initialState,
-              finalState: stateLabel(draw.state),
-              actions,
-              signatures,
-              winner: draw.winner,
-              winningTicketId: draw.winningTicketId,
-            };
-          }
+          return {
+            drawId,
+            initialState,
+            finalState: stateLabel(draw.state),
+            actions,
+            signatures,
+            winner: draw.winner,
+            winningTicketId: draw.winningTicketId,
+          };
         }
         throw e;
       }
