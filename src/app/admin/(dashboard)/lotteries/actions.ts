@@ -53,8 +53,8 @@ async function requireAdmin() {
 }
 
 /**
- * Admin settle: a few passes so one click can request VRF then settle after
- * the oracle reveals — without hanging for minutes or auto-resetting.
+ * Admin settle: enough passes to request VRF and wait for oracle reveal.
+ * Homepage auto-settle is disabled — this is the only live settle path.
  */
 export async function adminSettleDrawAction(
   drawId: number,
@@ -65,9 +65,9 @@ export async function adminSettleDrawAction(
   }
   try {
     return await runTriggerLotteryCrank(drawId, {
-      maxPasses: 5,
-      vrfWaitMs: 6_000,
-      stepWaitMs: 2_000,
+      maxPasses: 8,
+      vrfWaitMs: 8_000,
+      stepWaitMs: 3_000,
     });
   } catch (e) {
     return { ok: false, error: lotteryRpcErrorText(e) };

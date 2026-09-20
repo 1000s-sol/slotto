@@ -331,25 +331,19 @@ async function gatewayResponds(gatewayUrl: string): Promise<boolean> {
 }
 
 /**
- * Authority recovery: VrfRequested → SalesClosed and clear vrf_request so we
- * can bind a fresh randomness account (e.g. when the assigned oracle gateway
- * is down and cannot sign reveal).
+ * Authority recovery: VrfRequested → SalesClosed and clear vrf_request.
+ * DISABLED — automatic use wiped live settles (draw #20). Keep the on-chain
+ * instruction for manual ops scripts only; do not call from the crank.
  */
 export async function resetDrawVrf(
-  program: SlottoLotteryProgram,
-  programId: PublicKey,
-  authority: Keypair,
-  drawPubkey: PublicKey,
+  _program: SlottoLotteryProgram,
+  _programId: PublicKey,
+  _authority: Keypair,
+  _drawPubkey: PublicKey,
 ): Promise<string> {
-  return program.methods
-    .resetVrf()
-    .accounts({
-      authority: authority.publicKey,
-      globalConfig: globalConfigPda(programId),
-      draw: drawPubkey,
-    })
-    .signers([authority])
-    .rpc();
+  throw new Error(
+    "reset_vrf is disabled in the app crank (it was wiping VrfRequested). Settle by reveal+retry only.",
+  );
 }
 
 /** True when the oracle assigned to this randomness account's gateway is down. */

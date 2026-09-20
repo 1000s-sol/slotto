@@ -5,6 +5,7 @@ import { lotteryProgramId } from "./config";
 import { drawNeedsSettlement } from "./draw-settlement";
 import { loadLotteryKeeperKeypair } from "./keeper-wallet";
 import { allowUiSettlementCrank } from "./public-crank";
+import { lotteryTestMode } from "./test-mode";
 import { runTriggerLotteryCrank } from "./trigger-lottery-crank-impl";
 import { withLotteryServerRpc } from "./server-rpc";
 import { lotteryRpcErrorText } from "./user-facing-error";

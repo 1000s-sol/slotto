@@ -463,9 +463,9 @@ export function LotteryCurrentDrawSpl({
                 Draw #{drawId} needs settlement
               </p>
               <p className="mt-1 text-xs text-muted">
-                On-chain state: {stateLabel}. One click runs request → wait for
-                oracle → settle. Leave it alone until it finishes or errors —
-                do not spam.
+                On-chain state: {stateLabel}. Click once and wait up to ~1
+                minute. Homepage auto-settle is off so it cannot fight this
+                button.
               </p>
             </div>
             <button
