@@ -5,6 +5,7 @@ export {
   getDrawDisplayMeta,
   getDrawDisplayMetaMap,
   isProductionDrawVisible,
+  promoteOnChainDrawToProduction,
   registerOnChainDrawMeta,
   seedDefaultDrawDisplayMeta,
 } from "./draw-display-db";
