@@ -419,25 +419,29 @@ export function LotteryCurrentDrawSpl({
     setSettleMsg(null);
     try {
       const result = await adminSettleDrawAction(drawId);
-      await onDrawChange?.();
-      if (result.ok) {
+      const terminal =
+        result.finalState === "Settled" || result.finalState === "Refunded";
+      if (result.ok && terminal) {
         setSettleTone("ok");
-        const stateNote = result.finalState
-          ? ` Final state: ${result.finalState}.`
-          : "";
         setSettleMsg(
-          result.finalState === "Settled" || result.finalState === "Refunded"
-            ? `Draw #${drawId} settled.${stateNote}`
-            : `Crank ran for draw #${drawId}.${stateNote} Click Settle again if still awaiting VRF.`,
+          `Draw #${drawId} ${result.finalState === "Refunded" ? "refunded" : "settled"}. Final state: ${result.finalState}.`,
+        );
+      } else if (result.error) {
+        setSettleTone("error");
+        setSettleMsg(formatLotterySettlementError(result.error));
+      } else if (result.ok) {
+        setSettleTone("ok");
+        setSettleMsg(
+          `Crank ran for draw #${drawId}${
+            result.finalState ? ` (now ${result.finalState})` : ""
+          }. Click Settle again if still awaiting VRF.`,
         );
       } else {
         setSettleTone("error");
-        setSettleMsg(
-          formatLotterySettlementError(
-            result.error ?? "Settle crank failed",
-          ),
-        );
+        setSettleMsg("Settle crank failed with no error detail.");
       }
+      // Soft refresh after message is set so feedback stays visible.
+      await onDrawChange?.();
     } catch (e) {
       setSettleTone("error");
       setSettleMsg(formatLotterySettlementError(e));

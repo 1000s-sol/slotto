@@ -140,7 +140,10 @@ export async function runTriggerLotteryCrank(
 
   const last = lastCrankAt.get(drawId) ?? 0;
   if (Date.now() - last < CRANK_COOLDOWN_MS) {
-    return { ok: true };
+    return {
+      ok: false,
+      error: "Settle already running or just finished — wait a few seconds and click again.",
+    };
   }
 
   const run = crankDrawOnce(drawId);
