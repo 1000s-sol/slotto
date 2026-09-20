@@ -201,31 +201,30 @@ async function preferOraclesWithHealthyGateways(
       loadData: () => Promise<{ gatewayUri: number[] }>;
     };
   };
-  const healthy: PublicKey[] = [];
-  const unknown: PublicKey[] = [];
-  for (const key of oracleKeys) {
-    try {
-      const od = await new Oracle(sbProgram, key).loadData();
-      const url = String.fromCharCode(...od.gatewayUri).replace(/\0+$/, "");
-      if (!url) {
-        unknown.push(key);
-        continue;
+  // Cap + parallel probes — sequential 4s timeouts were hanging admin Settle.
+  const limited = oracleKeys.slice(0, 8);
+  const ranked = await Promise.all(
+    limited.map(async (key) => {
+      try {
+        const od = await new Oracle(sbProgram, key).loadData();
+        const url = String.fromCharCode(...od.gatewayUri).replace(/\0+$/, "");
+        if (!url) return { key, score: 1 };
+        const ok = await gatewayResponds(url);
+        return { key, score: ok ? 0 : 1 };
+      } catch {
+        return { key, score: 2 };
       }
-      const ok = await gatewayResponds(url);
-      if (ok) healthy.push(key);
-      else unknown.push(key);
-    } catch {
-      unknown.push(key);
-    }
-  }
-  return [...healthy, ...unknown];
+    }),
+  );
+  ranked.sort((a, b) => a.score - b.score);
+  return ranked.map((r) => r.key);
 }
 
 async function gatewayResponds(gatewayUrl: string): Promise<boolean> {
   try {
     const res = await fetch(`${gatewayUrl.replace(/\/$/, "")}/gateway/api/v1`, {
       method: "GET",
-      signal: AbortSignal.timeout(4_000),
+      signal: AbortSignal.timeout(1_500),
     });
     // Any non-network response means the host is up (401/404/405 still fine).
     return res.status !== 502 && res.status !== 503 && res.status !== 504;
@@ -307,12 +306,9 @@ export async function requestSwitchboardVrf(
   );
 
   const randomness = new Randomness(sbProgram, randomnessAccount);
-  const builders = await listCommitIxBuilders(
-    sb,
-    sbProgram,
-    randomness,
-    queue,
-  );
+  const builders = (
+    await listCommitIxBuilders(sb, sbProgram, randomness, queue)
+  ).slice(0, 6);
   if (builders.length === 0) {
     throw new Error("Switchboard commitIx missing (SDK / queue mismatch)");
   }

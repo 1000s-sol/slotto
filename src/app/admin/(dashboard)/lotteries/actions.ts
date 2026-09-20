@@ -53,8 +53,8 @@ async function requireAdmin() {
 }
 
 /**
- * Admin one-click settle: runs the keeper crank (close → VRF → settle) for a draw.
- * Bypasses the public UI crank flag; still requires an authenticated admin session.
+ * Admin one-click settle: one crank pass so the button returns quickly.
+ * Click again after ~10s if still VrfRequested / SalesClosed.
  */
 export async function adminSettleDrawAction(
   drawId: number,
@@ -64,7 +64,11 @@ export async function adminSettleDrawAction(
     return { ok: false, error: "Invalid draw id" };
   }
   try {
-    return await runTriggerLotteryCrank(drawId);
+    return await runTriggerLotteryCrank(drawId, {
+      maxPasses: 1,
+      vrfWaitMs: 0,
+      stepWaitMs: 0,
+    });
   } catch (e) {
     return { ok: false, error: lotteryRpcErrorText(e) };
   }

@@ -463,8 +463,9 @@ export function LotteryCurrentDrawSpl({
                 Draw #{drawId} needs settlement
               </p>
               <p className="mt-1 text-xs text-muted">
-                On-chain state: {stateLabel}. Runs the keeper crank (close sales
-                → VRF → settle). May need a second click while VRF is pending.
+                On-chain state: {stateLabel}. One crank step per click (close →
+                VRF → settle). If it says VRF requested, wait ~10s and click
+                again — do not spam.
               </p>
             </div>
             <button
