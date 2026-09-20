@@ -335,6 +335,13 @@ export function formatLotterySettlementError(error: unknown): string {
     return "Auto-settlement is not configured on Vercel (set LOTTERY_KEEPER_SECRET_KEY). An admin can run: npm run lottery:settle -- <drawId>";
   }
   if (
+    /invalidquote/i.test(text) ||
+    text.includes("0x1771") ||
+    text.includes("6001")
+  ) {
+    return "Switchboard VRF commit failed (InvalidQuote). Click Settle again — the keeper will rotate oracles / recreate randomness.";
+  }
+  if (
     text.includes("invalid api key") ||
     text.includes("-32401") ||
     text.includes("401 Unauthorized")
