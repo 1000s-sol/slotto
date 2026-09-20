@@ -463,11 +463,10 @@ export function LotteryCurrentDrawSpl({
                 Draw #{drawId} needs settlement
               </p>
               <p className="mt-1 text-xs text-muted">
-                On-chain state: {stateLabel}. Click once and wait up to ~1
-                minute. If Switchboard oracles are down, Settle uses
-                authority force_settle (after the program upgrade is
-                deployed). Homepage auto-settle is off so it cannot fight
-                this button.
+                On-chain state: {stateLabel}. Homepage / cron auto-settle
+                should run when sales close; use this if it stalls. One click
+                can take up to ~1 minute. With Switchboard down, the keeper
+                uses authority force_settle.
               </p>
             </div>
             <button

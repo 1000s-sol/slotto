@@ -53,8 +53,8 @@ async function requireAdmin() {
 }
 
 /**
- * Admin settle: enough passes to request VRF and wait for oracle reveal.
- * Homepage auto-settle is disabled — this is the only live settle path.
+ * Admin settle backup: same keeper path as homepage auto-settle / GitHub cron.
+ * Prefer waiting for auto-settle; use this if the draw stays open after close.
  */
 export async function adminSettleDrawAction(
   drawId: number,
