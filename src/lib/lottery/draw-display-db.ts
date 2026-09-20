@@ -94,6 +94,41 @@ export async function formatDrawLabelForId(onChainDrawId: number): Promise<strin
   return formatDrawDisplayLabel(meta);
 }
 
+/**
+ * Flip a draw that was registered while LOTTERY_TEST_MODE=true to a public
+ * PRODUCTION label (#N). Idempotent if already PRODUCTION.
+ */
+export async function promoteOnChainDrawToProduction(
+  onChainDrawId: number,
+): Promise<DrawDisplayMeta> {
+  const existing = await getDrawDisplayMeta(onChainDrawId);
+  if (existing?.kind === "PRODUCTION" && existing.displayNumber != null) {
+    return existing;
+  }
+
+  const agg = await prisma.lotteryOnChainDrawMeta.aggregate({
+    where: { kind: "PRODUCTION", displayNumber: { not: null } },
+    _max: { displayNumber: true },
+  });
+  const displayNumber = (agg._max.displayNumber ?? 0) + 1;
+
+  const row = await prisma.lotteryOnChainDrawMeta.upsert({
+    where: { onChainDrawId },
+    create: {
+      onChainDrawId,
+      kind: "PRODUCTION",
+      displayNumber,
+    },
+    update: { kind: "PRODUCTION", displayNumber },
+  });
+
+  return {
+    onChainDrawId: row.onChainDrawId,
+    kind: row.kind,
+    displayNumber: row.displayNumber,
+  };
+}
+
 /** Past winners / winner hero: production draws with a winner only. */
 export async function isProductionDrawVisible(
   onChainDrawId: number,

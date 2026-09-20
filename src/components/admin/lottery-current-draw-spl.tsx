@@ -17,6 +17,7 @@ import {
   adminMintsExistOnClusterAction,
   adminPostDiscordDrawLiveAction,
   adminPostDrawLiveTweetAction,
+  adminPromoteDrawToProductionAction,
   adminRepairDrawSplFromChainAction,
   adminSaveSplRowsForDrawAction,
   adminSettleDrawAction,
@@ -520,6 +521,35 @@ export function LotteryCurrentDrawSpl({
           Edit draw #{drawId} — SPL settings
         </h2>
         <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={busy}
+            className="rounded-lg border border-accent-gold/50 px-3 py-1.5 text-sm font-semibold text-accent-gold hover:bg-accent-gold/10 disabled:opacity-50"
+            onClick={async () => {
+              setBusy(true);
+              setMsg(null);
+              try {
+                const res = await adminPromoteDrawToProductionAction(drawId);
+                if (res.ok) {
+                  setMsgTone("ok");
+                  setMsg(
+                    `Relabeled as ${res.displayLabel} (was TEST-${drawId}). Refresh the homepage.`,
+                  );
+                  await onDrawChange?.();
+                } else {
+                  setMsgTone("error");
+                  setMsg(res.error);
+                }
+              } catch (e) {
+                setMsgTone("error");
+                setMsg(formatLotteryAdminError(e));
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            Promote label to production
+          </button>
           <button
             type="button"
             disabled={busy}

@@ -42,6 +42,7 @@ import type { SplMintDraft } from "@/lib/lottery/spl-types";
 import {
   formatDrawDisplayLabel,
   registerOnChainDrawMeta,
+  promoteOnChainDrawToProduction,
 } from "@/lib/lottery/draw-display-db";
 import type { CrankTriggerResult } from "@/lib/lottery/trigger-crank-action";
 import { runTriggerLotteryCrank } from "@/lib/lottery/trigger-lottery-crank-impl";
@@ -81,6 +82,28 @@ export async function adminRegisterDrawMetaAction(
   await requireAdmin();
   const meta = await registerOnChainDrawMeta(drawId);
   return { displayLabel: formatDrawDisplayLabel(meta) };
+}
+
+/**
+ * Relabel a draw that was created under LOTTERY_TEST_MODE=true to public #N.
+ * Does not change on-chain state — only the Neon display row.
+ */
+export async function adminPromoteDrawToProductionAction(
+  drawId: number,
+): Promise<{ ok: true; displayLabel: string } | { ok: false; error: string }> {
+  await requireAdmin();
+  if (!Number.isFinite(drawId) || drawId < 0) {
+    return { ok: false, error: "Invalid draw id" };
+  }
+  try {
+    const meta = await promoteOnChainDrawToProduction(drawId);
+    return { ok: true, displayLabel: formatDrawDisplayLabel(meta) };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "promote failed",
+    };
+  }
 }
 
 /** Official @slottogg_ "draw is live" post (no-op in test mode or when X not configured). */
