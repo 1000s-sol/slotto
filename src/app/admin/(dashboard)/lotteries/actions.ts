@@ -46,9 +46,6 @@ import {
 import type { CrankTriggerResult } from "@/lib/lottery/trigger-crank-action";
 import { runTriggerLotteryCrank } from "@/lib/lottery/trigger-lottery-crank-impl";
 
-/** Settlement can take multiple VRF passes; align with /api/lottery/crank. */
-export const maxDuration = 120;
-
 async function requireAdmin() {
   const admin = await currentAdminAddress();
   if (!admin) throw new Error("Unauthorized");
