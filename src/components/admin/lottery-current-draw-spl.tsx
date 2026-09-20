@@ -19,6 +19,7 @@ import {
   adminPostDrawLiveTweetAction,
   adminRepairDrawSplFromChainAction,
   adminSaveSplRowsForDrawAction,
+  adminSettleDrawAction,
 } from "@/app/admin/(dashboard)/lotteries/actions";
 import { splDbMintsMatchChain } from "@/lib/lottery/sync-draw-spl-from-chain";
 import { lotteryWalletSendOptsForAdmin } from "@/lib/lottery/lottery-admin-wallet-client";
@@ -28,7 +29,11 @@ import { DrawState } from "@/lib/lottery/constants";
 import type { LotteryDrawView, SplMintRowView } from "@/lib/lottery/chain";
 import { lotteryProgramId } from "@/lib/lottery/config";
 import { addSplMintToDraw } from "@/lib/lottery/add-spl-mint-to-draw";
-import { formatLotteryAdminError } from "@/lib/lottery/user-facing-error";
+import { drawNeedsSettlement } from "@/lib/lottery/draw-settlement";
+import {
+  formatLotteryAdminError,
+  formatLotterySettlementError,
+} from "@/lib/lottery/user-facing-error";
 import {
   walletSendErrorSignature,
 } from "@/lib/lottery/wallet-send-transaction";
@@ -38,6 +43,14 @@ import {
   validateProjectTokenDrawSettings,
   type ProjectTokenDrawSettings,
 } from "@/components/admin/project-token-draw-allocator";
+
+const DRAW_STATE_LABEL: Record<number, string> = {
+  [DrawState.Selling]: "Selling",
+  [DrawState.SalesClosed]: "SalesClosed",
+  [DrawState.VrfRequested]: "VrfRequested",
+  [DrawState.Settled]: "Settled",
+  [DrawState.Refunded]: "Refunded",
+};
 
 type DbRow = Awaited<ReturnType<typeof adminFetchDrawSplRowsAction>>[number];
 
@@ -113,6 +126,21 @@ export function LotteryCurrentDrawSpl({
   const [msg, setMsg] = useState<string | null>(null);
   const [msgTone, setMsgTone] = useState<"ok" | "error">("ok");
   const [busy, setBusy] = useState(false);
+  const [settleBusy, setSettleBusy] = useState(false);
+  const [settleMsg, setSettleMsg] = useState<string | null>(null);
+  const [settleTone, setSettleTone] = useState<"ok" | "error">("ok");
+  const [nowSec, setNowSec] = useState(() => Math.floor(Date.now() / 1000));
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setNowSec(Math.floor(Date.now() / 1000));
+    }, 1_000);
+    return () => clearInterval(id);
+  }, []);
+
+  const needsSettlement = drawNeedsSettlement(draw, nowSec);
+  const stateLabel =
+    DRAW_STATE_LABEL[drawState] ?? `unknown(${drawState})`;
 
   const hasEdits = useMemo(() => {
     return rows.some((r) => {
@@ -386,11 +414,76 @@ export function LotteryCurrentDrawSpl({
     return m;
   }, [chainMints]);
 
+  const onSettleNow = async () => {
+    setSettleBusy(true);
+    setSettleMsg(null);
+    try {
+      const result = await adminSettleDrawAction(drawId);
+      await onDrawChange?.();
+      if (result.ok) {
+        setSettleTone("ok");
+        const stateNote = result.finalState
+          ? ` Final state: ${result.finalState}.`
+          : "";
+        setSettleMsg(
+          result.finalState === "Settled" || result.finalState === "Refunded"
+            ? `Draw #${drawId} settled.${stateNote}`
+            : `Crank ran for draw #${drawId}.${stateNote} Click Settle again if still awaiting VRF.`,
+        );
+      } else {
+        setSettleTone("error");
+        setSettleMsg(
+          formatLotterySettlementError(
+            result.error ?? "Settle crank failed",
+          ),
+        );
+      }
+    } catch (e) {
+      setSettleTone("error");
+      setSettleMsg(formatLotterySettlementError(e));
+    } finally {
+      setSettleBusy(false);
+    }
+  };
+
   return (
     <div
       id="current-draw-spl"
       className="space-y-4 rounded-2xl border border-border bg-bg-elevated/70 p-6"
     >
+      {needsSettlement ? (
+        <div className="space-y-3 rounded-xl border border-accent-gold/50 bg-accent-gold/10 px-4 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-accent-gold">
+                Draw #{drawId} needs settlement
+              </p>
+              <p className="mt-1 text-xs text-muted">
+                On-chain state: {stateLabel}. Runs the keeper crank (close sales
+                → VRF → settle). May need a second click while VRF is pending.
+              </p>
+            </div>
+            <button
+              type="button"
+              disabled={settleBusy || busy}
+              onClick={() => void onSettleNow()}
+              className="rounded-xl bg-gradient-to-r from-accent-gold to-accent-cyan px-4 py-2.5 text-sm font-semibold text-black disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {settleBusy ? "Settling…" : "Settle now"}
+            </button>
+          </div>
+          {settleMsg ? (
+            <p
+              className={`text-sm ${
+                settleTone === "error" ? "text-red-300" : "text-emerald-200"
+              }`}
+            >
+              {settleMsg}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-lg font-semibold">
           Edit draw #{drawId} — SPL settings
