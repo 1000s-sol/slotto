@@ -634,6 +634,74 @@ pub mod slotto_lottery {
         Ok(())
     }
 
+    /// **Authority-only emergency settle** when Switchboard VRF is unavailable
+    /// (no eligible oracles / network wind-down). Works from **SalesClosed** or
+    /// **VrfRequested**. Winner is derived with the same stub `hashv` as the
+    /// devnet path — only the configured authority can invoke this, so it cannot
+    /// be ground by the public. Prefer Switchboard when the network is healthy.
+    ///
+    /// Remaining accounts: `[ticket_chunk_pda, winner_system_account]`.
+    pub fn force_settle(ctx: Context<ForceSettle>) -> Result<()> {
+        let draw_key = ctx.accounts.draw.key();
+        let (state, n) = {
+            let draw = ctx.accounts.draw.load()?;
+            (draw.state, draw.total_tickets)
+        };
+        require!(
+            state == DrawState::SalesClosed as u8 || state == DrawState::VrfRequested as u8,
+            ErrorCode::InvalidDrawStateForForceSettle
+        );
+        require!(n >= 1, ErrorCode::VrfNeedsTickets);
+        require_eq!(
+            ctx.remaining_accounts.len(),
+            2,
+            ErrorCode::SettleAccountsWrongLen
+        );
+
+        let slot = ctx.accounts.clock.slot;
+        let ts = ctx.accounts.clock.unix_timestamp;
+        let chunk_account: AccountInfo<'static> =
+            unsafe { core::mem::transmute(ctx.remaining_accounts[0].clone()) };
+        let winner_account: AccountInfo<'static> =
+            unsafe { core::mem::transmute(ctx.remaining_accounts[1].clone()) };
+        let winning_ticket_id = stub_settle_winning_ticket_id(&draw_key, slot, ts, n)?;
+
+        let vault_info: AccountInfo<'static> =
+            unsafe { core::mem::transmute(ctx.accounts.prize_vault.to_account_info()) };
+        let rent_ai: AccountInfo<'static> =
+            unsafe { core::mem::transmute(ctx.accounts.rent.to_account_info()) };
+        let chunk_idx = ticket_chunk_index(winning_ticket_id);
+        let slot_in_chunk = ticket_slot_in_chunk(winning_ticket_id);
+
+        require_ticket_chunk_initialized(
+            ctx.program_id,
+            &chunk_account,
+            &draw_key,
+            chunk_idx,
+        )?;
+
+        let owner = {
+            let data = chunk_account.try_borrow_data()?;
+            let pk = read_ticket_chunk_owner(&data, slot_in_chunk)?;
+            require_keys_neq!(pk, Pubkey::default(), ErrorCode::EmptyTicketOwner);
+            pk
+        };
+        require_keys_eq!(winner_account.key(), owner, ErrorCode::WinnerMismatch);
+
+        let rent_struct = Rent::from_account_info(&rent_ai)?;
+        let min_balance = rent_struct.minimum_balance(vault_info.data_len());
+        let available = prize_vault_withdrawable_saturating(vault_info.lamports(), min_balance);
+
+        transfer_prize_vault_lamports(&vault_info, &winner_account, available)?;
+
+        let mut draw = ctx.accounts.draw.load_mut()?;
+        draw.vrf_request = VRF_STUB_MARKER;
+        draw.winning_ticket_id = winning_ticket_id;
+        draw.winner = owner;
+        draw.state = DrawState::Settled as u8;
+        Ok(())
+    }
+
     /// **Authority-only:** re-anchor a liquid-dynamic SPL row's reference price while the
     /// draw is still **Selling** (used after a large market move so buy-time quotes keep
     /// falling inside the accepted band). No effect on fixed-price rows.
@@ -1351,6 +1419,25 @@ pub struct ResetVrf<'info> {
 }
 
 #[derive(Accounts)]
+pub struct ForceSettle<'info> {
+    #[account(constraint = authority.key() == global_config.authority @ ErrorCode::Unauthorized)]
+    pub authority: Signer<'info>,
+    #[account(seeds = [b"global_config"], bump = global_config.bump)]
+    pub global_config: Account<'info, GlobalConfig>,
+    #[account(mut)]
+    pub draw: AccountLoader<'info, Draw>,
+    #[account(
+        mut,
+        seeds = [b"prize_vault", draw.key().as_ref()],
+        bump
+    )]
+    pub prize_vault: Account<'info, PrizeVault>,
+    pub clock: Sysvar<'info, Clock>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
 pub struct UpdateSplReferencePrice<'info> {
     #[account(constraint = authority.key() == global_config.authority @ ErrorCode::Unauthorized)]
     pub authority: Signer<'info>,
@@ -1503,6 +1590,8 @@ pub enum ErrorCode {
     RandomnessAlreadyRevealed,
     #[msg("partner vault address invalid")]
     InvalidPartnerVault,
+    #[msg("draw must be SalesClosed or VrfRequested for authority force_settle")]
+    InvalidDrawStateForForceSettle,
 }
 
 #[cfg(test)]

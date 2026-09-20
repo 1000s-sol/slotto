@@ -11,6 +11,7 @@ import { DrawState, VRF_STUB_MARKER } from "./constants";
 import { globalConfigPda, ticketChunkPda } from "./pdas";
 import { createLotteryReadOnlyProgram } from "./program";
 import type { SlottoLotteryProgram } from "./program";
+import { forceSettleDraw } from "./force-settle";
 import {
   createDrawRandomnessAccount,
   isAssignedOracleGatewayDown,
@@ -320,6 +321,36 @@ export async function crankDraw(
           "Switchboard VRF crank requires keeper Keypair (pass to crankDraw).",
         );
       }
+      // Switchboard announced wind-down (2026-09-19): Crossbar often has zero
+      // eligible oracles. Prefer authority force_settle when the upgraded
+      // program is deployed; otherwise fall through to Switchboard.
+      try {
+        actions.push("force_settle (authority emergency path)");
+        const { signature, winningTicketId } = await forceSettleDraw(
+          connection,
+          program,
+          programId,
+          keeper,
+          drawId,
+        );
+        signatures.push(signature);
+        actions.push(`force_settle winning ticket #${winningTicketId}`);
+        draw = (await fetchDrawById(connection, programId, drawId))!;
+        return {
+          drawId,
+          initialState,
+          finalState: stateLabel(draw.state),
+          actions,
+          signatures,
+          winner: draw.winner,
+          winningTicketId: draw.winningTicketId,
+        };
+      } catch (fe) {
+        const feMsg = fe instanceof Error ? fe.message : String(fe);
+        actions.push(
+          `force_settle unavailable (${feMsg.slice(0, 120)}) — trying Switchboard`,
+        );
+      }
       /**
        * Prefer a fresh unused Randomness account. Reusing a prior commit that
        * bound a dead oracle (draw #20) makes Crossbar report "no eligible"
@@ -383,45 +414,33 @@ export async function crankDraw(
         );
         signatures.push(reqSig);
       } catch (e) {
-        // Stale / Crossbar-empty / InvalidQuote — one fresh RandomnessInit.
-        const canRecreate =
-          (isInvalidQuoteError(e) || isOracleSelectionError(e)) &&
-          !process.env.LOTTERY_RANDOMNESS_ACCOUNT?.trim();
-        if (!canRecreate) {
-          throw e;
-        }
-        const keeperLamports = await connection.getBalance(
-          keeper.publicKey,
-          "confirmed",
-        );
-        if (keeperLamports < MIN_KEEPER_LAMPORTS_FOR_CREATE) {
-          throw new Error(
-            `Switchboard commit failed (${e instanceof Error ? e.message.slice(0, 80) : "error"}), and keeper underfunded to recreate randomness (${keeperLamports} lamports, need ${MIN_KEEPER_LAMPORTS_FOR_CREATE}).`,
+        // Switchboard mainnet has no eligible oracles (network wind-down).
+        // Authority force_settle pays the winner without VRF.
+        if (isOracleSelectionError(e) || isInvalidQuoteError(e)) {
+          actions.push(
+            `switchboard unavailable (${e instanceof Error ? e.message.slice(0, 80) : "error"}) — force_settle`,
           );
+          const { signature, winningTicketId } = await forceSettleDraw(
+            connection,
+            program,
+            programId,
+            keeper,
+            drawId,
+          );
+          signatures.push(signature);
+          actions.push(`force_settle winning ticket #${winningTicketId}`);
+          draw = (await fetchDrawById(connection, programId, drawId))!;
+          return {
+            drawId,
+            initialState,
+            finalState: stateLabel(draw.state),
+            actions,
+            signatures,
+            winner: draw.winner,
+            winningTicketId: draw.winningTicketId,
+          };
         }
-        actions.push(
-          "commit failed — recreate_switchboard_randomness once",
-        );
-        switchboardRandomness = await createDrawRandomnessAccount(
-          connection,
-          keeper,
-        );
-        await storeDrawRandomness(
-          drawId,
-          switchboardRandomness.toBase58(),
-        );
-        actions.push(
-          `stored_switchboard_randomness ${switchboardRandomness.toBase58()}`,
-        );
-        actions.push("commit_vrf + request_vrf (after recreate)");
-        const reqSig = await requestSwitchboardVrf(
-          connection,
-          program,
-          keeper,
-          draw.draw,
-          switchboardRandomness,
-        );
-        signatures.push(reqSig);
+        throw e;
       }
     } else {
       actions.push("request_vrf (stub)");
@@ -454,6 +473,33 @@ export async function crankDraw(
       if (!keeper) {
         throw new Error(
           "Switchboard VRF crank requires keeper Keypair (pass to crankDraw).",
+        );
+      }
+      try {
+        actions.push("force_settle (authority emergency path)");
+        const { signature, winningTicketId } = await forceSettleDraw(
+          connection,
+          program,
+          programId,
+          keeper,
+          drawId,
+        );
+        signatures.push(signature);
+        actions.push(`force_settle winning ticket #${winningTicketId}`);
+        draw = (await fetchDrawById(connection, programId, drawId))!;
+        return {
+          drawId,
+          initialState,
+          finalState: stateLabel(draw.state),
+          actions,
+          signatures,
+          winner: draw.winner,
+          winningTicketId: draw.winningTicketId,
+        };
+      } catch (fe) {
+        const feMsg = fe instanceof Error ? fe.message : String(fe);
+        actions.push(
+          `force_settle unavailable (${feMsg.slice(0, 120)}) — trying Switchboard reveal`,
         );
       }
       const randomnessAccount = resolveSwitchboardRandomnessAccount(
@@ -546,6 +592,33 @@ export async function crankDraw(
           } catch (re) {
             const reMsg = re instanceof Error ? re.message : String(re);
             actions.push(`dead-gateway recovery failed (${reMsg.slice(0, 160)})`);
+            // Switchboard cannot recover — authority force_settle.
+            try {
+              actions.push("force_settle after failed Switchboard recovery");
+              const { signature, winningTicketId } = await forceSettleDraw(
+                connection,
+                program,
+                programId,
+                keeper,
+                drawId,
+              );
+              signatures.push(signature);
+              actions.push(`force_settle winning ticket #${winningTicketId}`);
+              draw = (await fetchDrawById(connection, programId, drawId))!;
+              return {
+                drawId,
+                initialState,
+                finalState: stateLabel(draw.state),
+                actions,
+                signatures,
+                winner: draw.winner,
+                winningTicketId: draw.winningTicketId,
+              };
+            } catch (fe) {
+              actions.push(
+                `force_settle failed (${fe instanceof Error ? fe.message.slice(0, 120) : "error"})`,
+              );
+            }
             draw = (await fetchDrawById(connection, programId, drawId))!;
             return {
               drawId,

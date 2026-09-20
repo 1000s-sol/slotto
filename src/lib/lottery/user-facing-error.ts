@@ -19,6 +19,7 @@ function errorStrings(error: unknown): string[] {
     out.push(error.message);
     const nested = (error as Error & { cause?: unknown }).cause;
     if (nested) out.push(...errorStrings(nested));
+    return out;
   }
 
   if (typeof error === "object") {
@@ -335,11 +336,23 @@ export function formatLotterySettlementError(error: unknown): string {
     return "Auto-settlement is not configured on Vercel (set LOTTERY_KEEPER_SECRET_KEY). An admin can run: npm run lottery:settle -- <drawId>";
   }
   if (
+    /no eligible randomness oracle/i.test(text) ||
+    /no randomness oracle candidates/i.test(text)
+  ) {
+    return "Switchboard has no live randomness oracles (network wind-down). Deploy the force_settle program upgrade, then click Settle again.";
+  }
+  if (
+    /force_settle|force settle|invalid instruction/i.test(text) &&
+    /program|instruction|idl/i.test(text)
+  ) {
+    return "force_settle is not on-chain yet — run lottery:deploy:mainnet with the upgrade, then Settle again.";
+  }
+  if (
     /invalidquote/i.test(text) ||
     text.includes("0x1771") ||
     text.includes("6001")
   ) {
-    return "Switchboard VRF commit failed (InvalidQuote). Click Settle again — the keeper will rotate oracles / recreate randomness.";
+    return "Switchboard VRF commit failed (InvalidQuote). Click Settle again — if oracles stay down, deploy force_settle and retry.";
   }
   if (
     text.includes("block height exceeded") ||

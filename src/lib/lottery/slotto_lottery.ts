@@ -542,6 +542,52 @@ export type SlottoLottery = {
       "args": []
     },
     {
+      "name": "forceSettle",
+      "docs": [
+        "Authority-only emergency settle when Switchboard VRF is unavailable. Works from SalesClosed or VrfRequested. Remaining accounts: [ticket_chunk, winner]."
+      ],
+      "discriminator": [
+        201,
+        10,
+        239,
+        245,
+        47,
+        198,
+        225,
+        204
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "globalConfig"
+        },
+        {
+          "name": "draw",
+          "writable": true
+        },
+        {
+          "name": "prizeVault",
+          "writable": true
+        },
+        {
+          "name": "clock",
+          "address": "SysvarC1ock11111111111111111111111111111111"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "settle",
       "discriminator": [
         175,
@@ -898,6 +944,11 @@ export type SlottoLottery = {
       "code": 6041,
       "name": "invalidPartnerVault",
       "msg": "invalidPartnerVault"
+    },
+    {
+      "code": 6047,
+      "name": "invalidDrawStateForForceSettle",
+      "msg": "draw must be SalesClosed or VrfRequested for authority force_settle"
     }
   ],
   "types": [

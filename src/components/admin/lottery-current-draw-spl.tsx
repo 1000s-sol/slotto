@@ -464,9 +464,10 @@ export function LotteryCurrentDrawSpl({
               </p>
               <p className="mt-1 text-xs text-muted">
                 On-chain state: {stateLabel}. Click once and wait up to ~1
-                minute. If Switchboard&apos;s assigned oracle is down, Settle
-                resets once onto a healthy oracle then finishes. Homepage
-                auto-settle is off so it cannot fight this button.
+                minute. If Switchboard oracles are down, Settle uses
+                authority force_settle (after the program upgrade is
+                deployed). Homepage auto-settle is off so it cannot fight
+                this button.
               </p>
             </div>
             <button
