@@ -43,11 +43,34 @@ import {
   formatDrawDisplayLabel,
   registerOnChainDrawMeta,
 } from "@/lib/lottery/draw-display-db";
+import type { CrankTriggerResult } from "@/lib/lottery/trigger-crank-action";
+import { runTriggerLotteryCrank } from "@/lib/lottery/trigger-lottery-crank-impl";
+
+/** Settlement can take multiple VRF passes; align with /api/lottery/crank. */
+export const maxDuration = 120;
 
 async function requireAdmin() {
   const admin = await currentAdminAddress();
   if (!admin) throw new Error("Unauthorized");
   return admin;
+}
+
+/**
+ * Admin one-click settle: runs the keeper crank (close → VRF → settle) for a draw.
+ * Bypasses the public UI crank flag; still requires an authenticated admin session.
+ */
+export async function adminSettleDrawAction(
+  drawId: number,
+): Promise<CrankTriggerResult> {
+  await requireAdmin();
+  if (!Number.isFinite(drawId) || drawId < 0) {
+    return { ok: false, error: "Invalid draw id" };
+  }
+  try {
+    return await runTriggerLotteryCrank(drawId);
+  } catch (e) {
+    return { ok: false, error: lotteryRpcErrorText(e) };
+  }
 }
 
 /** Record public draw label (PRODUCTION #N or TEST-id) after create_draw. */
