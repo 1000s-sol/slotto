@@ -18,6 +18,20 @@ import { withLotteryServerRpc } from "@/lib/lottery/server-rpc";
 import { globalConfigPda } from "@/lib/lottery/pdas";
 import { createLotteryReadOnlyProgram } from "@/lib/lottery/program";
 
+function isExpiredBlockhashError(message: string): boolean {
+  const lower = message.toLowerCase();
+  return (
+    lower.includes("block height exceeded") ||
+    lower.includes("has expired") ||
+    lower.includes("blockhash not found") ||
+    lower.includes("not confirmed in time")
+  );
+}
+
+async function sleep(ms: number): Promise<void> {
+  await new Promise((r) => setTimeout(r, ms));
+}
+
 /** After create_draw: team ATAs for all SPL mints + ticket chunk 1 (next 256 batch). */
 export async function adminPrepareNewDrawInfrastructureAction(
   drawId: number,
@@ -28,52 +42,63 @@ export async function adminPrepareNewDrawInfrastructureAction(
     return { ok: false, error: "LOTTERY_KEEPER_SECRET_KEY not configured on server" };
   }
 
-  try {
-    return await withLotteryServerRpc(async (connection) => {
-      const programId = lotteryProgramId();
-      const draw = await fetchDrawById(connection, programId, drawId);
-      if (!draw) return { ok: false, error: `Draw #${drawId} not found` };
+  const maxAttempts = 3;
+  let lastError = "prepare draw failed";
 
-      const program = createLotteryReadOnlyProgram(connection);
-      const cfg = await program.account.globalConfig.fetch(globalConfigPda(programId));
-      if (!cfg.authority.equals(payer.publicKey)) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return await withLotteryServerRpc(async (connection) => {
+        const programId = lotteryProgramId();
+        const draw = await fetchDrawById(connection, programId, drawId);
+        if (!draw) return { ok: false, error: `Draw #${drawId} not found` };
+
+        const program = createLotteryReadOnlyProgram(connection);
+        const cfg = await program.account.globalConfig.fetch(
+          globalConfigPda(programId),
+        );
+        if (!cfg.authority.equals(payer.publicKey)) {
+          return {
+            ok: false,
+            error: "Keeper wallet is not the on-chain lottery authority",
+          };
+        }
+
+        const wallet = keypairToAnchorWallet(payer);
+        const sendOpts = lotteryKeeperSendOpts(connection);
+        const mintPks = splMints
+          .map((m) => m.trim())
+          .filter(Boolean)
+          .map((m) => new PublicKey(m));
+
+        const { teamAtaSigs, chunkSigs } = await ensureDrawReadyForSales(
+          connection,
+          wallet,
+          programId,
+          draw,
+          {
+            splMints: mintPks,
+            chunkIndices: [1],
+            walletSendOpts: sendOpts,
+          },
+        );
+
         return {
-          ok: false,
-          error: "Keeper wallet is not the on-chain lottery authority",
+          ok: true,
+          teamAta: teamAtaSigs.length,
+          chunks: chunkSigs.length,
         };
+      });
+    } catch (e) {
+      lastError = e instanceof Error ? e.message : "prepare draw failed";
+      if (attempt < maxAttempts && isExpiredBlockhashError(lastError)) {
+        await sleep(1500 * attempt);
+        continue;
       }
-
-      const wallet = keypairToAnchorWallet(payer);
-      const sendOpts = lotteryKeeperSendOpts(connection);
-      const mintPks = splMints
-        .map((m) => m.trim())
-        .filter(Boolean)
-        .map((m) => new PublicKey(m));
-
-      const { teamAtaSigs, chunkSigs } = await ensureDrawReadyForSales(
-        connection,
-        wallet,
-        programId,
-        draw,
-        {
-          splMints: mintPks,
-          chunkIndices: [1],
-          walletSendOpts: sendOpts,
-        },
-      );
-
-      return {
-        ok: true,
-        teamAta: teamAtaSigs.length,
-        chunks: chunkSigs.length,
-      };
-    });
-  } catch (e) {
-    return {
-      ok: false,
-      error: e instanceof Error ? e.message : "prepare draw failed",
-    };
+      return { ok: false, error: lastError };
+    }
   }
+
+  return { ok: false, error: lastError };
 }
 
 /** Before a ticket buy: init any missing ticket-chunk PDAs for this purchase. */
@@ -98,24 +123,28 @@ export async function ensureTicketChunksForPurchaseAction(
       const programId = lotteryProgramId();
       const draw = await fetchDrawById(connection, programId, drawId);
       if (!draw) return { ok: false, error: "Draw not found" };
-  if (draw.state !== DrawState.Selling) {
-    return { ok: false, error: "Draw is not selling" };
-  }
+      if (draw.state !== DrawState.Selling) {
+        return { ok: false, error: "Draw is not selling" };
+      }
 
-  const program = createLotteryReadOnlyProgram(connection);
-  const cfg = await program.account.globalConfig.fetch(globalConfigPda(programId));
-  if (!cfg.authority.equals(payer.publicKey)) {
-    // Keeper is not authority — chunks must be inited at create_draw time by admin.
-    return { ok: true, inited: 0 };
-  }
+      const program = createLotteryReadOnlyProgram(connection);
+      const cfg = await program.account.globalConfig.fetch(
+        globalConfigPda(programId),
+      );
+      if (!cfg.authority.equals(payer.publicKey)) {
+        // Keeper is not authority — chunks must be inited at create_draw time by admin.
+        return { ok: true, inited: 0 };
+      }
 
-  const wallet = keypairToAnchorWallet(payer);
+      const wallet = keypairToAnchorWallet(payer);
+      const sendOpts = lotteryKeeperSendOpts(connection);
       const sigs = await ensureTicketChunksForPurchase(
         connection,
         wallet,
         programId,
         draw,
         count,
+        sendOpts,
       );
       return { ok: true, inited: sigs.length };
     });
