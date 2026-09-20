@@ -265,6 +265,21 @@ export async function crankDraw(
       signatures.push(sig);
     }
     draw = (await fetchDrawById(connection, programId, drawId))!;
+    // Do not settle in the same pass — oracle needs a few seconds after commit.
+    // Falling through immediately caused "not resolved" → false gateway-down →
+    // reset_vrf loops that wiped VrfRequested (draw #20).
+    if (draw.state === DrawState.VrfRequested) {
+      actions.push("vrf requested — next pass will reveal + settle");
+      return {
+        drawId,
+        initialState,
+        finalState: stateLabel(draw.state),
+        actions,
+        signatures,
+        winner: draw.winner,
+        winningTicketId: draw.winningTicketId,
+      };
+    }
   }
 
   if (draw.state === DrawState.VrfRequested) {
@@ -315,23 +330,55 @@ export async function crankDraw(
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         const lower = msg.toLowerCase();
+        // Normal: oracle has not revealed yet. Wait for the next crank pass.
+        // Do NOT reset_vrf here — gateway health flaps were wiping VrfRequested
+        // right after a successful RequestVrf (draw #20 burn loop).
         if (
           lower.includes("not resolved yet") ||
           lower.includes("not ready to reveal") ||
           lower.includes("randomness value missing") ||
           lower.includes("randomness not resolved")
         ) {
-          // Assigned oracle gateway can 503; other gateways cannot sign for it
-          // (InvalidSecpSignature). Reset VRF and re-bind a fresh randomness
-          // account on a healthy oracle so the next crank can settle.
+          actions.push(`settle waiting (${msg})`);
+          draw = (await fetchDrawById(connection, programId, drawId))!;
+          return {
+            drawId,
+            initialState,
+            finalState: stateLabel(draw.state),
+            actions,
+            signatures,
+            winner: draw.winner,
+            winningTicketId: draw.winningTicketId,
+          };
+        }
+        // Concurrent reset / race: treat as wait, not hard fail.
+        if (lower.includes("is not vrfrequested")) {
+          actions.push(`settle skipped (${msg})`);
+          draw = (await fetchDrawById(connection, programId, drawId))!;
+          return {
+            drawId,
+            initialState,
+            finalState: stateLabel(draw.state),
+            actions,
+            signatures,
+            winner: draw.winner,
+            winningTicketId: draw.winningTicketId,
+          };
+        }
+        // Stuck after reveal with wrong/dead oracle signature — then reset.
+        if (
+          lower.includes("invalidsecpsignature") ||
+          lower.includes("invalid secp") ||
+          lower.includes("gateway reveal failed")
+        ) {
           const { down, gatewayUrl } = await isAssignedOracleGatewayDown(
             connection,
             keeper,
             randomnessAccount,
           );
-          if (down) {
+          if (down || lower.includes("invalidsecpsignature") || lower.includes("invalid secp")) {
             actions.push(
-              `oracle gateway down (${gatewayUrl || "unknown"}) — reset_vrf + re-request`,
+              `oracle reveal unusable (${gatewayUrl || "unknown"}): ${msg.slice(0, 120)} — reset_vrf + re-request`,
             );
             const resetSig = await resetDrawVrf(
               program,
@@ -381,17 +428,6 @@ export async function crankDraw(
               winningTicketId: draw.winningTicketId,
             };
           }
-          actions.push(`settle waiting (${msg})`);
-          draw = (await fetchDrawById(connection, programId, drawId))!;
-          return {
-            drawId,
-            initialState,
-            finalState: stateLabel(draw.state),
-            actions,
-            signatures,
-            winner: draw.winner,
-            winningTicketId: draw.winningTicketId,
-          };
         }
         throw e;
       }

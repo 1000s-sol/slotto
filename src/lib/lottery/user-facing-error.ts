@@ -341,6 +341,9 @@ export function formatLotterySettlementError(error: unknown): string {
   ) {
     return "Switchboard VRF commit failed (InvalidQuote). Click Settle again — the keeper will rotate oracles / recreate randomness.";
   }
+  if (/is not vrfrequested/i.test(text)) {
+    return "VRF was reset mid-settle — click Settle again to re-request, then wait a few seconds for settle.";
+  }
   if (
     text.includes("invalid api key") ||
     text.includes("-32401") ||
