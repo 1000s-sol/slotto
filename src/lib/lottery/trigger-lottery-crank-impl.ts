@@ -33,6 +33,7 @@ async function crankOnRpc(
   rpcUrl: string,
   drawId: number,
   payer: NonNullable<ReturnType<typeof loadLotteryKeeperKeypair>>,
+  opts?: { maxPasses?: number; vrfWaitMs?: number; stepWaitMs?: number },
 ): Promise<CrankTriggerResult> {
   const connection = new Connection(rpcUrl, "confirmed");
   const programId = lotteryProgramId();
@@ -42,7 +43,9 @@ async function crankOnRpc(
   );
 
   /** Switchboard VRF often needs close → request → wait → reveal → settle. */
-  const maxPasses = 8;
+  const maxPasses = Math.min(Math.max(opts?.maxPasses ?? 8, 1), 8);
+  const vrfWaitMs = opts?.vrfWaitMs ?? 8_000;
+  const stepWaitMs = opts?.stepWaitMs ?? 4_000;
   let lastFinalState = "unknown";
   let totalSigs = 0;
 
@@ -91,7 +94,7 @@ async function crankOnRpc(
 
     if (pass < maxPasses - 1) {
       const waitMs =
-        result.finalState === "VrfRequested" ? 8_000 : 4_000;
+        result.finalState === "VrfRequested" ? vrfWaitMs : stepWaitMs;
       await sleep(waitMs);
     }
   }
@@ -115,7 +118,9 @@ async function crankOnRpc(
     error:
       totalSigs === 0
         ? `Crank incomplete (still ${lastFinalState})`
-        : `Crank in progress (still ${lastFinalState}) — retry shortly`,
+        : lastFinalState === "VrfRequested"
+          ? `VRF requested (still ${lastFinalState}) — wait ~10s then click Settle again`
+          : `Crank in progress (still ${lastFinalState}) — click Settle again`,
   };
 }
 
@@ -127,9 +132,17 @@ const inFlightCrank = new Map<number, Promise<CrankTriggerResult>>();
 const lastCrankAt = new Map<number, number>();
 const CRANK_COOLDOWN_MS = 3_000;
 
+export type TriggerLotteryCrankOptions = {
+  /** Admin settle uses 1–2 passes so the button returns; cron keeps default 8. */
+  maxPasses?: number;
+  vrfWaitMs?: number;
+  stepWaitMs?: number;
+};
+
 /** Server-only: close_sales → request_vrf → settle for one draw (multi-pass). */
 export async function runTriggerLotteryCrank(
   drawId: number,
+  opts?: TriggerLotteryCrankOptions,
 ): Promise<CrankTriggerResult> {
   if (!Number.isFinite(drawId) || drawId < 0) {
     return { ok: false, error: "Invalid draw id" };
@@ -146,7 +159,7 @@ export async function runTriggerLotteryCrank(
     };
   }
 
-  const run = crankDrawOnce(drawId);
+  const run = crankDrawOnce(drawId, opts);
   inFlightCrank.set(drawId, run);
   try {
     return await run;
@@ -158,6 +171,7 @@ export async function runTriggerLotteryCrank(
 
 async function crankDrawOnce(
   drawId: number,
+  opts?: TriggerLotteryCrankOptions,
 ): Promise<CrankTriggerResult> {
   const payer = loadLotteryKeeperKeypair();
   if (!payer) {
@@ -173,7 +187,7 @@ async function crankDrawOnce(
   const fallbackRpc = lotteryPublicRpcFallback();
 
   try {
-    return await crankOnRpc(primaryRpc, drawId, payer);
+    return await crankOnRpc(primaryRpc, drawId, payer, opts);
   } catch (e) {
     const message = lotteryRpcErrorText(e);
 
@@ -186,7 +200,7 @@ async function crankDrawOnce(
         "[lottery crank] primary RPC failed — retrying public cluster fallback",
       );
       try {
-        return await crankOnRpc(fallbackRpc, drawId, payer);
+        return await crankOnRpc(fallbackRpc, drawId, payer, opts);
       } catch (retryErr) {
         const retryMsg = lotteryRpcErrorText(retryErr);
         console.error("[lottery crank] draw", drawId, retryMsg);
