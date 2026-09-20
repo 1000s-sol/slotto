@@ -240,6 +240,10 @@ export function isInvalidQuoteError(e: unknown): boolean {
  *
  * Important: `commitIx` can resolve successfully with a quote that still fails
  * on-chain as InvalidQuote (draw #20). Callers must simulate / rotate oracles.
+ *
+ * Draw #20 burn: Crossbar-default was tried **first** and bound randomness to a
+ * 503 oracle. Reveal then impossible (InvalidSecp from other hosts). Prefer
+ * oracles whose gateway responds; only fall back to Crossbar last.
  */
 async function listCommitIxBuilders(
   sb: RandomnessSdk,
@@ -249,30 +253,37 @@ async function listCommitIxBuilders(
   randomness: InstanceType<RandomnessSdk["Randomness"]>,
   queue: PublicKey,
 ): Promise<Array<{ label: string; build: () => Promise<unknown> }>> {
-  const builders: Array<{ label: string; build: () => Promise<unknown> }> = [
-    {
-      label: "crossbar-default",
-      build: () => randomness.commitIx(queue),
-    },
-  ];
+  const builders: Array<{ label: string; build: () => Promise<unknown> }> = [];
 
   try {
     const queueAccount = new sb.Queue(sbProgram, queue);
     const oracleKeys: PublicKey[] = await queueAccount.fetchOracleKeys();
-    if (oracleKeys.length === 0) return builders;
-    const orderedKeys = await preferOraclesWithHealthyGateways(
-      sb,
-      sbProgram,
-      oracleKeys,
-    );
-    const data = await randomness.loadData();
-    const authority = data.authority as PublicKey;
-    for (let i = 0; i < orderedKeys.length; i += 1) {
-      const oracle = orderedKeys[i]!;
-      builders.push({
-        label: `oracle-${i}-${oracle.toBase58().slice(0, 8)}`,
-        build: () => randomness.commitIx(queue, authority, oracle),
-      });
+    if (oracleKeys.length > 0) {
+      const { healthy, unhealthy } = await partitionOraclesByGatewayHealth(
+        sb,
+        sbProgram,
+        oracleKeys,
+      );
+      const data = await randomness.loadData();
+      const authority = data.authority as PublicKey;
+      // Healthy gateways only — a successful commit to a 503 host is useless.
+      for (let i = 0; i < healthy.length; i += 1) {
+        const oracle = healthy[i]!;
+        builders.push({
+          label: `healthy-${i}-${oracle.toBase58().slice(0, 8)}`,
+          build: () => randomness.commitIx(queue, authority, oracle),
+        });
+      }
+      // Last resorts (may still InvalidQuote / 503 — only if nothing healthy).
+      if (builders.length === 0) {
+        for (let i = 0; i < unhealthy.length; i += 1) {
+          const oracle = unhealthy[i]!;
+          builders.push({
+            label: `unhealthy-${i}-${oracle.toBase58().slice(0, 8)}`,
+            build: () => randomness.commitIx(queue, authority, oracle),
+          });
+        }
+      }
     }
   } catch (e) {
     console.warn(
@@ -280,16 +291,22 @@ async function listCommitIxBuilders(
       e instanceof Error ? e.message : e,
     );
   }
+
+  // Crossbar last — it re-picked the dead 141.95.98.113 oracle on draw #20.
+  builders.push({
+    label: "crossbar-default",
+    build: () => randomness.commitIx(queue),
+  });
   return builders;
 }
 
-async function preferOraclesWithHealthyGateways(
+async function partitionOraclesByGatewayHealth(
   sb: RandomnessSdk,
   sbProgram: Awaited<
     ReturnType<RandomnessSdk["AnchorUtils"]["loadProgramFromConnection"]>
   >,
   oracleKeys: PublicKey[],
-): Promise<PublicKey[]> {
+): Promise<{ healthy: PublicKey[]; unhealthy: PublicKey[] }> {
   const { Oracle } = sb as RandomnessSdk & {
     Oracle: new (
       program: unknown,
@@ -298,23 +315,40 @@ async function preferOraclesWithHealthyGateways(
       loadData: () => Promise<{ gatewayUri: number[] }>;
     };
   };
-  // Cap + parallel probes — sequential 4s timeouts were hanging admin Settle.
-  const limited = oracleKeys.slice(0, 8);
+  // Probe all queue oracles in parallel (mainnet queue is small, ~12).
   const ranked = await Promise.all(
-    limited.map(async (key) => {
+    oracleKeys.map(async (key) => {
       try {
         const od = await new Oracle(sbProgram, key).loadData();
         const url = String.fromCharCode(...od.gatewayUri).replace(/\0+$/, "");
-        if (!url) return { key, score: 1 };
+        if (!url) return { key, healthy: false };
         const ok = await gatewayResponds(url);
-        return { key, score: ok ? 0 : 1 };
+        return { key, healthy: ok };
       } catch {
-        return { key, score: 2 };
+        return { key, healthy: false };
       }
     }),
   );
-  ranked.sort((a, b) => a.score - b.score);
-  return ranked.map((r) => r.key);
+  return {
+    healthy: ranked.filter((r) => r.healthy).map((r) => r.key),
+    unhealthy: ranked.filter((r) => !r.healthy).map((r) => r.key),
+  };
+}
+
+/** @deprecated Prefer {@link partitionOraclesByGatewayHealth}. */
+async function preferOraclesWithHealthyGateways(
+  sb: RandomnessSdk,
+  sbProgram: Awaited<
+    ReturnType<RandomnessSdk["AnchorUtils"]["loadProgramFromConnection"]>
+  >,
+  oracleKeys: PublicKey[],
+): Promise<PublicKey[]> {
+  const { healthy, unhealthy } = await partitionOraclesByGatewayHealth(
+    sb,
+    sbProgram,
+    oracleKeys,
+  );
+  return [...healthy, ...unhealthy];
 }
 
 async function gatewayResponds(gatewayUrl: string): Promise<boolean> {
@@ -483,6 +517,19 @@ export async function requestSwitchboardVrf(
         },
         `commit+request-${label}`,
       );
+
+      // Refuse to leave the draw on a 503 oracle (draw #20 Crossbar rebound).
+      // Tx already landed — cannot try another commit without reset_vrf.
+      const assigned = await isAssignedOracleGatewayDown(
+        connection,
+        payer,
+        randomnessAccount,
+      );
+      if (assigned.down) {
+        throw new Error(
+          `Commit bound dead Switchboard gateway (${assigned.gatewayUrl || "unknown"}) via ${label}. Click Settle again — recovery will reset onto a healthy oracle.`,
+        );
+      }
       return sig;
     } catch (e) {
       lastErr = e;

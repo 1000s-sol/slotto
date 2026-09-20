@@ -43,11 +43,13 @@ const STATE_NAMES = [
 const MIN_KEEPER_LAMPORTS_FOR_CREATE = Math.floor(0.05 * LAMPORTS_PER_SOL);
 
 /**
- * One dead-gateway reset per draw per cooldown. Without this, concurrent
- * cranks (draw #20) did RequestVrf → ResetVrf in a loop and burned SOL.
+ * One dead-gateway reset per draw per short window. Prevents concurrent admin
+ * Settle + cron from double-resetting in the same second. Do NOT use a long
+ * cooldown: draw #20 rebound to the same 503 oracle and a 2-minute lock left
+ * Settle stuck.
  */
 const deadGatewayRecoveryAt = new Map<number, number>();
-const DEAD_GATEWAY_RECOVERY_COOLDOWN_MS = 120_000;
+const DEAD_GATEWAY_RECOVERY_COOLDOWN_MS = 15_000;
 
 export type CrankDrawResult = {
   drawId: number;
@@ -184,6 +186,20 @@ async function tryRecoverDeadOracleGateway(opts: {
     freshRandomness,
   );
   signatures.push(reqSig);
+
+  const check = await isAssignedOracleGatewayDown(
+    connection,
+    keeper,
+    freshRandomness,
+  );
+  if (check.down) {
+    // Commit still picked a dead host — leave VrfRequested so the next Settle
+    // pass resets again (healthy-oracle-first commit should fix this).
+    deadGatewayRecoveryAt.delete(drawId);
+    throw new Error(
+      `Recovery re-bound dead Switchboard gateway (${check.gatewayUrl || "unknown"}). Click Settle again.`,
+    );
+  }
   return true;
 }
 
@@ -472,28 +488,45 @@ export async function crankDraw(
           lower.includes("randomness not resolved") ||
           lower.includes("invalidsecpsignature") ||
           lower.includes("invalid secp") ||
+          lower.includes("dead switchboard gateway") ||
+          lower.includes("re-bound dead") ||
           revealGatewayFailed;
 
         // Assigned oracle gateway 503: other hosts return InvalidSecpSignature.
         // Reset once (cooldown), bind a fresh randomness account to a healthy
         // oracle, re-request — next pass reveals + settles.
         if (unresolved) {
-          const recovered = await tryRecoverDeadOracleGateway({
-            connection,
-            program,
-            programId,
-            drawId,
-            drawPubkey: draw.draw,
-            keeper,
-            randomnessAccount,
-            actions,
-            signatures,
-          });
-          draw = (await fetchDrawById(connection, programId, drawId))!;
-          if (recovered) {
-            actions.push(
-              "dead-gateway recovery requested — next pass will reveal + settle",
-            );
+          try {
+            const recovered = await tryRecoverDeadOracleGateway({
+              connection,
+              program,
+              programId,
+              drawId,
+              drawPubkey: draw.draw,
+              keeper,
+              randomnessAccount,
+              actions,
+              signatures,
+            });
+            draw = (await fetchDrawById(connection, programId, drawId))!;
+            if (recovered) {
+              actions.push(
+                "dead-gateway recovery requested — next pass will reveal + settle",
+              );
+              return {
+                drawId,
+                initialState,
+                finalState: stateLabel(draw.state),
+                actions,
+                signatures,
+                winner: draw.winner,
+                winningTicketId: draw.winningTicketId,
+              };
+            }
+          } catch (re) {
+            const reMsg = re instanceof Error ? re.message : String(re);
+            actions.push(`dead-gateway recovery failed (${reMsg.slice(0, 160)})`);
+            draw = (await fetchDrawById(connection, programId, drawId))!;
             return {
               drawId,
               initialState,
