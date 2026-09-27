@@ -11,6 +11,7 @@ import {
   magicEdenLink,
   parseProjectCollections,
 } from "@/lib/project-collections";
+import { ensureProjectSectionColumns } from "@/lib/ensure-project-section-columns";
 import {
   hasListingSections,
   listingSectionsFromProject,
@@ -28,6 +29,7 @@ type Props = { params: Promise<{ slug: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
+  await ensureProjectSectionColumns();
   const project = await prisma.project.findFirst({
     where: { slug, published: true },
     select: {
@@ -82,6 +84,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function ProjectPage({ params }: Props) {
   const { slug } = await params;
+  await ensureProjectSectionColumns();
   const project = await prisma.project.findFirst({
     where: { slug, published: true },
   });

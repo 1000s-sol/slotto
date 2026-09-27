@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { FeaturedProjectOfWeek } from "@/components/project/featured-project-of-week";
 import { ProjectCardTile } from "@/components/project/project-card-tile";
 import { ProjectsToolbar } from "@/components/project/projects-toolbar";
+import { ensureProjectSectionColumns } from "@/lib/ensure-project-section-columns";
 import { pickFeaturedProject } from "@/lib/pick-featured-project";
 import { prisma } from "@/lib/prisma";
 import { getFeaturedProjectSlugFromDb } from "@/lib/site-settings";
@@ -47,6 +48,10 @@ export default async function ProjectsPage({ searchParams }: Props) {
   const { q, sort: sortRaw } = await searchParams;
   const query = q?.trim();
   const sort = parseSort(sortRaw);
+
+  // Prod may not have been db-pushed yet — add nullable section columns if missing.
+  // Touches only Project via ADD COLUMN IF NOT EXISTS (safe for live draws).
+  await ensureProjectSectionColumns();
 
   const select = {
     slug: true,
