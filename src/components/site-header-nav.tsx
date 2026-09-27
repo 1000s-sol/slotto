@@ -12,6 +12,7 @@ import { WalletConnectButton } from "@/components/solana/wallet-connect-button";
 const links = [
   { href: "/", label: "Home" },
   { href: "/projects", label: "Projects" },
+  { href: "/buyback", label: "Buyback" },
   { href: "/faq", label: "FAQ" },
   { href: "/contact", label: "Contact" },
 ];
