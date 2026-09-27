@@ -241,7 +241,7 @@ export async function fetchBuybackSnapshot(): Promise<BuybackSnapshot> {
 
   const solUsd = resolveTokenUsdPrice(
     WRAPPED_SOL_MINT,
-    undefined,
+    byMintDex.get(WRAPPED_SOL_MINT),
     jupUsd[WRAPPED_SOL_MINT] ?? null,
   );
 
