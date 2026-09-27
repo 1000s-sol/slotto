@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { DeleteProjectForm, ProjectForm } from "@/components/admin/project-form";
+import { ensureProjectSectionColumns } from "@/lib/ensure-project-section-columns";
 import { defaultsFromProject } from "@/lib/project-form-defaults";
 import { prisma } from "@/lib/prisma";
 
@@ -14,6 +15,7 @@ export default async function AdminEditProjectPage({ params, searchParams }: Pro
   const { slug } = await params;
   const { created, saved } = await searchParams;
 
+  await ensureProjectSectionColumns();
   const project = await prisma.project.findUnique({ where: { slug } });
   if (!project) notFound();
 

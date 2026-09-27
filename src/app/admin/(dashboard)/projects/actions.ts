@@ -15,6 +15,7 @@ import { validateCollectionsJson } from "@/lib/project-collections";
 import { isValidSlug, normalizeSlugInput, slugifyName } from "@/lib/project-slug";
 import { prisma } from "@/lib/prisma";
 import { sanitizeOptionalUrl } from "@/lib/safe-url";
+import { ensureProjectSectionColumns } from "@/lib/ensure-project-section-columns";
 import { hasListingSections } from "@/lib/project-listing-sections";
 
 function str(formData: FormData, key: string) {
@@ -62,7 +63,6 @@ export async function createProjectAction(
 ): Promise<ProjectFormState> {
   const gate = await assertAdmin();
   if (gate) return gate;
-
   const name = str(formData, "name");
   if (!name) return { ok: false, message: "Name is required." };
 
@@ -74,6 +74,12 @@ export async function createProjectAction(
       message:
         "Slug must be 2–80 chars, lowercase letters, numbers, and hyphens only (e.g. my-project). Leave blank to auto-generate from the name.",
     };
+  }
+
+  try {
+    await ensureProjectSectionColumns();
+  } catch {
+    return { ok: false, message: "Database is missing listing-section columns. Try again shortly." };
   }
 
   const sections = parseListingSections(formData);
@@ -164,6 +170,12 @@ export async function updateProjectAction(
 
   const id = str(formData, "projectId");
   if (!id) return { ok: false, message: "Missing project id." };
+
+  try {
+    await ensureProjectSectionColumns();
+  } catch {
+    return { ok: false, message: "Database is missing listing-section columns. Try again shortly." };
+  }
 
   const existing = await prisma.project.findUnique({ where: { id } });
   if (!existing) return { ok: false, message: "Project not found." };
