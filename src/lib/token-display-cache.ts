@@ -10,10 +10,26 @@ export type CachedTokenDisplay = {
 };
 
 /** Sources that are real token metadata (not project listing art). */
-const MARKET_SOURCES = new Set(["dex", "helius", "jupiter", "token"]);
+const MARKET_SOURCES = new Set([
+  "dex",
+  "helius",
+  "jupiter",
+  "gecko",
+  "token",
+]);
 
 function abbrevMint(mint: string): string {
   return `${mint.slice(0, 4)}…${mint.slice(-4)}`;
+}
+
+/** Prefer stable HTTPS CDNs over IPFS gateways when upgrading a cache hit. */
+function isIpfsHosted(url: string | null): boolean {
+  if (!url) return false;
+  return (
+    url.startsWith("ipfs://") ||
+    /\/ipfs\//i.test(url) ||
+    /gateway\.pinata\.cloud/i.test(url)
+  );
 }
 
 function isMarketTokenImage(
@@ -105,6 +121,37 @@ async function fetchJupiterTokenMeta(
   }
 }
 
+/** GeckoTerminal hosts CDN logos even when Dex/Jupiter only expose IPFS. */
+async function fetchGeckoTerminalMeta(
+  mint: string,
+): Promise<{ symbol?: string; icon?: string } | null> {
+  try {
+    const res = await fetch(
+      `https://api.geckoterminal.com/api/v2/networks/solana/tokens/${encodeURIComponent(mint)}`,
+      {
+        headers: { Accept: "application/json" },
+        next: { revalidate: 3600 },
+      },
+    );
+    if (!res.ok) return null;
+    const json = (await res.json()) as {
+      data?: {
+        attributes?: {
+          symbol?: string;
+          image_url?: string | null;
+        };
+      };
+    };
+    const attrs = json.data?.attributes;
+    const icon = attrs?.image_url?.trim() || undefined;
+    const symbol = attrs?.symbol?.trim() || undefined;
+    if (!icon && !symbol) return null;
+    return { symbol, icon };
+  } catch {
+    return null;
+  }
+}
+
 export type ProjectDisplayHints = {
   tokenName?: string | null;
   /** Custom logo for non-liquid tokens only — not project listing art. */
@@ -116,8 +163,9 @@ type ResolvedDisplay = { symbol: string; imageUrl: string | null };
 
 /**
  * Resolve market token logo + symbol.
- * Prefer Dex → Helius → Jupiter. Non-liquid projects may use tokenImageUrl last.
- * Never uses project listing/banner images.
+ * Prefer Dex → Helius → Jupiter → GeckoTerminal.
+ * Non-liquid projects may use tokenImageUrl last. Never uses project listing art.
+ * Prefer HTTPS CDN logos over IPFS when available (Gecko upgrades cached IPFS hits).
  */
 async function resolveOneTokenDisplay(
   mint: string,
@@ -132,11 +180,13 @@ async function resolveOneTokenDisplay(
     : null;
   const customTokenSymbol = hints?.tokenName?.trim() || null;
 
-  // Trust cache only when it already holds a market token image.
+  // Trust cache when it holds a market token image on a stable (non-IPFS) host.
+  // IPFS cache hits still get a chance to upgrade to Gecko/Jupiter CDN logos.
   if (
     cached?.imageUrl &&
     cached.symbol &&
-    isMarketTokenImage(cached.imageUrl, cached.source)
+    isMarketTokenImage(cached.imageUrl, cached.source) &&
+    !isIpfsHosted(cached.imageUrl)
   ) {
     return { symbol: cached.symbol, imageUrl: cached.imageUrl };
   }
@@ -150,25 +200,49 @@ async function resolveOneTokenDisplay(
   }
 
   let symbol = dexSymbol || cached?.symbol || customTokenSymbol;
-  let imageUrl = dexImg;
+  let imageUrl: string | null = dexImg;
   let source: string | null = dexImg ? "dex" : null;
+
+  // Provisional seed from cache (IPFS already rewritten to Pinata on read).
+  if (
+    !imageUrl &&
+    cached?.imageUrl &&
+    isMarketTokenImage(cached.imageUrl, cached.source)
+  ) {
+    imageUrl = cached.imageUrl;
+    source = cached.source;
+  }
+
+  const preferHttpsOverIpfs = (candidate: string | null, nextSource: string) => {
+    if (!candidate) return;
+    if (!imageUrl) {
+      imageUrl = candidate;
+      source = nextSource;
+      return;
+    }
+    if (isIpfsHosted(imageUrl) && !isIpfsHosted(candidate)) {
+      imageUrl = candidate;
+      source = nextSource;
+    }
+  };
 
   if (!imageUrl || !symbol) {
     const helius = await fetchHeliusTokenMeta(mint).catch(() => null);
     if (!symbol) symbol = helius?.symbol?.trim() || null;
-    if (!imageUrl && helius?.image) {
-      imageUrl = normalizeImageUrl(helius.image);
-      source = "helius";
-    }
+    if (helius?.image) preferHttpsOverIpfs(normalizeImageUrl(helius.image), "helius");
   }
 
-  if (!imageUrl || !symbol) {
+  if (!imageUrl || !symbol || isIpfsHosted(imageUrl)) {
     const jup = await fetchJupiterTokenMeta(mint);
     if (!symbol) symbol = jup?.symbol || null;
-    if (!imageUrl && jup?.icon) {
-      imageUrl = normalizeImageUrl(jup.icon);
-      source = "jupiter";
-    }
+    preferHttpsOverIpfs(normalizeImageUrl(jup?.icon), "jupiter");
+  }
+
+  // GeckoTerminal CDN — strong HTTPS fallback / IPFS upgrade.
+  if (!imageUrl || !symbol || isIpfsHosted(imageUrl)) {
+    const gecko = await fetchGeckoTerminalMeta(mint);
+    if (!symbol) symbol = gecko?.symbol || null;
+    preferHttpsOverIpfs(normalizeImageUrl(gecko?.icon), "gecko");
   }
 
   // Last resort for liquid tokens: stored tokenImageUrl only (never listing art).
