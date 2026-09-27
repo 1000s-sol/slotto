@@ -4,21 +4,39 @@ import {
 } from "@/lib/helius-api-keys";
 import { isRpcFallbackError } from "@/lib/lottery/rpc-url";
 
+/** Pinata is reliable for Solana token metadata CIDs; Cloudflare/ipfs.io often 429 or hang. */
+const PREFERRED_IPFS_GATEWAY = "https://gateway.pinata.cloud/ipfs/";
+
+/** Extract an IPFS CID (+ optional path) from ipfs:// or gateway /ipfs/ paths. */
+function extractIpfsPath(url: string): string | null {
+  const u = url.trim();
+  if (u.startsWith("ipfs://")) {
+    const rest = u.slice("ipfs://".length).replace(/^ipfs\//i, "");
+    return rest || null;
+  }
+  const m = u.match(/\/ipfs\/([^?#]+)/i);
+  return m?.[1] ?? null;
+}
+
 /**
- * Many token images are ipfs:// or ipfs.io — browsers often fail those.
- * Prefer Cloudflare’s gateway; leave other https URLs as-is.
+ * Many token images are ipfs:// or public gateways that rate-limit / hang.
+ * Rewrite every IPFS URL onto Pinata; leave other https/data URLs as-is.
+ * Also normalizes ar:// → arweave.net.
  */
 export function normalizeImageUrl(url: string | undefined): string | null {
   if (!url) return null;
   const u = url.trim();
   if (!u) return null;
-  if (u.startsWith("ipfs://")) {
-    return `https://cloudflare-ipfs.com/ipfs/${u.slice("ipfs://".length)}`;
+
+  const ipfsPath = extractIpfsPath(u);
+  if (ipfsPath) {
+    return `${PREFERRED_IPFS_GATEWAY}${ipfsPath}`;
   }
-  const ipfsIo = u.match(/^https?:\/\/ipfs\.io\/ipfs\/(.+)$/i);
-  if (ipfsIo) {
-    return `https://cloudflare-ipfs.com/ipfs/${ipfsIo[1]}`;
+
+  if (u.startsWith("ar://")) {
+    return `https://arweave.net/${u.slice("ar://".length)}`;
   }
+
   if (u.startsWith("http://") || u.startsWith("https://") || u.startsWith("data:")) {
     return u;
   }

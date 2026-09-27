@@ -46,21 +46,37 @@ function formatMoney(
 
 function avatarFallbacks(url: string | null): string[] {
   if (!url) return [];
-  const out = [url];
-  const cidMatch = url.match(/\/ipfs\/([^/?#]+)/i);
-  if (cidMatch) {
+  const out: string[] = [];
+  const push = (u: string) => {
+    if (u && !out.includes(u)) out.push(u);
+  };
+
+  push(url);
+
+  const cidMatch =
+    url.match(/\/ipfs\/([^/?#]+)/i) ||
+    (url.startsWith("ipfs://")
+      ? [url, url.slice("ipfs://".length).replace(/^ipfs\//i, "")]
+      : null);
+  if (cidMatch?.[1]) {
     const cid = cidMatch[1];
+    // Pinata first — Cloudflare / public gateways frequently 429 or hang.
     for (const gateway of [
-      `https://cloudflare-ipfs.com/ipfs/${cid}`,
-      `https://nftstorage.link/ipfs/${cid}`,
+      `https://gateway.pinata.cloud/ipfs/${cid}`,
       `https://ipfs.io/ipfs/${cid}`,
+      `https://nftstorage.link/ipfs/${cid}`,
+      `https://dweb.link/ipfs/${cid}`,
+      `https://w3s.link/ipfs/${cid}`,
+      `https://cloudflare-ipfs.com/ipfs/${cid}`,
     ]) {
-      if (!out.includes(gateway)) out.push(gateway);
+      push(gateway);
     }
   }
+
   // Phantom’s image proxy often succeeds when origin hosts block hotlinking.
-  const proxied = `https://api.phantom.app/image-proxy/?image=${encodeURIComponent(url)}`;
-  if (!out.includes(proxied)) out.push(proxied);
+  push(
+    `https://api.phantom.app/image-proxy/?image=${encodeURIComponent(out[0] ?? url)}`,
+  );
   return out;
 }
 
