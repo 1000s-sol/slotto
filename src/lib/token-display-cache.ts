@@ -192,6 +192,7 @@ export async function resolveTokenDisplays(
     ReturnType<typeof prisma.tokenDisplayCache.findMany>
   > = [];
   try {
+    await ensureTokenDisplayCacheTable();
     cachedRows = await prisma.tokenDisplayCache.findMany({
       where: { mint: { in: unique } },
     });
