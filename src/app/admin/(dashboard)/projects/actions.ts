@@ -15,9 +15,20 @@ import { validateCollectionsJson } from "@/lib/project-collections";
 import { isValidSlug, normalizeSlugInput, slugifyName } from "@/lib/project-slug";
 import { prisma } from "@/lib/prisma";
 import { sanitizeOptionalUrl } from "@/lib/safe-url";
+import { hasListingSections } from "@/lib/project-listing-sections";
 
 function str(formData: FormData, key: string) {
   return String(formData.get(key) ?? "").trim();
+}
+
+function parseListingSections(formData: FormData) {
+  return {
+    sectionOverview: str(formData, "sectionOverview") || null,
+    sectionStaking: str(formData, "sectionStaking") || null,
+    sectionToken: str(formData, "sectionToken") || null,
+    sectionHolderUtility: str(formData, "sectionHolderUtility") || null,
+    sectionServices: str(formData, "sectionServices") || null,
+  };
 }
 
 /** Validate the three external link fields; returns sanitized values or an error. */
@@ -65,8 +76,15 @@ export async function createProjectAction(
     };
   }
 
+  const sections = parseListingSections(formData);
   const reviewMd = str(formData, "reviewMd");
-  if (!reviewMd) return { ok: false, message: "Review (Markdown) is required." };
+  if (!hasListingSections(sections) && !reviewMd) {
+    return {
+      ok: false,
+      message:
+        "Fill the four core listing sections (Overview, Rewards/staking, Token, Holder utility), or provide a legacy Review.",
+    };
+  }
 
   let collectionsParsed: ReturnType<typeof validateCollectionsJson>;
   try {
@@ -98,7 +116,8 @@ export async function createProjectAction(
     name,
     tagline: null,
     likes: 0,
-    reviewMd,
+    reviewMd: reviewMd || sections.sectionOverview || "",
+    ...sections,
     collections: collectionsParsed.collections as unknown as Prisma.InputJsonValue,
     meUrl: collectionsParsed.meUrl,
     meUrls:
@@ -162,8 +181,15 @@ export async function updateProjectAction(
     };
   }
 
+  const sections = parseListingSections(formData);
   const reviewMd = str(formData, "reviewMd");
-  if (!reviewMd) return { ok: false, message: "Review (Markdown) is required." };
+  if (!hasListingSections(sections) && !reviewMd) {
+    return {
+      ok: false,
+      message:
+        "Fill the four core listing sections (Overview, Rewards/staking, Token, Holder utility), or provide a legacy Review.",
+    };
+  }
 
   let collectionsParsed: ReturnType<typeof validateCollectionsJson>;
   try {
@@ -198,7 +224,8 @@ export async function updateProjectAction(
         slug,
         name,
         tagline: null,
-        reviewMd,
+        reviewMd: reviewMd || sections.sectionOverview || existing.reviewMd,
+        ...sections,
         collections: collectionsParsed.collections as unknown as Prisma.InputJsonValue,
         meUrl: collectionsParsed.meUrl,
         meUrls:

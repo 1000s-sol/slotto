@@ -200,18 +200,78 @@ export function ProjectForm({
         Published (visible on public /projects)
       </label>
 
+      <div className="space-y-4 rounded-2xl border border-border bg-surface/25 p-4">
+        <div>
+          <h3 className="text-sm font-semibold text-foreground">Listing sections</h3>
+          <p className="mt-1 text-[11px] leading-relaxed text-muted">
+            Fixed tiles on the public project page. Fill the four core fields (Overview through Holder
+            utility). Services is optional. Prefer short paragraphs — one tile each.
+          </p>
+        </div>
+        {(
+          [
+            {
+              name: "sectionOverview",
+              label: "Overview",
+              hint: "Project, history, main benefits",
+              value: merged.sectionOverview,
+              rows: 5,
+            },
+            {
+              name: "sectionStaking",
+              label: "Rewards / staking",
+              hint: "Where to stake, what you receive, collection notes",
+              value: merged.sectionStaking,
+              rows: 5,
+            },
+            {
+              name: "sectionToken",
+              label: "Token",
+              hint: "LP / liquidity, utility, secondary token if relevant",
+              value: merged.sectionToken,
+              rows: 4,
+            },
+            {
+              name: "sectionHolderUtility",
+              label: "Holder utility",
+              hint: "Non-staking utilities for holders",
+              value: merged.sectionHolderUtility,
+              rows: 4,
+            },
+            {
+              name: "sectionServices",
+              label: "Services (optional)",
+              hint: "Services for other collections — leave blank if none",
+              value: merged.sectionServices,
+              rows: 4,
+            },
+          ] as const
+        ).map((field) => (
+          <label key={field.name} className="flex flex-col gap-2 text-xs text-muted">
+            <span className="inline-flex flex-wrap items-baseline gap-1.5">
+              {field.label}
+              <span className="font-normal text-muted/90">— {field.hint}</span>
+            </span>
+            <textarea
+              name={field.name}
+              rows={field.rows}
+              defaultValue={field.value}
+              className="rounded-xl border border-border bg-surface/60 px-3 py-2 text-sm leading-relaxed text-foreground outline-none focus:border-accent-purple/40 focus:ring-4 focus:ring-accent-purple/15"
+            />
+          </label>
+        ))}
+      </div>
+
       <label className="flex flex-col gap-2 text-xs text-muted">
         <span className="inline-flex flex-wrap items-baseline gap-1.5">
-          Review
-          <span className="text-red-400" aria-hidden>
-            *
+          Legacy review
+          <span className="font-normal text-muted/90">
+            (fallback if sections are incomplete — Markdown)
           </span>
-          <span className="font-normal text-muted/90">(Markdown)</span>
         </span>
         <textarea
           name="reviewMd"
-          required
-          rows={14}
+          rows={8}
           defaultValue={merged.reviewMd}
           className="rounded-xl border border-border bg-surface/60 px-3 py-2 font-mono text-xs leading-relaxed text-foreground outline-none focus:border-accent-purple/40 focus:ring-4 focus:ring-accent-purple/15 sm:text-sm"
         />

@@ -4,12 +4,18 @@ import { notFound } from "next/navigation";
 
 import { ProjectCollectionsPanel } from "@/components/project/project-collections-panel";
 import { ProjectLikePill, ProjectSocialLinks } from "@/components/project/project-detail-actions";
+import { ProjectListingSections } from "@/components/project/project-listing-sections";
 import { ProjectTokenBlock } from "@/components/project/project-token-block";
 import { fetchLiveMagicEdenStats } from "@/lib/magiceden-stats";
 import {
   magicEdenLink,
   parseProjectCollections,
 } from "@/lib/project-collections";
+import {
+  hasListingSections,
+  listingSectionsFromProject,
+  listingShareBlurb,
+} from "@/lib/project-listing-sections";
 import { prisma } from "@/lib/prisma";
 import { fetchProjectTokenDisplay } from "@/lib/project-token-display";
 import {
@@ -27,6 +33,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     select: {
       name: true,
       reviewMd: true,
+      sectionOverview: true,
+      sectionStaking: true,
+      sectionToken: true,
+      sectionHolderUtility: true,
+      sectionServices: true,
       bannerImageUrl: true,
       listingImageUrl: true,
     },
@@ -38,7 +49,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const siteUrl = await getRequestSiteUrl();
   const title = project.name;
-  const description = projectShareDescription(project.reviewMd);
+  const description = projectShareDescription(listingShareBlurb(project));
   const image = projectShareImageUrl(project.bannerImageUrl, project.listingImageUrl, siteUrl);
   const pageUrl = `${siteUrl.replace(/\/$/, "")}/projects/${slug}`;
   const isDefaultImage = image.includes("/brand/slotto-tickets");
@@ -153,11 +164,15 @@ export default async function ProjectPage({ params }: Props) {
             />
           ) : null}
 
-          <article className="prose prose-invert max-w-none prose-headings:scroll-mt-24 prose-p:text-muted prose-li:text-muted">
-            <pre className="whitespace-pre-wrap rounded-xl border border-border bg-bg-deep/60 p-4 font-sans text-sm leading-relaxed text-muted">
-              {project.reviewMd}
-            </pre>
-          </article>
+          {hasListingSections(project) ? (
+            <ProjectListingSections sections={listingSectionsFromProject(project)} />
+          ) : (
+            <article className="prose prose-invert max-w-none prose-headings:scroll-mt-24 prose-p:text-muted prose-li:text-muted">
+              <pre className="whitespace-pre-wrap rounded-xl border border-border bg-bg-deep/60 p-4 font-sans text-sm leading-relaxed text-muted">
+                {project.reviewMd}
+              </pre>
+            </article>
+          )}
         </div>
       </div>
     </div>
