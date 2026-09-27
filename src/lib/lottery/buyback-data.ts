@@ -4,8 +4,11 @@ import {
 } from "@solana/spl-token";
 import { PublicKey } from "@solana/web3.js";
 
-import { fetchHeliusTokenMeta, normalizeImageUrl } from "@/lib/helius-token-meta";
 import { prisma } from "@/lib/prisma";
+import {
+  resolveTokenDisplays,
+  type ProjectDisplayHints,
+} from "@/lib/token-display-cache";
 import {
   fetchDexTokenRows,
   fetchJupiterUsd,
@@ -187,7 +190,11 @@ export async function fetchBuybackSnapshot(): Promise<BuybackSnapshot> {
     }
   }
 
-  const mints = [...byMint.keys()];
+  // Founders only care about tokens that actually sold tickets.
+  const mints = [...byMint.entries()]
+    .filter(([, agg]) => agg.totalTicketsSold > 0)
+    .map(([mint]) => mint);
+
   if (mints.length === 0) {
     return {
       teamVault: LOTTERY_TEAM_VAULT,
@@ -207,6 +214,8 @@ export async function fetchBuybackSnapshot(): Promise<BuybackSnapshot> {
         tokenMint: true,
         tokenName: true,
         tokenImageUrl: true,
+        listingImageUrl: true,
+        tokenLiquid: true,
       },
     }),
     fetchVaultBalancesByMint(teamVault),
@@ -220,24 +229,19 @@ export async function fetchBuybackSnapshot(): Promise<BuybackSnapshot> {
       .map((p) => [p.tokenMint!.trim(), p] as const),
   );
 
-  // Same logo fallback chain as the header ticker (Dex → Helius → project DB).
-  const needsHelius = mints.filter((mint) => {
-    const dex = byMintDex.get(mint);
-    const project = projectByMint.get(mint);
-    return (
-      !normalizeImageUrl(dex?.info?.imageUrl) &&
-      !normalizeImageUrl(project?.tokenImageUrl ?? undefined)
-    );
-  });
-  const heliusMap = new Map<
-    string,
-    Awaited<ReturnType<typeof fetchHeliusTokenMeta>>
-  >();
-  await Promise.all(
-    needsHelius.map(async (mint) => {
-      heliusMap.set(mint, await fetchHeliusTokenMeta(mint));
-    }),
-  );
+  const displayHints = new Map<string, ProjectDisplayHints>();
+  for (const mint of mints) {
+    const p = projectByMint.get(mint);
+    if (!p) continue;
+    displayHints.set(mint, {
+      tokenName: p.tokenName,
+      tokenImageUrl: p.tokenImageUrl,
+      listingImageUrl: p.listingImageUrl,
+      liquid: p.tokenLiquid,
+    });
+  }
+
+  const displays = await resolveTokenDisplays(mints, displayHints);
 
   const solUsd = resolveTokenUsdPrice(
     WRAPPED_SOL_MINT,
@@ -251,7 +255,7 @@ export async function fetchBuybackSnapshot(): Promise<BuybackSnapshot> {
     const bal = balances.get(mint) ?? { totalAmount: "0", decimals: 0 };
     const tokensHeld = uiAmount(bal.totalAmount, bal.decimals);
     const dex = byMintDex.get(mint);
-    const helius = heliusMap.get(mint) ?? null;
+    const display = displays.get(mint);
     const tokenUsd = resolveTokenUsdPrice(mint, dex, jupUsd[mint] ?? null);
 
     let valueUsd: number | null = null;
@@ -272,22 +276,12 @@ export async function fetchBuybackSnapshot(): Promise<BuybackSnapshot> {
       }
     }
 
-    let symbol =
-      project?.tokenName?.trim() ||
-      dex?.baseToken?.symbol?.trim() ||
-      helius?.symbol?.trim() ||
-      abbrevMint(mint);
-    if (symbol.length > 12) symbol = symbol.slice(0, 12);
-
+    const symbol = display?.symbol || abbrevMint(mint);
     const name =
       project?.name?.trim() ||
       dex?.baseToken?.name?.trim() ||
       symbol;
-
-    const imageUrl =
-      normalizeImageUrl(dex?.info?.imageUrl) ||
-      normalizeImageUrl(helius?.image) ||
-      normalizeImageUrl(project?.tokenImageUrl ?? undefined);
+    const imageUrl = display?.imageUrl ?? null;
 
     const drawsSorted = [...agg.draws.values()].sort(
       (a, b) => b.onChainDrawId - a.onChainDrawId,

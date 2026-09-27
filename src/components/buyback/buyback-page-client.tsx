@@ -44,6 +44,26 @@ function formatMoney(
   })}`;
 }
 
+function avatarFallbacks(url: string | null): string[] {
+  if (!url) return [];
+  const out = [url];
+  const cidMatch = url.match(/\/ipfs\/([^/?#]+)/i);
+  if (cidMatch) {
+    const cid = cidMatch[1];
+    for (const gateway of [
+      `https://cloudflare-ipfs.com/ipfs/${cid}`,
+      `https://nftstorage.link/ipfs/${cid}`,
+      `https://ipfs.io/ipfs/${cid}`,
+    ]) {
+      if (!out.includes(gateway)) out.push(gateway);
+    }
+  }
+  // Phantom’s image proxy often succeeds when origin hosts block hotlinking.
+  const proxied = `https://api.phantom.app/image-proxy/?image=${encodeURIComponent(url)}`;
+  if (!out.includes(proxied)) out.push(proxied);
+  return out;
+}
+
 function TokenAvatar({
   imageUrl,
   symbol,
@@ -51,23 +71,27 @@ function TokenAvatar({
   imageUrl: string | null;
   symbol: string;
 }) {
-  const [failed, setFailed] = useState(false);
+  const candidates = avatarFallbacks(imageUrl);
+  const [idx, setIdx] = useState(0);
   useEffect(() => {
-    setFailed(false);
+    setIdx(0);
   }, [imageUrl]);
   const cls =
     "h-8 w-8 shrink-0 rounded-full object-cover ring-1 ring-border";
-  if (imageUrl && !failed) {
+  const src = candidates[idx] ?? null;
+  if (src) {
     // eslint-disable-next-line @next/next/no-img-element
     return (
       <img
-        src={imageUrl}
+        src={src}
         alt=""
         className={cls}
         loading="lazy"
         decoding="async"
         referrerPolicy="no-referrer"
-        onError={() => setFailed(true)}
+        onError={() => {
+          setIdx((i) => (i + 1 < candidates.length ? i + 1 : candidates.length));
+        }}
       />
     );
   }
