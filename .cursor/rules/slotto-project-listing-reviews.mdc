@@ -1,38 +1,52 @@
 ---
-description: How to write Slotto.gg public project listing reviews (reviewMd) — tone, structure, and constraints
+description: How to write Slotto.gg public project listing section tiles and legacy reviewMd — tone, structure, and constraints
 alwaysApply: true
 ---
 
-# Slotto.gg project listing reviews (`reviewMd`)
+# Slotto.gg project listing copy (`section*` tiles + legacy `reviewMd`)
 
-Use this when drafting or editing copy for published project pages and admin **Review** fields.
+Use this when drafting or editing copy for published project pages, admin listing-section fields, or reformatting checklist entries.
 
-## Structure
+## Structured tiles (preferred)
 
-- **Three paragraphs by default** unless the user asks for another length.
-- **Continuous prose only**: no `#` headings, no `##` subheadings, no `===` underlines, no horizontal rules.
-- **No markdown lists**: do not use `-`, `*`, or numbered list syntax in the review body.
+Fixed fields on each listing (map 1:1 to admin / DB):
 
-## Voice
+1. **Overview** — what the project is, history, main benefits  
+2. **Rewards / staking** — where to stake, what you receive, collection-specific notes  
+3. **Token** — liquidity reality, what holders do with it (only mention a secondary token if it actually exists)  
+4. **Holder utility** — non-staking utilities  
+5. **Services** — only if the project offers tools/infra to **other** collections; otherwise leave blank (tile stays hidden)
 
-- **Matter-of-fact and third-person**: describe the project as it operates and what it offers; avoid meta phrases like “the website says”, “according to the homepage”, “the team frames itself as”, or “X bills itself as” when a direct statement works.
-- Prefer **catalogue / analysis** over hype: who it suits, how the pieces fit together, what differentiates it from a generic mint.
-- One **closing orientation sentence** is fine (e.g. who should care, what to weigh when comparing listings), in the same register as “For visitors comparing listings…” in the house style.
+A listing is reformatted when Overview, Rewards/staking, Token, and Holder utility are filled. Services is optional.
 
-## Content
+### Tile writing rules
 
-- **Ground claims in what you actually know** from official sources the user provided or from research they asked for. Do not invent roadmap dates, partner names, or token mechanics.
-- **Name concrete entities** when relevant: collections, products, tokens, platforms (e.g. Solana, Discord, specific game modes) so the read feels specific, not generic Web3 filler.
-- **Risks and caveats** belong inside normal sentences, not as a separate “Risks” section header.
+- **One continuous paragraph per tile** (two short paragraphs only if essential). Full sentences. No bullet lists, no pseudo-lists joined by semicolons as a cheat sheet.
+- **Direct statements only.** Do not use hedging or meta: “it appears”, “seems”, “reportedly”, “the website says”, “according to their site”, “the team frames itself as”, “X bills itself as”.
+- **Do not invent or pad.** No secondary tokens, LP claims, partner names, roadmap dates, or utilities that are not confirmed from official sources. If a topic does not apply, omit it — do not write “there is no secondary token” or “utilities are limited”.
+- **Hide empty optional tiles.** Leave Services (and any inapplicable field) blank rather than filler prose.
+- **No URLs** in tile bodies unless the user explicitly wants links.
+- **No markdown** emphasis (`*`, `**`, backticks) in stored tile text unless asked.
+- Name concrete entities when relevant (collections, $TOKEN, Solana, Discord, stake platforms).
 
-## Things to omit unless asked
+## Legacy `reviewMd` (fallback only)
 
-- **No URLs** in the review body unless the user explicitly wants links.
-- **No editorial sign-off line** (e.g. “— Slotto.gg”) unless the user asks for it.
-- **No `*` emphasis**, `**bold**`, or backticks in the stored review unless the user explicitly wants markdown there (the public page renders `reviewMd` in a `<pre>` block, so markdown does not render as rich text).
+When a listing is not yet on section tiles, or the user asks for a classic review:
+
+- **Three paragraphs by default** unless asked otherwise.
+- Continuous prose only: no `#` headings, no lists, no horizontal rules.
+- Same voice and “do not invent” rules as above.
+- No editorial sign-off (e.g. “— Slotto.gg”) unless asked.
+
+## Voice (all listing copy)
+
+- Matter-of-fact, third-person catalogue / analysis — not hype.
+- One closing orientation sentence is fine on Overview when useful (“For visitors comparing listings…”).
+- Caveats belong inside normal sentences, not under a “Risks” header.
 
 ## Quick negative examples
 
-- Bad: “At a glance”, bullet lists, “The verdict” as a subheading, bracketed links.
-- Bad: “According to their site, they offer…”
-- Good: “The project runs several collection lines under one hub, with daily payouts in $TOKEN tied to verified, unlisted holdings…”
+- Bad: “It appears they offer staking…” / “Utilities seem limited…”
+- Bad: “There is no secondary token.” / “Partner services: none.”
+- Bad: Bullet lists, “At a glance”, “The verdict”, bracketed links.
+- Good: “Holders stake Absurd Art Apes on GOTM Labs and earn $AAA at a base rate of 5 per day, with higher rates for listed trait bonuses.”
