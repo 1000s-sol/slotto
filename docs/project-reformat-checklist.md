@@ -63,7 +63,7 @@ Requires `DATABASE_URL` or `DIRECT_URL` in `.env`. After schema deploy, also run
 
 Tick in this file as each listing is reformatted. Keep alphabetical by name.
 
-- [ ] Absurd Apes (`absurd-apes`)
+- [x] Absurd Apes (`absurd-apes`)
 - [ ] Aevon (`aevon`)
 - [ ] Bored Ape Sol Club (`bored-ape-sol-club`)
 - [ ] Bulls on Sol Society (`bulls-on-sol-society`)
@@ -91,7 +91,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [ ] Mnk3y Labs (`mnk3y-labs`)
 - [ ] Mob Collective (`mob-collective`)
 - [ ] Mutants On Sol Crew (`mutants-on-sol-crew`)
-- [x] Omerta - Empire City (`omerta-empire-city`) — first; seed with `seed-omerta`
+- [x] Omerta - Empire City (`omerta-empire-city`)
 - [ ] Onchain Bridges (`onchain-bridges`)
 - [ ] Pandarianz (`pandarianz`)
 - [ ] Pawpular (`pawpular`)
