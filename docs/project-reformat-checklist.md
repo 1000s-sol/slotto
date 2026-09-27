@@ -1,0 +1,107 @@
+# Project listing reformat checklist
+
+Track reformatting of published listings into the fixed five tiles:
+
+1. Overview  
+2. Rewards / staking  
+3. Token  
+4. Holder utility  
+5. Services (optional)
+
+A listing counts as **done** when the four core tiles are filled in the DB (`sectionOverview`, `sectionStaking`, `sectionToken`, `sectionHolderUtility`).
+
+## DB commands (fast edits)
+
+```bash
+# Ensure columns exist + show progress
+npx tsx scripts/set-project-sections.ts status
+
+# Inspect one project
+npx tsx scripts/set-project-sections.ts show omerta-empire-city
+
+# Set fields from flags (quote carefully)
+npx tsx scripts/set-project-sections.ts set some-slug \
+  --overview "..." \
+  --staking "..." \
+  --token "..." \
+  --holder "..." \
+  --services "..."
+
+# Or from a JSON file
+npx tsx scripts/set-project-sections.ts set some-slug --json ./tmp/some-slug.json
+
+# Seed Omerta from the approved preview copy
+npx tsx scripts/set-project-sections.ts seed-omerta
+```
+
+JSON shape:
+
+```json
+{
+  "overview": "...",
+  "staking": "...",
+  "token": "...",
+  "holderUtility": "...",
+  "services": "..."
+}
+```
+
+Requires `DATABASE_URL` or `DIRECT_URL` in `.env`. After schema deploy, also run `npm run db:push` once on the production DB if columns are missing.
+
+## Checklist (53 published)
+
+Tick in this file as each listing is reformatted. Keep alphabetical by name.
+
+- [ ] Absurd Apes (`absurd-apes`)
+- [ ] Aevon (`aevon`)
+- [ ] Bored Ape Sol Club (`bored-ape-sol-club`)
+- [ ] Bulls on Sol Society (`bulls-on-sol-society`)
+- [ ] BUXDAO (`buxdao`)
+- [ ] Chart Breakers (`chart-breakers`)
+- [ ] Crouton Jones (`crouton-jones`)
+- [ ] Dead Bunnies (`dead-bunnies`)
+- [ ] DMST (`dmst`)
+- [ ] Eapes (`eapes`)
+- [ ] Enchanted Miners (`enchanted-miners`)
+- [ ] Energy Wabbits (`energy-wabbits`)
+- [ ] Famous Fox Federation (`famous-fox-federation`)
+- [ ] Frens Factory (`frens-factory`)
+- [ ] GAINZ (`gainz`)
+- [ ] Geeks (`geeks`)
+- [ ] Gensuki (`gensuki`)
+- [ ] GoodFellas (`goodfellas`)
+- [ ] Goofy Giraffes (`goofy-giraffes`)
+- [ ] Haxz (`haxz`)
+- [ ] K.B.D.S (`k-b-d-s`)
+- [ ] Loud Lords (`loud-lords`)
+- [ ] Lunarverse (`lunarverse`)
+- [ ] MAGApixel (`magapixel`)
+- [ ] Midevils (`midevils`)
+- [ ] Mnk3y Labs (`mnk3y-labs`)
+- [ ] Mob Collective (`mob-collective`)
+- [ ] Mutants On Sol Crew (`mutants-on-sol-crew`)
+- [x] Omerta - Empire City (`omerta-empire-city`) — first; seed with `seed-omerta`
+- [ ] Onchain Bridges (`onchain-bridges`)
+- [ ] Pandarianz (`pandarianz`)
+- [ ] Pawpular (`pawpular`)
+- [ ] Pepeverse (`pepeverse`)
+- [ ] Puffsterz (`puffsterz`)
+- [ ] Shinigami (`shinigami`)
+- [ ] SoDead (`sodead`)
+- [ ] Solana Deads (`solana-deads`)
+- [ ] Solana Sky Pilots (`solana-sky-pilots`)
+- [ ] Solana Strays (`solana-strays`)
+- [ ] Solarians (`solarians`)
+- [ ] SolGods (`solgods`)
+- [ ] Stone Gods (`stone-gods`)
+- [ ] Stoned Sloths (`stoned-sloths`)
+- [ ] THC Labz (`thc-labz`)
+- [ ] The Fox Club (`the-fox-club`)
+- [ ] The Misfits Order (`the-misfits-order`)
+- [ ] The Rejects (`the-rejects`)
+- [ ] Ugly Ape Squad (`ugly-ape-squad`)
+- [ ] Uni-Fy (`uni-fy`)
+- [ ] Villagers (`villagers`)
+- [ ] Wegens (`wegens`)
+- [ ] Xape Labz (`xape-labz`)
+- [ ] ZomBabieZ (`zombabiez`)

@@ -93,7 +93,14 @@ model Project {
   name             String
   tagline          String?
   likes            Int          @default(0)
+  /// Legacy freeform review — fallback when section tiles are empty
   reviewMd         String       @db.Text
+  /// Structured listing tiles (reformatting pass)
+  sectionOverview       String? @db.Text
+  sectionStaking        String? @db.Text
+  sectionToken          String? @db.Text
+  sectionHolderUtility  String? @db.Text
+  sectionServices       String? @db.Text
   meUrl            String?
   /// string[] — legacy; synced from `collections` Magic Eden links
   meUrls           Json?

@@ -16,6 +16,7 @@ type ProjectRow = {
   name: string;
   likes: number;
   reviewMd: string;
+  sectionOverview: string | null;
   bannerImageUrl: string | null;
   listingImageUrl: string | null;
 };
@@ -52,6 +53,7 @@ export default async function ProjectsPage({ searchParams }: Props) {
     name: true,
     likes: true,
     reviewMd: true,
+    sectionOverview: true,
     bannerImageUrl: true,
     listingImageUrl: true,
   } as const;
@@ -102,7 +104,7 @@ export default async function ProjectsPage({ searchParams }: Props) {
           slug={featured.slug}
           name={featured.name}
           likes={featured.likes}
-          reviewMd={featured.reviewMd}
+          reviewMd={featured.sectionOverview?.trim() || featured.reviewMd}
           imageUrl={thumb(featured)}
         />
       ) : null}

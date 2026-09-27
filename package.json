@@ -45,7 +45,8 @@
     "x:backfill-winner": "tsx scripts/x-backfill-draw-winner.ts",
     "discord:register-commands": "tsx scripts/discord-register-ticket-bot-commands.ts",
     "discord:backfill-winner": "tsx scripts/discord-backfill-draw-winner.ts",
-    "discord:test-draw-notifs": "tsx scripts/discord-test-draw-notifs.ts"
+    "discord:test-draw-notifs": "tsx scripts/discord-test-draw-notifs.ts",
+    "db:project-sections": "tsx scripts/set-project-sections.ts"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.30.1",

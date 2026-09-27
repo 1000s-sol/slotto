@@ -5,6 +5,11 @@ export type ProjectFormDefaults = {
   name: string;
   published: boolean;
   reviewMd: string;
+  sectionOverview: string;
+  sectionStaking: string;
+  sectionToken: string;
+  sectionHolderUtility: string;
+  sectionServices: string;
   collectionsInitial: ReturnType<typeof collectionsForEditor>;
   discordUrl: string;
   twitterUrl: string;
@@ -22,6 +27,11 @@ export const emptyDefaults: ProjectFormDefaults = {
   name: "",
   published: false,
   reviewMd: "",
+  sectionOverview: "",
+  sectionStaking: "",
+  sectionToken: "",
+  sectionHolderUtility: "",
+  sectionServices: "",
   collectionsInitial: [],
   discordUrl: "",
   twitterUrl: "",
@@ -40,6 +50,11 @@ export function defaultsFromProject(p: {
   name: string;
   published: boolean;
   reviewMd: string;
+  sectionOverview?: string | null;
+  sectionStaking?: string | null;
+  sectionToken?: string | null;
+  sectionHolderUtility?: string | null;
+  sectionServices?: string | null;
   meUrl: string | null;
   meUrls: unknown;
   collections?: unknown;
@@ -59,6 +74,11 @@ export function defaultsFromProject(p: {
     name: p.name,
     published: p.published,
     reviewMd: p.reviewMd,
+    sectionOverview: p.sectionOverview ?? "",
+    sectionStaking: p.sectionStaking ?? "",
+    sectionToken: p.sectionToken ?? "",
+    sectionHolderUtility: p.sectionHolderUtility ?? "",
+    sectionServices: p.sectionServices ?? "",
     collectionsInitial: collectionsForEditor(p.collections, p.meUrls, p.meUrl, p.marketplaces),
     discordUrl: p.discordUrl ?? "",
     twitterUrl: p.twitterUrl ?? "",
