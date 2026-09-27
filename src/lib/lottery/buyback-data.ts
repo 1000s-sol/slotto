@@ -234,8 +234,8 @@ export async function fetchBuybackSnapshot(): Promise<BuybackSnapshot> {
     if (!p) continue;
     displayHints.set(mint, {
       tokenName: p.tokenName,
+      // tokenImageUrl only — never project listing/banner art
       tokenImageUrl: p.tokenImageUrl,
-      listingImageUrl: p.listingImageUrl,
       liquid: p.tokenLiquid,
     });
   }
