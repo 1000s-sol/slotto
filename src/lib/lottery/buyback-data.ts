@@ -1,8 +1,15 @@
+import {
+  TOKEN_2022_PROGRAM_ID,
+  TOKEN_PROGRAM_ID,
+} from "@solana/spl-token";
 import { PublicKey } from "@solana/web3.js";
 
+import { fetchHeliusTokenMeta, normalizeImageUrl } from "@/lib/helius-token-meta";
 import { prisma } from "@/lib/prisma";
 import {
-  fetchTokenUsdPrices,
+  fetchDexTokenRows,
+  fetchJupiterUsd,
+  resolveTokenUsdPrice,
   WRAPPED_SOL_MINT,
 } from "@/lib/token-usd-prices";
 
@@ -15,7 +22,6 @@ import {
 import { isFreeEntryMint } from "./free-entry";
 import { LOTTERY_TEAM_VAULT } from "./recipients";
 import { withLotteryServerRpc } from "./server-rpc";
-import { fetchWalletMintBalance } from "./wallet-mint-balance";
 
 export const BUYBACK_RATE = 0.9;
 
@@ -76,6 +82,63 @@ function uiAmount(raw: string, decimals: number): number {
   }
 }
 
+type VaultMintBalance = { totalAmount: string; decimals: number };
+
+/**
+ * One/two RPC calls for the whole vault (TOKEN + Token-2022) instead of
+ * per-mint lookups that rate-limit to zeros under load.
+ */
+async function fetchVaultBalancesByMint(
+  owner: PublicKey,
+): Promise<Map<string, VaultMintBalance>> {
+  return withLotteryServerRpc(async (connection) => {
+    const out = new Map<string, { total: bigint; decimals: number }>();
+
+    for (const programId of [TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID]) {
+      const parsed = await connection.getParsedTokenAccountsByOwner(
+        owner,
+        { programId },
+        "confirmed",
+      );
+      for (const { account } of parsed.value) {
+        const info = account.data.parsed?.info as
+          | {
+              mint?: string;
+              tokenAmount?: { amount?: string; decimals?: number };
+            }
+          | undefined;
+        const mint = info?.mint?.trim();
+        const amountStr = info?.tokenAmount?.amount;
+        if (!mint || !amountStr) continue;
+        let amount: bigint;
+        try {
+          amount = BigInt(amountStr);
+        } catch {
+          continue;
+        }
+        if (amount === BigInt(0)) continue;
+        const decimals = info.tokenAmount?.decimals ?? 0;
+        const prev = out.get(mint);
+        if (prev) {
+          prev.total += amount;
+          prev.decimals = decimals;
+        } else {
+          out.set(mint, { total: amount, decimals });
+        }
+      }
+    }
+
+    const mapped = new Map<string, VaultMintBalance>();
+    for (const [mint, row] of out) {
+      mapped.set(mint, {
+        totalAmount: row.total.toString(),
+        decimals: row.decimals,
+      });
+    }
+    return mapped;
+  });
+}
+
 /**
  * Aggregate production-draw SPL ticket sales + team-vault holdings for buyback UI.
  */
@@ -134,51 +197,62 @@ export async function fetchBuybackSnapshot(): Promise<BuybackSnapshot> {
     };
   }
 
-  const projects = await prisma.project.findMany({
-    where: { tokenMint: { in: mints } },
-    select: {
-      slug: true,
-      name: true,
-      tokenMint: true,
-      tokenName: true,
-      tokenImageUrl: true,
-    },
-  });
+  const priceMints = [WRAPPED_SOL_MINT, ...mints];
+  const [projects, balances, byMintDex, jupUsd] = await Promise.all([
+    prisma.project.findMany({
+      where: { tokenMint: { in: mints } },
+      select: {
+        slug: true,
+        name: true,
+        tokenMint: true,
+        tokenName: true,
+        tokenImageUrl: true,
+      },
+    }),
+    fetchVaultBalancesByMint(teamVault),
+    fetchDexTokenRows(priceMints),
+    fetchJupiterUsd(priceMints),
+  ]);
+
   const projectByMint = new Map(
     projects
       .filter((p) => p.tokenMint)
       .map((p) => [p.tokenMint!.trim(), p] as const),
   );
 
-  const balances = await withLotteryServerRpc(async (connection) => {
-    const out = new Map<string, { totalAmount: string; decimals: number }>();
-    for (const mint of mints) {
-      try {
-        const snap = await fetchWalletMintBalance(
-          connection,
-          teamVault,
-          new PublicKey(mint),
-        );
-        out.set(mint, {
-          totalAmount: snap.totalAmount,
-          decimals: snap.decimals,
-        });
-      } catch {
-        out.set(mint, { totalAmount: "0", decimals: 0 });
-      }
-    }
-    return out;
+  // Same logo fallback chain as the header ticker (Dex → Helius → project DB).
+  const needsHelius = mints.filter((mint) => {
+    const dex = byMintDex.get(mint);
+    const project = projectByMint.get(mint);
+    return (
+      !normalizeImageUrl(dex?.info?.imageUrl) &&
+      !normalizeImageUrl(project?.tokenImageUrl ?? undefined)
+    );
   });
+  const heliusMap = new Map<
+    string,
+    Awaited<ReturnType<typeof fetchHeliusTokenMeta>>
+  >();
+  await Promise.all(
+    needsHelius.map(async (mint) => {
+      heliusMap.set(mint, await fetchHeliusTokenMeta(mint));
+    }),
+  );
 
-  const prices = await fetchTokenUsdPrices([WRAPPED_SOL_MINT, ...mints]);
-  const solUsd = prices.get(WRAPPED_SOL_MINT) ?? null;
+  const solUsd = resolveTokenUsdPrice(
+    WRAPPED_SOL_MINT,
+    byMintDex.get(WRAPPED_SOL_MINT),
+    jupUsd[WRAPPED_SOL_MINT] ?? null,
+  );
 
   const tokens: BuybackTokenRow[] = mints.map((mint) => {
     const agg = byMint.get(mint)!;
     const project = projectByMint.get(mint);
     const bal = balances.get(mint) ?? { totalAmount: "0", decimals: 0 };
     const tokensHeld = uiAmount(bal.totalAmount, bal.decimals);
-    const tokenUsd = prices.get(mint) ?? null;
+    const dex = byMintDex.get(mint);
+    const helius = heliusMap.get(mint) ?? null;
+    const tokenUsd = resolveTokenUsdPrice(mint, dex, jupUsd[mint] ?? null);
 
     let valueUsd: number | null = null;
     let valueSol: number | null = null;
@@ -198,8 +272,22 @@ export async function fetchBuybackSnapshot(): Promise<BuybackSnapshot> {
       }
     }
 
-    const symbol = project?.tokenName?.trim() || abbrevMint(mint);
-    const name = project?.name?.trim() || symbol;
+    let symbol =
+      project?.tokenName?.trim() ||
+      dex?.baseToken?.symbol?.trim() ||
+      helius?.symbol?.trim() ||
+      abbrevMint(mint);
+    if (symbol.length > 12) symbol = symbol.slice(0, 12);
+
+    const name =
+      project?.name?.trim() ||
+      dex?.baseToken?.name?.trim() ||
+      symbol;
+
+    const imageUrl =
+      normalizeImageUrl(dex?.info?.imageUrl) ||
+      normalizeImageUrl(helius?.image) ||
+      normalizeImageUrl(project?.tokenImageUrl ?? undefined);
 
     const drawsSorted = [...agg.draws.values()].sort(
       (a, b) => b.onChainDrawId - a.onChainDrawId,
@@ -209,7 +297,7 @@ export async function fetchBuybackSnapshot(): Promise<BuybackSnapshot> {
       mint,
       name,
       symbol,
-      imageUrl: project?.tokenImageUrl ?? null,
+      imageUrl,
       projectSlug: project?.slug ?? null,
       totalTicketsSold: agg.totalTicketsSold,
       tokensHeld,
