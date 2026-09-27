@@ -18,6 +18,7 @@ Full house style lives in `.cursor/rules/slotto-project-listing-reviews.mdc`. Sh
 - **Direct** voice only — no “it appears”, “seems”, “according to the site”, etc.
 - **Do not invent** tokens, LP, utilities, or partners. Do not pad with “there is no X”.
 - Mention a **secondary token only if it exists**.
+- Do **not** include the token mint address in the Token tile — it is already shown above the sections.
 - **Leave Services blank** when it does not apply (tile stays hidden).
 - No URLs or markdown emphasis in tile bodies unless asked.
 

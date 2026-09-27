@@ -13,7 +13,7 @@ Fixed fields on each listing (map 1:1 to admin / DB):
 
 1. **Overview** — what the project is, history, main benefits  
 2. **Rewards / staking** — where to stake, what you receive, collection-specific notes  
-3. **Token** — liquidity reality, what holders do with it (only mention a secondary token if it actually exists)  
+3. **Token** — liquidity reality, what holders do with it (only mention a secondary token if it actually exists). Do **not** paste the mint address — the project token block already shows it.  
 4. **Holder utility** — non-staking utilities  
 5. **Services** — only if the project offers tools/infra to **other** collections; otherwise leave blank (tile stays hidden)
 
