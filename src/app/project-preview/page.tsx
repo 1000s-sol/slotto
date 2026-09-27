@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import type { ReactNode } from "react";
 
 import { ProjectCollectionsPanel } from "@/components/project/project-collections-panel";
 import { ProjectSocialLinks } from "@/components/project/project-detail-actions";
@@ -8,104 +9,88 @@ import { fetchLiveMagicEdenStats } from "@/lib/magiceden-stats";
 import { magicEdenLink } from "@/lib/project-collections";
 import {
   OMERTA_PREVIEW as P,
-  SUGGESTED_EXTRA_FIELDS,
-  type ProjectListingFields,
+  type PreviewSectionId,
 } from "@/lib/project-preview/omerta-preview-data";
 import { fetchProjectTokenDisplay } from "@/lib/project-token-display";
 
 export const metadata: Metadata = {
   title: "Project page preview · Omerta",
   description:
-    "Structured project listing preview (form-field layout). Not linked in navigation.",
+    "Fixed five-tile project listing preview. Not linked in navigation.",
   robots: { index: false, follow: false },
 };
 
-/** Field labels match the intended admin create/edit inputs. */
-const FIELD_META: {
-  key: keyof ProjectListingFields;
-  label: string;
-  adminHint: string;
-}[] = [
-  {
-    key: "overview",
-    label: "Overview",
-    adminHint: "Concise review — project, history, main benefits",
-  },
-  {
-    key: "stakingWhere",
-    label: "Rewards / staking — where",
-    adminHint: "Stake URLs and platforms",
-  },
-  {
-    key: "stakingRewards",
-    label: "Rewards / staking — what you receive",
-    adminHint: "Tokens / revenue / perks from staking",
-  },
-  {
-    key: "stakingCollectionNotes",
-    label: "Rewards / staking — by collection",
-    adminHint: "Collection-specific staking notes",
-  },
-  {
-    key: "tokenLpBacked",
-    label: "Token — LP / liquidity",
-    adminHint: "LP-backed? Depth / caveats",
-  },
-  {
-    key: "tokenUtility",
-    label: "Token — what you can do with it",
-    adminHint: "Primary token utility",
-  },
-  {
-    key: "tokenSecondary",
-    label: "Token — secondary (optional)",
-    adminHint: "Leave blank if none",
-  },
-  {
-    key: "holderUtility",
-    label: "Holder utility",
-    adminHint: "Non-staking utilities for holders",
-  },
-  {
-    key: "services",
-    label: "Services for other collections",
-    adminHint: "Leave blank if the project does not offer this",
-  },
-];
+function SectionIcon({ id }: { id: PreviewSectionId }) {
+  const cls = "h-5 w-5 shrink-0 text-accent-gold";
+  const common = {
+    className: cls,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 1.75,
+    "aria-hidden": true as const,
+  };
 
-function FieldBlock({
-  label,
-  adminHint,
-  value,
-}: {
-  label: string;
-  adminHint: string;
-  value: string;
-}) {
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return (
-      <section className="space-y-2 border-t border-border/70 pt-5">
-        <div>
-          <h2 className="text-sm font-semibold text-foreground">{label}</h2>
-          <p className="text-[11px] text-muted">Admin: {adminHint}</p>
-        </div>
-        <p className="text-sm italic text-muted/70">Not provided for this listing.</p>
-      </section>
-    );
+  let paths: ReactNode;
+  switch (id) {
+    case "overview":
+      paths = (
+        <>
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M4 19.5V6.75A2.25 2.25 0 016.25 4.5h11.5A2.25 2.25 0 0120 6.75v12.75"
+          />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M8 8.5h8M8 12h8M8 15.5h5" />
+        </>
+      );
+      break;
+    case "staking":
+      paths = (
+        <>
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M12 3v18M7 8.5c0-1.8 2.2-3 5-3s5 1.2 5 3-2.2 3-5 3-5 1.2-5 3 2.2 3 5 3 5-1.2 5-3"
+          />
+        </>
+      );
+      break;
+    case "token":
+      paths = (
+        <>
+          <circle cx="12" cy="12" r="8.25" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 7.5v9M9.5 9.75h3.75a1.75 1.75 0 010 3.5H9.5" />
+        </>
+      );
+      break;
+    case "holderUtility":
+      paths = (
+        <>
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M14.25 7.5a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zM5.25 19.5a4.5 4.5 0 019 0M17.25 11.25l1.5 1.5 3-3"
+          />
+        </>
+      );
+      break;
+    case "services":
+      paths = (
+        <>
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M11.42 15.17l-4.66 2.33a.75.75 0 01-1.03-.9l1.2-4.02a.75.75 0 00-.2-.75L3.5 9.35a.75.75 0 01.44-1.3l4.2-.3a.75.75 0 00.6-.45l1.55-3.85a.75.75 0 011.36 0l1.55 3.85a.75.75 0 00.6.45l4.2.3a.75.75 0 01.44 1.3l-3.23 2.48a.75.75 0 00-.2.75l1.2 4.02a.75.75 0 01-1.03.9l-4.66-2.33a.75.75 0 00-.72 0z"
+          />
+        </>
+      );
+      break;
+    default:
+      paths = null;
   }
 
-  return (
-    <section className="space-y-2 border-t border-border/70 pt-5">
-      <div>
-        <h2 className="text-sm font-semibold text-foreground">{label}</h2>
-        <p className="text-[11px] text-muted">Admin: {adminHint}</p>
-      </div>
-      <div className="whitespace-pre-wrap text-sm leading-relaxed text-muted">
-        {trimmed}
-      </div>
-    </section>
-  );
+  return <svg {...common}>{paths}</svg>;
 }
 
 export default async function ProjectPreviewPage() {
@@ -125,8 +110,8 @@ export default async function ProjectPreviewPage() {
       <div className="rounded-xl border border-accent-gold/35 bg-accent-gold/10 px-4 py-3 text-sm text-muted">
         <span className="font-semibold text-accent-gold">Layout preview</span>
         {" — "}
-        same listing chrome (collections + sales + token), then fixed content
-        fields that will map 1:1 to admin inputs. Not in nav.{" "}
+        fixed five content tiles + existing collections/sales/token chrome. Not
+        in nav.{" "}
         <Link
           href="/projects/omerta-empire-city"
           className="font-medium text-accent-cyan hover:underline"
@@ -135,7 +120,6 @@ export default async function ProjectPreviewPage() {
         </Link>
       </div>
 
-      {/* Same shell as /projects/[slug] */}
       <div className="overflow-hidden rounded-2xl border border-border bg-bg-elevated/80">
         <div className="relative h-56 w-full sm:h-72 md:h-80">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -172,41 +156,30 @@ export default async function ProjectPreviewPage() {
             liquid={P.tokenLiquid}
           />
 
-          {/* Structured fields — replace freeform reviewMd wall */}
-          <div className="space-y-1">
-            <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-accent-gold/90">
-              Listing content fields
-            </p>
-            {FIELD_META.map((f) => (
-              <FieldBlock
-                key={f.key}
-                label={f.label}
-                adminHint={f.adminHint}
-                value={P.fields[f.key]}
-              />
+          <div className="grid gap-4 sm:grid-cols-2">
+            {P.sections.map((section) => (
+              <section
+                key={section.id}
+                className={
+                  section.id === "overview"
+                    ? "space-y-3 rounded-xl border border-border bg-bg-deep/40 p-4 sm:col-span-2"
+                    : "space-y-3 rounded-xl border border-border bg-bg-deep/40 p-4"
+                }
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-surface/50">
+                    <SectionIcon id={section.id} />
+                  </span>
+                  <h2 className="text-base font-semibold text-foreground">
+                    {section.label}
+                  </h2>
+                </div>
+                <p className="text-sm leading-relaxed text-muted">{section.body}</p>
+              </section>
             ))}
           </div>
         </div>
       </div>
-
-      {/* Suggestions for the form — preview-only note */}
-      <aside className="rounded-2xl border border-border bg-bg-elevated/60 px-5 py-5 text-sm text-muted">
-        <h2 className="text-base font-semibold text-foreground">
-          Suggested extra fields (optional)
-        </h2>
-        <p className="mt-1 text-xs text-muted">
-          Not shown as filled sections above — candidates for the create/edit
-          form if you want them.
-        </p>
-        <ul className="mt-4 space-y-3">
-          {SUGGESTED_EXTRA_FIELDS.map((f) => (
-            <li key={f.key}>
-              <span className="font-medium text-foreground">{f.label}</span>
-              <span className="text-muted"> — {f.hint}</span>
-            </li>
-          ))}
-        </ul>
-      </aside>
     </div>
   );
 }
