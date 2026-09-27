@@ -214,7 +214,6 @@ export async function fetchBuybackSnapshot(): Promise<BuybackSnapshot> {
         tokenMint: true,
         tokenName: true,
         tokenImageUrl: true,
-        listingImageUrl: true,
         tokenLiquid: true,
       },
     }),
