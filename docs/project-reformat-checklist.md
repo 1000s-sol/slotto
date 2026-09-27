@@ -66,7 +66,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 
 - [x] Absurd Apes (`absurd-apes`)
 - [x] Aevon (`aevon`)
-- [ ] Bored Ape Sol Club (`bored-ape-sol-club`)
+- [x] Bored Ape Sol Club (`bored-ape-sol-club`)
 - [ ] Bulls on Sol Society (`bulls-on-sol-society`)
 - [ ] BUXDAO (`buxdao`)
 - [ ] Chart Breakers (`chart-breakers`)
