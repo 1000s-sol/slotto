@@ -67,7 +67,7 @@ function uiAmount(raw: string, decimals: number): number {
   try {
     const n = BigInt(raw);
     if (decimals <= 0) return Number(n);
-    const base = 10n ** BigInt(decimals);
+    const base = BigInt(10) ** BigInt(decimals);
     const whole = n / base;
     const frac = n % base;
     return Number(whole) + Number(frac) / Number(base);
