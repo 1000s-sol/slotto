@@ -1,14 +1,25 @@
 # Project listing reformat checklist
 
-Track reformatting of published listings into the fixed five tiles:
+Track reformatting of published listings into the fixed tiles:
 
 1. Overview  
 2. Rewards / staking  
 3. Token  
 4. Holder utility  
-5. Services (optional)
+5. Services (optional — omit / leave blank if the project does not serve other collections)
 
 A listing counts as **done** when the four core tiles are filled in the DB (`sectionOverview`, `sectionStaking`, `sectionToken`, `sectionHolderUtility`).
+
+## Format rules (every reformatted listing)
+
+Full house style lives in `.cursor/rules/slotto-project-listing-reviews.mdc`. Short version:
+
+- One continuous **paragraph** per tile (full sentences).
+- **Direct** voice only — no “it appears”, “seems”, “according to the site”, etc.
+- **Do not invent** tokens, LP, utilities, or partners. Do not pad with “there is no X”.
+- Mention a **secondary token only if it exists**.
+- **Leave Services blank** when it does not apply (tile stays hidden).
+- No URLs or markdown emphasis in tile bodies unless asked.
 
 ## DB commands (fast edits)
 
