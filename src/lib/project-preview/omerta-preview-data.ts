@@ -1,187 +1,191 @@
 /**
- * Hardcoded Omerta preview content for /project-preview.
- * Sourced from the published Slotto listing + omerta.so (Mar 2026 scrape).
- * Not wired to the Project DB — layout experiment only.
+ * Structured Omerta preview — mirrors future admin create/edit fields.
+ * Keep existing listing chrome: collections dropdown + live ME sales stats + token block.
  */
+
+import type { ProjectCollection } from "@/lib/project-collections";
+
+/** Same shape as Project form fields we will add (strings = textareas / inputs). */
+export type ProjectListingFields = {
+  /** Concise review: what the project is, history, main benefits. */
+  overview: string;
+  /** Where holders stake (URL + platform name). */
+  stakingWhere: string;
+  /** What you receive from staking. */
+  stakingRewards: string;
+  /** Collection-specific staking / reward notes. */
+  stakingCollectionNotes: string;
+  /** Is the token LP-backed? Short answer + nuance. */
+  tokenLpBacked: string;
+  /** What holders can do with the primary token. */
+  tokenUtility: string;
+  /** Secondary token if relevant (name + role). */
+  tokenSecondary: string;
+  /** Holder utilities beyond staking (dashboard, traits, games, gates…). */
+  holderUtility: string;
+  /** Services offered to other collections / projects (blank if none). */
+  services: string;
+};
 
 export const OMERTA_PREVIEW = {
   name: "Omerta - Empire City",
-  tagline: "Enter the family. Rise through the ranks.",
-  summary:
-    "A mafia-themed Solana ecosystem built around ranked NFT collections, the $EMPIRE utility token, staking loops, Family SubDAOs, and Empire City tools.",
   bannerImageUrl:
     "https://460pdvehng61as9i.public.blob.vercel-storage.com/projects/c2db66cf-c6a6-4d1f-8687-a25377b3077c.jpg",
-  tags: ["NFT", "Token", "Staking", "Games", "DAO"],
-  facts: [
-    { label: "Network", value: "Solana" },
-    { label: "Hierarchy", value: "Soldier → Capo → Don" },
-    { label: "Core token", value: "$EMPIRE" },
-    { label: "Companion token", value: "$BOSS" },
-    { label: "Hub", value: "Empire Hub" },
-  ],
-  links: {
-    website: "https://www.omerta.so/",
-    discord: "https://discord.com/invite/empire-city",
-    twitter: "https://x.com/Omerta_SOL",
-    hub: "https://www.omerta.so/hub",
-    whitepaper: "https://www.omerta.so/whitepaper",
-  },
-  overview: [
-    "Omerta positions Empire City as a branded utility network rather than a single PFP drop: ranked NFTs, $EMPIRE as the shared currency, SubDAO families, and a hub of staking, games, trait stores, and bonds.",
-    "Status runs Soldier → Caporegime → Don. Collections unlock staking, governance weight, revenue shares, and the right for Dons to found Family SubDAOs under the wider Empire umbrella.",
-  ],
+  websiteUrl: "https://www.omerta.so/",
+  discordUrl: "https://discord.com/invite/empire-city",
+  twitterUrl: "https://x.com/Omerta_SOL",
+  tokenMint: "EmpirdtfUMfBQXEjnNmTngeimjfizfuSBD3TN9zqzydj",
+  tokenLiquid: true,
+  tokenName: "Empire",
+  tokenImageUrl: "https://arweave.net/BwS0sd-P4pbiMhn-8bPCMrkJNTCKXUbe2DRVMXMkfZ4",
+  /** Collections matching the live Slotto listing dropdown. */
   collections: [
     {
-      name: "Don's of the $Empire",
-      role: "Head of the Family",
-      blurb:
-        "Highest tier of the hierarchy. Dons lead families, sit on the Council of Dons, and can permanently lock a Don to mint a new Family SubDAO.",
+      name: "Soldiers",
+      links: [
+        {
+          marketplace: "magicEden",
+          href: "https://magiceden.io/marketplace/soldiers_of_the_empire",
+        },
+        {
+          marketplace: "tensor",
+          href: "https://www.tensor.trade/trade/soldiers_of_the_empire",
+        },
+        {
+          marketplace: "orbis",
+          href: "https://www.orbisonsol.io/marketplace/soldiers-of-the-empire",
+        },
+      ],
     },
     {
-      name: "Caporegime del $Empire",
-      role: "Captain of the DAO",
-      blurb:
-        "Captains share Empire City utility revenue (site states 50% of generated revenue) and hold veto power in governance when staked.",
+      name: "Capos",
+      links: [
+        {
+          marketplace: "magicEden",
+          href: "https://magiceden.io/marketplace/caporegime_del_empire",
+        },
+        {
+          marketplace: "tensor",
+          href: "https://www.tensor.trade/trade/caporegime_del_empire",
+        },
+        {
+          marketplace: "orbis",
+          href: "https://www.orbisonsol.io/marketplace/caporegime-del-empire",
+        },
+      ],
     },
     {
-      name: "SOLdiers of the $Empire",
-      role: "Citizens of Empire City",
-      blurb:
-        "Core holder base. Stake for $EMPIRE, use trait stores, quests, raids, and vote once proposals clear Capo/Don filters.",
+      name: "Dons",
+      links: [
+        {
+          marketplace: "magicEden",
+          href: "https://magiceden.io/marketplace/dons_of_the_empire",
+        },
+        {
+          marketplace: "orbis",
+          href: "https://www.orbisonsol.io/marketplace/donsoftheempire",
+        },
+      ],
     },
     {
-      name: "Rilegato Family SOLdiers",
-      role: "First Family SubDAO",
-      blurb:
-        "Allied raffle-focused SubDAO expanding the $EMPIRE utility network, with its own trait store and holder reward flow.",
+      name: "Rilegatos family DAO",
+      links: [
+        {
+          marketplace: "magicEden",
+          href: "https://magiceden.io/marketplace/rilegato_family_dao",
+        },
+        {
+          marketplace: "tensor",
+          href: "https://www.tensor.trade/trade/rilegato_family_dao",
+        },
+        {
+          marketplace: "orbis",
+          href: "https://www.orbisonsol.io/marketplace/rilegato-family-dao",
+        },
+      ],
     },
     {
-      name: "Capolavoro Family Soldiers",
-      role: "1/1 art branch",
-      blurb:
-        "Masterpiece-style 1/1 collection lane with swap utilities for revealing or exchanging Capolavoro art.",
+      name: "Capolavaro family DAO",
+      links: [
+        {
+          marketplace: "magicEden",
+          href: "https://magiceden.io/marketplace/capolavoro_family_dao",
+        },
+        {
+          marketplace: "tensor",
+          href: "https://www.tensor.trade/trade/capolavoro_family_dao",
+        },
+        {
+          marketplace: "orbis",
+          href: "https://www.orbisonsol.io/marketplace/capolavoro-family-dao",
+        },
+      ],
     },
-    {
-      name: "Belle Donne Family SOLdiers",
-      role: "Female IP expansion",
-      blurb:
-        "Official female expansion of the Omerta SOLdier IP, framed as a growing Family branch inside Empire City.",
-    },
-  ],
-  token: {
-    symbol: "EMPIRE",
-    name: "Empire",
-    mint: "EmpirdtfUMfBQXEjnNmTngeimjfizfuSBD3TN9zqzydj",
-    logoUrl: "https://arweave.net/BwS0sd-P4pbiMhn-8bPCMrkJNTCKXUbe2DRVMXMkfZ4",
-    liquid: true,
-    role: "$EMPIRE is the core utility and equity-style layer across Empire City: staking, SubDAO activity, marketplace/swaps, raffles, trait access, and internal rewards.",
-    companion: {
-      symbol: "BOSS",
-      blurb:
-        "$BOSS is presented as the primary spend/yield token at utilities (games, staking, trait stores), paired 1:1 in value narrative with $EMPIRE and used in a two-step stake loop ($EMPIRE → $BOSS → $EMPIRE).",
-    },
-    sinks: [
-      "Staking systems and investment loops",
-      "Trait stores, raffles, loot boxes, and games",
-      "Swaps between eligible NFTs/bonds and $EMPIRE",
-      "Community buybacks and burns tracked on omerta.so",
-    ],
-  },
-  staking: [
-    {
-      title: "$EMPIRE staking",
-      detail: "Stake $EMPIRE to earn $BOSS — step 1 of the published investment loop.",
-      href: "https://www.lunarverse.app/omerta/utilities/token-staking",
-    },
-    {
-      title: "$BOSS staking",
-      detail: "Stake $BOSS to earn $EMPIRE — step 2 of the loop.",
-      href: "https://www.lunarverse.app/omerta/utilities/token-staking",
-    },
-    {
-      title: "NFT / bond staking",
-      detail:
-        "Stake eligible NFTs and Community Bonds for yield and family utility access via Omertà / GOTM staking surfaces.",
-      href: "https://stake.gotmlabz.io/empire",
-    },
-    {
-      title: "Rank boosts",
-      detail:
-        "Site materials describe reward boosts from NFT attributes, trait utility, and longer lock durations; Capos/Dons also gate governance weight.",
-      href: null,
-    },
-  ],
-  utilities: [
-    {
-      title: "Empire Hub",
-      detail: "Single directory for staking, raffles, loot boxes, games, trait stores, quests, and SubDAO links.",
-      href: "https://www.omerta.so/hub",
-    },
-    {
-      title: "Games & casino",
-      detail: "Casino-style game room, scratch-offs, loot boxes, and raffles for ecosystem prizes.",
-      href: "https://omerta-casino-ten.vercel.app",
-    },
-    {
-      title: "Quests",
-      detail: "Dynamic missions for tokens, NFTs, and rare rewards via Lunarverse Omerta utilities.",
-      href: "https://www.lunarverse.app/omerta/utilities/quests",
-    },
-    {
-      title: "Trait stores",
-      detail: "Separate stores for SOLdiers, Capos, and Rilegato — cosmetic and rank-linked upgrades.",
-      href: "https://www.gotmlabz.io/traitstore/rilegato-family-dao",
-    },
-    {
-      title: "Godhi Bank",
-      detail: "Banking hub for ecosystem rewards and balances (listed in Empire Hub).",
-      href: "https://www.omerta.so/hub",
-    },
-    {
-      title: "NFT / SPL swaps",
-      detail:
-        "Swap eligible Bond staking contracts, SOLdiers, Caporegime, and select allied NFTs into $EMPIRE.",
-      href: "https://www.shift3.app/swap/bonds",
-    },
-  ],
-  bonds: [
-    {
-      title: "Empire City Community Bonds",
-      detail:
-        "Time-locked, yield-bearing NFT instruments with defined face value, maturity, and daily yield (often $EMPIRE; some series use other ecosystem tokens). Transferable unless a series says otherwise; principal unlocks only at maturity.",
-    },
-    {
-      title: "Founders Bonds",
-      detail:
-        "Non-transferable $EMPIRE-yield instruments for approved Allied Projects / SubDAOs. Yield is meant to flow back to that project's NFT community under Council rules (not liquidated to SOL/USDC).",
-    },
-    {
-      title: "Buybacks",
-      detail:
-        "Omerta publishes an Empire Buy Backs page tracking on-chain $EMPIRE burns from treasury/community activity.",
-    },
-  ],
-  familyDaos: [
-    {
-      name: "Rilegato",
-      focus: "Raffle DAO",
-      detail: "First Family SubDAO — raffles, holder rewards, trait store, $EMPIRE network participation.",
-    },
-    {
-      name: "Capolavoro",
-      focus: "1/1 art",
-      detail: "Art-first allied family with masterpiece 1/1s and Capolavoro swap tooling.",
-    },
-    {
-      name: "Belle Donne",
-      focus: "IP expansion",
-      detail: "Female SOLdier IP branch framed for further community and utility growth.",
-    },
-  ],
-  /** House-style editorial close — grounded in omerta.so + existing Slotto listing themes. */
-  reviewMd: `Omerta runs Empire City as a Solana mafia narrative wrapped around a real product surface: ranked NFT lines (SOLdiers, Caporegime, Dons), Family SubDAOs such as Rilegato, Capolavoro, and Belle Donne, and a shared $EMPIRE economy with a paired $BOSS spend/yield loop. The public site organises that stack into collections, utilities, bonds, buybacks, and an Empire Hub rather than a single mint page, which is the clearest way to read the project when comparing listings.
+  ] satisfies ProjectCollection[],
+  /** Values as they would appear in admin inputs for this listing. */
+  fields: {
+    overview: `Omerta (Empire City) is a Solana mafia-themed ecosystem built around a ranked NFT hierarchy — SOLdiers, Caporegime, and Dons — plus Family SubDAOs and the $EMPIRE utility token. The project grew from the original Omerta families into a wider “Empire Utility Network” with staking, games, trait stores, bonds, and DAO governance. Main benefits for holders are rank-based staking and rewards, access to Empire Hub utilities, SubDAO participation, and (for higher ranks) revenue share / governance weight.`,
 
-Holder mechanics split by rank. SOLdiers are the volume layer for staking, traits, quests, and votes; Caporegime holders are tied to utility revenue share and proposal veto weight; Dons sit on the Council and can lock into founding a Family SubDAO. Around that hierarchy sit Community Bonds and Founders Bonds (time-locked or project-gated yield instruments), Lunarverse/GOTM staking links, casino and raffle tools, and trait stores — so day-to-day value depends on using those loops, not only holding a floor PFP.
+    stakingWhere: `Token staking: Lunarverse Omerta utilities (https://www.lunarverse.app/omerta/utilities/token-staking)
+NFT / bond staking: GOTM / Omertà staking (https://stake.gotmlabz.io/empire)
+Directory of all tools: Empire Hub (https://www.omerta.so/hub)`,
 
-Tokenomics detail on omerta.so is still marked coming soon, and several roadmap items in Phase 4 (wider listings, deeper alliances) remain in progress, so claims about distribution or exchange coverage should be checked against live dashboards. For visitors comparing listings, Omerta stands out when you want a multi-collection hierarchy plus an active utility hub; weigh that against the usual Solana caveats around yield instruments, mint authority for bond rewards, and how much of the stack you will actually stake and claim.`,
+    stakingRewards: `$EMPIRE staking earns $BOSS; $BOSS staking earns $EMPIRE (two-step loop).
+Eligible NFTs and Community Bonds stake for ecosystem yield / utility access.
+Caporegime holders are tied to a share of Empire City utility revenue when staked.
+SOLdiers stake for $EMPIRE and activity rewards (raids, quests, battles per whitepaper).`,
+
+    stakingCollectionNotes: `SOLdiers — stake for $EMPIRE; trait store, quests, raids, voting once proposals clear higher ranks.
+Caporegime — stake for utility revenue share; veto power in governance; can be locked with a Don for Family mint supply.
+Dons — Council seat; permanently lock a Don to found a Family SubDAO (stated 400 NFT family supply).
+Rilegato / Capolavoro — Family SubDAO lines with their own raffle / 1/1 swap utilities; stake via Empire NFT/bond surfaces where supported.
+Community Bonds — claim yield on the Omertà staking platform; principal unlocks at maturity only.`,
+
+    tokenLpBacked: `Tradeable on Solana DEXes (listed as liquid on Slotto; Jupiter-indexed). Omerta also runs treasury / community buyback-and-burn tracking. Full tokenomics page on omerta.so is still marked “coming soon” — treat LP depth and emissions as something to verify on-chain / Birdeye rather than assumed.`,
+
+    tokenUtility: `$EMPIRE is the core ecosystem currency: staking, SubDAO activity, raffles, trait stores, loot boxes, swaps, marketplace activity, and internal rewards. Used to mint / interact with Community Bonds and as the equity-style layer of Empire City.`,
+
+    tokenSecondary: `$BOSS — companion token framed as the primary spend/yield token at utilities (games, staking, trait stores). Site describes a 1:1 value relationship with $EMPIRE and a stake loop: stake $EMPIRE → earn $BOSS; stake $BOSS → earn $EMPIRE.`,
+
+    holderUtility: `Empire Hub access: casino / games, scratch-offs, loot boxes, raffles, quests, Godhi Bank.
+Trait stores for SOLdiers, Capos, and Rilegato (cosmetic / rank upgrades).
+NFT↔$EMPIRE swaps for eligible Soldiers, Capos, bonds, and some allied NFTs.
+Discord roles / quarters by rank (SOLdiers Quarters, Capo’s Corner); Chat2Earn and flex tools per whitepaper.
+Governance path: Council of Dons → Capo veto → SOLdier majority vote.
+Family SubDAO participation (Rilegato raffles, Capolavoro swaps, Belle Donne expansion).`,
+
+    services: `Empire City is positioned as a multi-community utility network for Allied Projects / SubDAOs:
+Founders Bonds — approved projects receive non-transferable $EMPIRE yield to distribute back to their NFT community (staking rewards, raffles, giveaways, approved utility spend — not SOL/USDC liquidation).
+Allied benefits called out on-site: daily X raid via Omertà Engage, Empire Swap integration for the partner collection, cross-DAO promotions.
+Shared infrastructure: staking, swaps, trait/raffle tooling other families can plug into under Council rules.`,
+  } satisfies ProjectListingFields,
 } as const;
+
+/** Suggested extra admin fields (not filled on this preview). */
+export const SUGGESTED_EXTRA_FIELDS = [
+  {
+    key: "verification",
+    label: "Verification / eligibility",
+    hint: "Discord + wallet link, unlisted-only rules, Matrica, etc.",
+  },
+  {
+    key: "games",
+    label: "Games / entertainment",
+    hint: "Optional if games are a major product (casino, rumbles).",
+  },
+  {
+    key: "governance",
+    label: "Governance",
+    hint: "Who votes, vetoes, Council — only if more than a sentence in holder utility.",
+  },
+  {
+    key: "caveats",
+    label: "Caveats",
+    hint: "Short risk notes: mint authority, unfinished tokenomics, “coming soon”.",
+  },
+  {
+    key: "tagline",
+    label: "Tagline",
+    hint: "One line under the name (schema already has tagline).",
+  },
+] as const;
