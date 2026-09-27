@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { ProjectCollectionsPanel } from "@/components/project/project-collections-panel";
 import { ProjectLikePill, ProjectSocialLinks } from "@/components/project/project-detail-actions";
 import { ProjectListingSections } from "@/components/project/project-listing-sections";
+import { ProjectTicketBuyPanel } from "@/components/project/project-ticket-buy-panel";
 import { ProjectTokenBlock } from "@/components/project/project-token-block";
 import { fetchLiveMagicEdenStats } from "@/lib/magiceden-stats";
 import {
@@ -164,6 +165,15 @@ export default async function ProjectPage({ params }: Props) {
               symbol={tokenDisplay.symbol}
               logoUrl={tokenDisplay.logoUrl}
               liquid={tokenLiquid}
+            />
+          ) : null}
+
+          {tokenMint && tokenDisplay ? (
+            <ProjectTicketBuyPanel
+              mint={tokenMint}
+              symbol={tokenDisplay.symbol}
+              logoUrl={tokenDisplay.logoUrl}
+              projectName={project.name}
             />
           ) : null}
 
