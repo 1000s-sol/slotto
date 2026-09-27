@@ -4,13 +4,24 @@ import {
 } from "@/lib/helius-api-keys";
 import { isRpcFallbackError } from "@/lib/lottery/rpc-url";
 
-/** Many token images are ipfs:// — img src needs https gateway */
+/**
+ * Many token images are ipfs:// or ipfs.io — browsers often fail those.
+ * Prefer Cloudflare’s gateway; leave other https URLs as-is.
+ */
 export function normalizeImageUrl(url: string | undefined): string | null {
   if (!url) return null;
   const u = url.trim();
   if (!u) return null;
-  if (u.startsWith("ipfs://")) return `https://ipfs.io/ipfs/${u.slice(7)}`;
-  if (u.startsWith("http://") || u.startsWith("https://") || u.startsWith("data:")) return u;
+  if (u.startsWith("ipfs://")) {
+    return `https://cloudflare-ipfs.com/ipfs/${u.slice("ipfs://".length)}`;
+  }
+  const ipfsIo = u.match(/^https?:\/\/ipfs\.io\/ipfs\/(.+)$/i);
+  if (ipfsIo) {
+    return `https://cloudflare-ipfs.com/ipfs/${ipfsIo[1]}`;
+  }
+  if (u.startsWith("http://") || u.startsWith("https://") || u.startsWith("data:")) {
+    return u;
+  }
   return u;
 }
 

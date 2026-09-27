@@ -303,3 +303,14 @@ model LotteryOnChainDrawMeta {
 
   @@unique([displayNumber])
 }
+
+/// Cached mint → symbol/logo so buyback (and others) do not re-hit Dex/Helius every request.
+model TokenDisplayCache {
+  mint      String   @id
+  symbol    String?
+  imageUrl  String?
+  /// Which source last filled imageUrl (dex | helius | jupiter | project | listing).
+  source    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
