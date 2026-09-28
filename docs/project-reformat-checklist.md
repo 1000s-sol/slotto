@@ -70,7 +70,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Bulls on Sol Society (`bulls-on-sol-society`)
 - [x] BUXDAO (`buxdao`)
 - [x] Chart Breakers (`chart-breakers`)
-- [ ] Crouton Jones (`crouton-jones`)
+- [x] Crouton Jones (`crouton-jones`)
 - [ ] Dead Bunnies (`dead-bunnies`)
 - [ ] DMST (`dmst`)
 - [ ] Eapes (`eapes`)
