@@ -27,8 +27,11 @@ export async function fetchProjectTokenDisplay(
   if (!m) return { symbol: "", logoUrl: null };
 
   const nonLiquid = opts?.liquid === false;
-  const customLogo =
-    nonLiquid && opts.tokenImageUrl?.trim() ? opts.tokenImageUrl.trim() : null;
+  const storedLogo = opts?.tokenImageUrl?.trim()
+    ? normalizeImageUrl(opts.tokenImageUrl.trim())
+    : null;
+  // Non-liquid tokens prefer the admin-uploaded logo first.
+  const customLogo = nonLiquid ? storedLogo : null;
   const customName = nonLiquid && opts.tokenName?.trim() ? opts.tokenName.trim() : null;
 
   if (customName) {
@@ -59,7 +62,8 @@ export async function fetchProjectTokenDisplay(
   const needsHelius = !customLogo && (!dexLogo || !dexSymbol);
   const helius = needsHelius ? await fetchHeliusTokenMeta(m) : null;
   const heliusLogo = normalizeImageUrl(helius?.image);
-  const logoUrl = customLogo || dexLogo || heliusLogo || null;
+  // Liquid tokens: market logos first, then stored tokenImageUrl (Dex/Helius often omit low-cap logos).
+  const logoUrl = customLogo || dexLogo || heliusLogo || storedLogo || null;
 
   let symbol = customName || dexSymbol || helius?.symbol?.trim() || abbrevMint(m);
   if (symbol.length > 12) symbol = symbol.slice(0, 12);
