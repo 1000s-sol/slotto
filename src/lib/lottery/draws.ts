@@ -57,6 +57,13 @@ export function lotteryDrawViewFromJson(j: LotteryDrawViewJson): LotteryDrawView
   };
 }
 
+/** Public-facing draw label (#1, TEST-22, …) — matches homepage Draw header. */
+export function lotteryDrawPublicLabel(
+  j: Pick<LotteryDrawViewJson, "drawId" | "displayLabel">,
+): string {
+  return j.displayLabel ?? `TEST-${j.drawId}`;
+}
+
 export async function fetchDrawCount(
   connection: Connection,
   programId: PublicKey,

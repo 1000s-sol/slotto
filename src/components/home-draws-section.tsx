@@ -7,6 +7,7 @@ import { solscanAccountUrl } from "@/lib/lottery/config";
 import { drawNeedsSettlement } from "@/lib/lottery/draw-settlement";
 import {
   formatDrawDateLabel,
+  lotteryDrawPublicLabel,
   lotteryDrawViewFromJson,
 } from "@/lib/lottery/draws";
 import { fetchLotteryStateClient } from "@/lib/lottery/fetch-lottery-state-client";
@@ -151,7 +152,9 @@ export function HomeDrawsSection({ preview = false }: { preview?: boolean }) {
       }
       setDrawId(draw.drawId);
       setDrawDisplayLabel(
-        drawJson?.displayLabel ?? `TEST-${draw.drawId}`,
+        drawJson
+          ? lotteryDrawPublicLabel(drawJson)
+          : `TEST-${draw.drawId}`,
       );
       setDrawAddress(draw.draw.toBase58());
       setTotalTickets(draw.totalTickets);

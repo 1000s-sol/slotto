@@ -20,7 +20,10 @@ import { notifyDiscordTicketSaleClient } from "@/lib/discord-ticket-bot/notify-c
 import { buySplTickets } from "@/lib/lottery/buy-spl-tickets";
 import { isDrawBuyable, type LotteryDrawView } from "@/lib/lottery/chain";
 import { lotteryProgramId } from "@/lib/lottery/config";
-import { lotteryDrawViewFromJson } from "@/lib/lottery/draws";
+import {
+  lotteryDrawPublicLabel,
+  lotteryDrawViewFromJson,
+} from "@/lib/lottery/draws";
 import { fetchLotteryStateClient } from "@/lib/lottery/fetch-lottery-state-client";
 import { fetchTickerPricesClient } from "@/lib/lottery/fetch-ticker-prices-client";
 import { liquidSplPriceFromTickerItems } from "@/lib/lottery/liquid-ticket-price";
@@ -80,6 +83,7 @@ export function ProjectTicketBuyPanel({
   const mintKey = mint.trim();
 
   const [activeDraw, setActiveDraw] = useState<LotteryDrawView | null>(null);
+  const [activeDrawLabel, setActiveDrawLabel] = useState<string | null>(null);
   const [vaultPubkeys, setVaultPubkeys] = useState<{
     teamVault: PublicKey;
     buxVault: PublicKey;
@@ -110,8 +114,10 @@ export function ProjectTicketBuyPanel({
     });
     if (state.activeDraw) {
       setActiveDraw(lotteryDrawViewFromJson(state.activeDraw));
+      setActiveDrawLabel(lotteryDrawPublicLabel(state.activeDraw));
     } else {
       setActiveDraw(null);
+      setActiveDrawLabel(null);
     }
   }, []);
 
@@ -407,7 +413,7 @@ export function ProjectTicketBuyPanel({
           </h2>
           <p className="mt-1 text-sm text-muted">
             {salesOpen
-              ? `Current draw #${activeDraw?.drawId ?? "—"}. SPL tickets remaining: ${remaining}/${mintRow.displayCap}${
+              ? `Current draw ${activeDrawLabel ?? "—"}. SPL tickets remaining: ${remaining}/${mintRow.displayCap}${
                   priceLabel ? ` · ${priceLabel}` : ""
                 }`
               : buyableWindow
