@@ -11,7 +11,7 @@ Use this when drafting or editing copy for published project pages, admin listin
 
 Fixed fields on each listing (map 1:1 to admin / DB):
 
-1. **Overview** — what the project is, history, main benefits  
+1. **Overview** — comprehensive identity summary: what the project is, history, collections under the hub, main benefits, and what makes it worth listing. Prefer a full paragraph (or two if needed); do not artificially shorten.  
 2. **Rewards / staking** — where to stake, what you receive, collection-specific notes (omit if none)  
 3. **Token** — liquidity reality, what holders do with it (only if a project token exists; only mention a secondary token if it actually exists). Do **not** paste the mint address — the project token block already shows it.  
 4. **Holder utility** — non-staking utilities  
@@ -27,7 +27,22 @@ A listing is reformatted when **Overview** and **Holder utility** are filled. Re
 - **Hide empty optional tiles.** Leave Rewards/staking, Token, and Services blank rather than filler prose.
 - **No URLs** in tile bodies unless the user explicitly wants links.
 - **No markdown** emphasis (`*`, `**`, backticks) in stored tile text unless asked.
-- Name concrete entities when relevant (collections, $TOKEN, Solana, Discord, stake platforms).
+- Name concrete entities when relevant (collections, $TOKEN, Solana, stake platforms, product hubs).
+
+### Do not repeat UI chrome (already on the page)
+
+Omit these from every tile unless the user explicitly asks — the project page already surfaces them:
+
+- **Marketplace names or “trades on Magic Eden / Tensor / Orbis / Grave…”** — marketplace buttons exist above.
+- **Supply / mint-size counts** (“3,333-piece”, “~6,666 supply”, “~3,050 on Magic Eden”) — collection stats sit above the sections.
+- **Boilerplate social rails** (“Discord and @Handle as the community rails”) — nearly every listing has Discord and X; do not pad Overview or Holder utility with that. Mention Discord/X only when describing a *specific* gated channel, bot, or program that is itself the utility.
+
+### Voice
+
+- Matter-of-fact, third-person catalogue / analysis — not hype, not sarcasm.
+- **Complimentary by default.** Slotto only lists projects we like the look of; founders should recognize the listing as fair and positive. Lead with strengths and distinctive pieces; keep caveats (thin liquidity, paused accrual, in-development features) inside normal sentences without undercutting the whole write-up.
+- One closing orientation sentence is fine on Overview when useful (“For visitors comparing listings…”).
+- Caveats belong inside normal sentences, not under a “Risks” header.
 
 ## Legacy `reviewMd` (fallback only)
 
@@ -35,18 +50,14 @@ When a listing is not yet on section tiles, or the user asks for a classic revie
 
 - **Three paragraphs by default** unless asked otherwise.
 - Continuous prose only: no `#` headings, no lists, no horizontal rules.
-- Same voice and “do not invent” rules as above.
+- Same voice, “do not invent”, and “do not repeat UI chrome” rules as above.
 - No editorial sign-off (e.g. “— Slotto.gg”) unless asked.
-
-## Voice (all listing copy)
-
-- Matter-of-fact, third-person catalogue / analysis — not hype.
-- One closing orientation sentence is fine on Overview when useful (“For visitors comparing listings…”).
-- Caveats belong inside normal sentences, not under a “Risks” header.
 
 ## Quick negative examples
 
 - Bad: “It appears they offer staking…” / “Utilities seem limited…”
 - Bad: “There is no project token.” / “Staking is not live.” / “Partner services: none.”
+- Bad: “Trades on Magic Eden, Tensor, and Orbis…” / “a 3,333-piece collection…” / “with Discord and @Project as the social rails…”
 - Bad: Bullet lists, “At a glance”, “The verdict”, bracketed links.
 - Good: “Holders stake Absurd Art Apes on GOTM Labs and earn $AAA at a base rate of 5 per day, with higher rates for listed trait bonuses.”
+- Good: “Geeks is the flagship Solana collectible for Sleek Geek — a 3D character line with ancient, modern, and cyber era traits tied to a live pop-culture store and holder hub.”
