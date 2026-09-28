@@ -118,7 +118,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] The Fox Club (`the-fox-club`)
 - [x] The Misfits Order (`the-misfits-order`)
 - [x] The Rejects (`the-rejects`)
-- [ ] Ugly Ape Squad (`ugly-ape-squad`)
+- [x] Ugly Ape Squad (`ugly-ape-squad`)
 - [ ] Uni-Fy (`uni-fy`)
 - [ ] Villagers (`villagers`)
 - [ ] Wegens (`wegens`)
