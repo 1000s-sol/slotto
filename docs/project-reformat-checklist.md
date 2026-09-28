@@ -73,7 +73,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Crouton Jones (`crouton-jones`)
 - [x] Dead Bunnies (`dead-bunnies`)
 - [x] DMST (`dmst`)
-- [ ] Eapes (`eapes`)
+- [x] Eapes (`eapes`)
 - [ ] Enchanted Miners (`enchanted-miners`)
 - [ ] Energy Wabbits (`energy-wabbits`)
 - [ ] Famous Fox Federation (`famous-fox-federation`)
