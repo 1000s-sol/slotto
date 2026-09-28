@@ -75,7 +75,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] DMST (`dmst`)
 - [x] Eapes (`eapes`)
 - [x] Enchanted Miners (`enchanted-miners`)
-- [ ] Energy Wabbits (`energy-wabbits`)
+- [x] Energy Wabbits (`energy-wabbits`)
 - [ ] Famous Fox Federation (`famous-fox-federation`)
 - [ ] Frens Factory (`frens-factory`)
 - [ ] GAINZ (`gainz`)
