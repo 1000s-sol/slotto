@@ -93,7 +93,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Haxz (`haxz`)
 - [x] K.B.D.S (`k-b-d-s`)
 - [x] Loud Lords (`loud-lords`) — unpublished until more remint/takeover info
-- [ ] Lunarverse (`lunarverse`)
+- [x] Lunarverse (`lunarverse`)
 - [ ] MAGApixel (`magapixel`)
 - [ ] Midevils (`midevils`)
 - [ ] Mnk3y Labs (`mnk3y-labs`)
