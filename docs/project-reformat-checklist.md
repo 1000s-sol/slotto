@@ -111,7 +111,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [ ] Solana Sky Pilots (`solana-sky-pilots`)
 - [ ] Solana Strays (`solana-strays`)
 - [ ] Solarians (`solarians`)
-- [ ] SolGods (`solgods`)
+- [x] SolGods (`solgods`)
 - [ ] Stone Gods (`stone-gods`)
 - [ ] Stoned Sloths (`stoned-sloths`)
 - [ ] THC Labz (`thc-labz`)
