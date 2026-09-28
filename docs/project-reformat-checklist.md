@@ -90,7 +90,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Gensuki (`gensuki`)
 - [x] GoodFellas (`goodfellas`)
 - [x] Goofy Giraffes (`goofy-giraffes`)
-- [ ] Haxz (`haxz`)
+- [x] Haxz (`haxz`)
 - [ ] K.B.D.S (`k-b-d-s`)
 - [ ] Loud Lords (`loud-lords`)
 - [ ] Lunarverse (`lunarverse`)
