@@ -122,5 +122,5 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Uni-Fy (`uni-fy`) — unpublished until UNIFY mint/markets and live product surface are firmer
 - [x] Villagers (`villagers`)
 - [x] Wegens (`wegens`) — deleted from catalog
-- [ ] Xape Labz (`xape-labz`)
+- [x] Xape Labz (`xape-labz`)
 - [ ] ZomBabieZ (`zombabiez`)
