@@ -72,7 +72,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Chart Breakers (`chart-breakers`)
 - [x] Crouton Jones (`crouton-jones`)
 - [x] Dead Bunnies (`dead-bunnies`)
-- [ ] DMST (`dmst`)
+- [x] DMST (`dmst`)
 - [ ] Eapes (`eapes`)
 - [ ] Enchanted Miners (`enchanted-miners`)
 - [ ] Energy Wabbits (`energy-wabbits`)
