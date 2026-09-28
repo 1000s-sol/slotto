@@ -105,7 +105,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Pawpular (`pawpular`)
 - [x] Pepeverse (`pepeverse`)
 - [x] Puffsterz (`puffsterz`)
-- [ ] Shinigami (`shinigami`)
+- [x] Shinigami (`shinigami`)
 - [ ] SoDead (`sodead`)
 - [ ] Solana Deads (`solana-deads`)
 - [ ] Solana Sky Pilots (`solana-sky-pilots`)
