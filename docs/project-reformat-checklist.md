@@ -83,7 +83,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Frens Factory (`frens-factory`)
 - [x] GAINZ (`gainz`)
 - [x] Geeks (`geeks`)
-- [ ] Gensuki (`gensuki`)
+- [x] Gensuki (`gensuki`)
 - [ ] GoodFellas (`goodfellas`)
 - [ ] Goofy Giraffes (`goofy-giraffes`)
 - [ ] Haxz (`haxz`)
