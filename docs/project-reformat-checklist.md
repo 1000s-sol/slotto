@@ -79,7 +79,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Famous Fox Federation (`famous-fox-federation`)
 - [x] Frens Factory (`frens-factory`)
 - [x] GAINZ (`gainz`)
-- [ ] Geeks (`geeks`)
+- [x] Geeks (`geeks`)
 - [ ] Gensuki (`gensuki`)
 - [ ] GoodFellas (`goodfellas`)
 - [ ] Goofy Giraffes (`goofy-giraffes`)
