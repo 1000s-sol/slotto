@@ -102,7 +102,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Omerta - Empire City (`omerta-empire-city`)
 - [x] Onchain Bridges (`onchain-bridges`)
 - [x] Pandarianz (`pandarianz`)
-- [ ] Pawpular (`pawpular`)
+- [x] Pawpular (`pawpular`)
 - [ ] Pepeverse (`pepeverse`)
 - [ ] Puffsterz (`puffsterz`)
 - [ ] Shinigami (`shinigami`)
