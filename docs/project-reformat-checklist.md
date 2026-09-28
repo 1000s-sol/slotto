@@ -104,7 +104,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Pandarianz (`pandarianz`)
 - [x] Pawpular (`pawpular`)
 - [x] Pepeverse (`pepeverse`)
-- [ ] Puffsterz (`puffsterz`)
+- [x] Puffsterz (`puffsterz`)
 - [ ] Shinigami (`shinigami`)
 - [ ] SoDead (`sodead`)
 - [ ] Solana Deads (`solana-deads`)
