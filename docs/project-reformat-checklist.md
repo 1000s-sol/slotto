@@ -119,7 +119,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] The Misfits Order (`the-misfits-order`)
 - [x] The Rejects (`the-rejects`)
 - [x] Ugly Ape Squad (`ugly-ape-squad`)
-- [ ] Uni-Fy (`uni-fy`)
+- [x] Uni-Fy (`uni-fy`) — unpublished until UNIFY mint/markets and live product surface are firmer
 - [ ] Villagers (`villagers`)
 - [ ] Wegens (`wegens`)
 - [ ] Xape Labz (`xape-labz`)
