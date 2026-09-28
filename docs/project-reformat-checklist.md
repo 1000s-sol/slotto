@@ -96,7 +96,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Lunarverse (`lunarverse`)
 - [x] MAGApixel (`magapixel`)
 - [x] Midevils (`midevils`)
-- [ ] Mnk3y Labs (`mnk3y-labs`)
+- [x] Mnk3y Labs (`mnk3y-labs`)
 - [ ] Mob Collective (`mob-collective`)
 - [ ] Mutants On Sol Crew (`mutants-on-sol-crew`)
 - [x] Omerta - Empire City (`omerta-empire-city`)
