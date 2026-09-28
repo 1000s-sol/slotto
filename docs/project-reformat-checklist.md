@@ -20,6 +20,7 @@ Full house style lives in `.cursor/rules/slotto-project-listing-reviews.mdc`. Sh
 - **Do not invent** tokens, LP, utilities, or partners. Do not pad with “there is no X”.
 - Mention a **secondary token only if it exists**.
 - Do **not** include the token mint address in the Token tile — it is already shown above the sections.
+- Token tile: say what the token **does**; do not list what it cannot do.
 - **Leave Rewards/staking, Token, and Services blank** when they do not apply (tiles stay hidden).
 - No URLs or markdown emphasis in tile bodies unless asked.
 - **Do not repeat page chrome:** no marketplace lists (buttons exist), no supply counts (stats exist above), no boilerplate “Discord and @handle as social rails” (mention Discord/X only when that *is* the utility).

@@ -13,7 +13,7 @@ Fixed fields on each listing (map 1:1 to admin / DB):
 
 1. **Overview** — comprehensive identity summary: what the project is, history, collections under the hub, main benefits, and what makes it worth listing. Prefer a full paragraph (or two if needed); do not artificially shorten.  
 2. **Rewards / staking** — where to stake, what you receive, collection-specific notes (omit if none)  
-3. **Token** — liquidity reality, what holders do with it (only if a project token exists; only mention a secondary token if it actually exists). Do **not** paste the mint address — the project token block already shows it.  
+3. **Token** — liquidity reality, what holders do with it (only if a project token exists; only mention a secondary token if it actually exists). Do **not** paste the mint address — the project token block already shows it. State what the token **is** and **does**; do not list what it cannot do (no “cannot be purchased”, “not used in X”, “not Jupiter-routable”).  
 4. **Holder utility** — non-staking utilities  
 5. **Services** — only if the project offers tools/infra to **other** collections; otherwise leave blank
 
