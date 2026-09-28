@@ -115,7 +115,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Stone Gods (`stone-gods`)
 - [x] Stoned Sloths (`stoned-sloths`)
 - [x] THC Labz (`thc-labz`)
-- [ ] The Fox Club (`the-fox-club`)
+- [x] The Fox Club (`the-fox-club`)
 - [ ] The Misfits Order (`the-misfits-order`)
 - [ ] The Rejects (`the-rejects`)
 - [ ] Ugly Ape Squad (`ugly-ape-squad`)
