@@ -24,6 +24,10 @@ Full house style lives in `.cursor/rules/slotto-project-listing-reviews.mdc`. Sh
 - **Leave Rewards/staking, Token, and Services blank** when they do not apply (tiles stay hidden).
 - No URLs or markdown emphasis in tile bodies unless asked.
 - **Do not repeat page chrome:** no marketplace lists (buttons exist), no supply counts (stats exist above), no boilerplate “Discord and @handle as social rails” (mention Discord/X only when that *is* the utility).
+- **Marketplace links (required every listing):** for each collection, probe Orbis + GraveMarket and **add missing verified links to DB** before ticking done.
+  - Orbis: live only if page title is `NAME | Orbis NFT Marketplace` (bare `NFT Marketplace` = missing). Try ME/Tensor path slugs (underscore↔hyphen) and collection name slug.
+  - GraveMarket: confirm via `api.deads.io/gravemarket/v1/collections/{slug}` (SPA HTML alone is inconclusive). Also try search + ME slug transforms (`moneymonsters3d` → `money-monsters-3d`).
+  - Do **not** invent links; leave off when not found.
 
 ## DB commands (fast edits)
 
@@ -84,7 +88,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] GAINZ (`gainz`)
 - [x] Geeks (`geeks`)
 - [x] Gensuki (`gensuki`)
-- [ ] GoodFellas (`goodfellas`)
+- [x] GoodFellas (`goodfellas`)
 - [ ] Goofy Giraffes (`goofy-giraffes`)
 - [ ] Haxz (`haxz`)
 - [ ] K.B.D.S (`k-b-d-s`)
