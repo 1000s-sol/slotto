@@ -117,7 +117,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] THC Labz (`thc-labz`)
 - [x] The Fox Club (`the-fox-club`)
 - [x] The Misfits Order (`the-misfits-order`)
-- [ ] The Rejects (`the-rejects`)
+- [x] The Rejects (`the-rejects`)
 - [ ] Ugly Ape Squad (`ugly-ape-squad`)
 - [ ] Uni-Fy (`uni-fy`)
 - [ ] Villagers (`villagers`)
