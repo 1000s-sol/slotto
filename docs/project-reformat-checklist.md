@@ -77,7 +77,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Enchanted Miners (`enchanted-miners`)
 - [x] Energy Wabbits (`energy-wabbits`)
 - [x] Famous Fox Federation (`famous-fox-federation`)
-- [ ] Frens Factory (`frens-factory`)
+- [x] Frens Factory (`frens-factory`)
 - [ ] GAINZ (`gainz`)
 - [ ] Geeks (`geeks`)
 - [ ] Gensuki (`gensuki`)
