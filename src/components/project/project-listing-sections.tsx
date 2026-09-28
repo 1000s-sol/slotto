@@ -5,9 +5,46 @@ import type {
   ProjectListingSectionId,
 } from "@/lib/project-listing-sections";
 
-function SectionIcon({ id }: { id: ProjectListingSectionId }) {
+const SECTION_THEME: Record<
+  ProjectListingSectionId,
+  { icon: string; border: string; chip: string }
+> = {
+  overview: {
+    icon: "text-accent-cyan",
+    border: "border-accent-cyan/35",
+    chip: "border-accent-cyan/30 bg-accent-cyan/10",
+  },
+  staking: {
+    icon: "text-accent-gold",
+    border: "border-accent-gold/35",
+    chip: "border-accent-gold/30 bg-accent-gold/10",
+  },
+  token: {
+    icon: "text-accent-blue",
+    border: "border-accent-blue/35",
+    chip: "border-accent-blue/30 bg-accent-blue/10",
+  },
+  holderUtility: {
+    icon: "text-accent-purple",
+    border: "border-accent-purple/35",
+    chip: "border-accent-purple/30 bg-accent-purple/10",
+  },
+  services: {
+    icon: "text-accent-green",
+    border: "border-accent-green/35",
+    chip: "border-accent-green/30 bg-accent-green/10",
+  },
+};
+
+function SectionIcon({
+  id,
+  className,
+}: {
+  id: ProjectListingSectionId;
+  className: string;
+}) {
   const common = {
-    className: "h-5 w-5 shrink-0 text-accent-gold",
+    className: `h-5 w-5 shrink-0 ${className}`,
     viewBox: "0 0 24 24",
     fill: "none" as const,
     stroke: "currentColor",
@@ -79,6 +116,20 @@ function SectionIcon({ id }: { id: ProjectListingSectionId }) {
   return <svg {...common}>{paths}</svg>;
 }
 
+function isFullWidthTile(
+  section: ProjectListingSection,
+  sections: ProjectListingSection[],
+): boolean {
+  if (section.id === "overview") return true;
+  const rest = sections.filter((s) => s.id !== "overview");
+  if (rest.length === 0) return false;
+  // Odd count of half-tiles leaves a lone last cell — span full width.
+  if (rest.length % 2 === 1 && section.id === rest[rest.length - 1]!.id) {
+    return true;
+  }
+  return false;
+}
+
 export function ProjectListingSections({
   sections,
 }: {
@@ -88,26 +139,34 @@ export function ProjectListingSections({
 
   return (
     <div className="grid gap-4 sm:grid-cols-2">
-      {sections.map((section) => (
-        <section
-          key={section.id}
-          className={
-            section.id === "overview"
-              ? "space-y-3 rounded-xl border border-border bg-bg-deep/40 p-4 sm:col-span-2"
-              : "space-y-3 rounded-xl border border-border bg-bg-deep/40 p-4"
-          }
-        >
-          <div className="flex items-center gap-2.5">
-            <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-surface/50">
-              <SectionIcon id={section.id} />
-            </span>
-            <h2 className="text-base font-semibold text-foreground">
-              {section.label}
-            </h2>
-          </div>
-          <p className="text-sm leading-relaxed text-muted">{section.body}</p>
-        </section>
-      ))}
+      {sections.map((section) => {
+        const theme = SECTION_THEME[section.id];
+        const fullWidth = isFullWidthTile(section, sections);
+        return (
+          <section
+            key={section.id}
+            className={[
+              "space-y-3 rounded-xl border bg-bg-deep/40 p-4",
+              theme.border,
+              fullWidth ? "sm:col-span-2" : "",
+            ]
+              .filter(Boolean)
+              .join(" ")}
+          >
+            <div className="flex items-center gap-2.5">
+              <span
+                className={`inline-flex h-9 w-9 items-center justify-center rounded-lg border ${theme.chip}`}
+              >
+                <SectionIcon id={section.id} className={theme.icon} />
+              </span>
+              <h2 className="text-base font-semibold text-foreground">
+                {section.label}
+              </h2>
+            </div>
+            <p className="text-sm leading-relaxed text-muted">{section.body}</p>
+          </section>
+        );
+      })}
     </div>
   );
 }

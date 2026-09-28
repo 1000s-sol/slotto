@@ -12,19 +12,19 @@ Use this when drafting or editing copy for published project pages, admin listin
 Fixed fields on each listing (map 1:1 to admin / DB):
 
 1. **Overview** — what the project is, history, main benefits  
-2. **Rewards / staking** — where to stake, what you receive, collection-specific notes  
-3. **Token** — liquidity reality, what holders do with it (only mention a secondary token if it actually exists). Do **not** paste the mint address — the project token block already shows it.  
+2. **Rewards / staking** — where to stake, what you receive, collection-specific notes (omit if none)  
+3. **Token** — liquidity reality, what holders do with it (only if a project token exists; only mention a secondary token if it actually exists). Do **not** paste the mint address — the project token block already shows it.  
 4. **Holder utility** — non-staking utilities  
-5. **Services** — only if the project offers tools/infra to **other** collections; otherwise leave blank (tile stays hidden)
+5. **Services** — only if the project offers tools/infra to **other** collections; otherwise leave blank
 
-A listing is reformatted when Overview, Rewards/staking, Token, and Holder utility are filled. Services is optional.
+A listing is reformatted when **Overview** and **Holder utility** are filled. Rewards/staking, Token, and Services are optional — leave blank when they do not apply so the tile stays hidden. Never write filler that says there is no token, no staking, or no services.
 
 ### Tile writing rules
 
 - **One continuous paragraph per tile** (two short paragraphs only if essential). Full sentences. No bullet lists, no pseudo-lists joined by semicolons as a cheat sheet.
 - **Direct statements only.** Do not use hedging or meta: “it appears”, “seems”, “reportedly”, “the website says”, “according to their site”, “the team frames itself as”, “X bills itself as”.
-- **Do not invent or pad.** No secondary tokens, LP claims, partner names, roadmap dates, or utilities that are not confirmed from official sources. If a topic does not apply, omit it — do not write “there is no secondary token” or “utilities are limited”.
-- **Hide empty optional tiles.** Leave Services (and any inapplicable field) blank rather than filler prose.
+- **Do not invent or pad.** No secondary tokens, LP claims, partner names, roadmap dates, or utilities that are not confirmed from official sources. If a topic does not apply, omit the tile — do not write “there is no token”, “staking is not live”, or “utilities are limited”.
+- **Hide empty optional tiles.** Leave Rewards/staking, Token, and Services blank rather than filler prose.
 - **No URLs** in tile bodies unless the user explicitly wants links.
 - **No markdown** emphasis (`*`, `**`, backticks) in stored tile text unless asked.
 - Name concrete entities when relevant (collections, $TOKEN, Solana, Discord, stake platforms).
@@ -47,6 +47,6 @@ When a listing is not yet on section tiles, or the user asks for a classic revie
 ## Quick negative examples
 
 - Bad: “It appears they offer staking…” / “Utilities seem limited…”
-- Bad: “There is no secondary token.” / “Partner services: none.”
+- Bad: “There is no project token.” / “Staking is not live.” / “Partner services: none.”
 - Bad: Bullet lists, “At a glance”, “The verdict”, bracketed links.
 - Good: “Holders stake Absurd Art Apes on GOTM Labs and earn $AAA at a base rate of 5 per day, with higher rates for listed trait bonuses.”

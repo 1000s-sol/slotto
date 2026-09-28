@@ -88,7 +88,7 @@ export async function createProjectAction(
     return {
       ok: false,
       message:
-        "Fill the four core listing sections (Overview, Rewards/staking, Token, Holder utility), or provide a legacy Review.",
+        "Fill Overview and Holder utility listing sections (or provide a legacy Review). Leave Rewards/staking, Token, or Services blank when they do not apply.",
     };
   }
 
@@ -199,7 +199,7 @@ export async function updateProjectAction(
     return {
       ok: false,
       message:
-        "Fill the four core listing sections (Overview, Rewards/staking, Token, Holder utility), or provide a legacy Review.",
+        "Fill Overview and Holder utility listing sections (or provide a legacy Review). Leave Rewards/staking, Token, or Services blank when they do not apply.",
     };
   }
 

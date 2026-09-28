@@ -39,17 +39,14 @@ export function trimSection(value: string | null | undefined): string {
   return (value ?? "").trim();
 }
 
-/** True when the four core tiles are filled (services optional). */
+/** True when Overview + Holder utility are filled (staking / token / services optional). */
 export function hasListingSections(p: ProjectListingSectionFields): boolean {
   return Boolean(
-    trimSection(p.sectionOverview) &&
-      trimSection(p.sectionStaking) &&
-      trimSection(p.sectionToken) &&
-      trimSection(p.sectionHolderUtility),
+    trimSection(p.sectionOverview) && trimSection(p.sectionHolderUtility),
   );
 }
 
-/** Non-empty tiles in fixed order (services omitted when blank). */
+/** Non-empty tiles in fixed order (blank optional tiles omitted). */
 export function listingSectionsFromProject(
   p: ProjectListingSectionFields,
 ): ProjectListingSection[] {

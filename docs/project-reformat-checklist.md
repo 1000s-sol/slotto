@@ -2,13 +2,13 @@
 
 Track reformatting of published listings into the fixed tiles:
 
-1. Overview  
-2. Rewards / staking  
-3. Token  
-4. Holder utility  
-5. Services (optional — omit / leave blank if the project does not serve other collections)
+1. Overview (required)  
+2. Rewards / staking (optional — leave blank if none)  
+3. Token (optional — leave blank if no project token)  
+4. Holder utility (required)  
+5. Services (optional — leave blank if the project does not serve other collections)
 
-A listing counts as **done** when the four core tiles are filled in the DB (`sectionOverview`, `sectionStaking`, `sectionToken`, `sectionHolderUtility`).
+A listing counts as **done** when Overview and Holder utility are filled in the DB (`sectionOverview`, `sectionHolderUtility`). Leave Rewards/staking, Token, and Services blank when they do not apply so those tiles stay hidden — do not write “no token” / “no staking” filler.
 
 ## Format rules (every reformatted listing)
 
@@ -19,7 +19,7 @@ Full house style lives in `.cursor/rules/slotto-project-listing-reviews.mdc`. Sh
 - **Do not invent** tokens, LP, utilities, or partners. Do not pad with “there is no X”.
 - Mention a **secondary token only if it exists**.
 - Do **not** include the token mint address in the Token tile — it is already shown above the sections.
-- **Leave Services blank** when it does not apply (tile stays hidden).
+- **Leave Rewards/staking, Token, and Services blank** when they do not apply (tiles stay hidden).
 - No URLs or markdown emphasis in tile bodies unless asked.
 
 ## DB commands (fast edits)
