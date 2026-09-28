@@ -112,7 +112,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Solana Strays (`solana-strays`)
 - [x] Solarians (`solarians`)
 - [x] SolGods (`solgods`)
-- [ ] Stone Gods (`stone-gods`)
+- [x] Stone Gods (`stone-gods`)
 - [ ] Stoned Sloths (`stoned-sloths`)
 - [ ] THC Labz (`thc-labz`)
 - [ ] The Fox Club (`the-fox-club`)
