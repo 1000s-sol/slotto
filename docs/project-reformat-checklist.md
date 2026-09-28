@@ -109,7 +109,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] SoDead (`sodead`)
 - [x] Solana Deads (`solana-deads`)
 - [x] Solana Sky Pilots (`solana-sky-pilots`) — unpublished until Sky Pilot NFT markets/mint details are firmer
-- [ ] Solana Strays (`solana-strays`)
+- [x] Solana Strays (`solana-strays`)
 - [ ] Solarians (`solarians`)
 - [x] SolGods (`solgods`)
 - [ ] Stone Gods (`stone-gods`)
