@@ -107,7 +107,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Puffsterz (`puffsterz`)
 - [x] Shinigami (`shinigami`)
 - [x] SoDead (`sodead`)
-- [ ] Solana Deads (`solana-deads`)
+- [x] Solana Deads (`solana-deads`)
 - [ ] Solana Sky Pilots (`solana-sky-pilots`)
 - [ ] Solana Strays (`solana-strays`)
 - [ ] Solarians (`solarians`)
