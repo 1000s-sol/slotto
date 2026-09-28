@@ -204,8 +204,9 @@ export function ProjectForm({
         <div>
           <h3 className="text-sm font-semibold text-foreground">Listing sections</h3>
           <p className="mt-1 text-[11px] leading-relaxed text-muted">
-            Fixed tiles on the public project page. Fill the four core fields (Overview through Holder
-            utility). Services is optional. Prefer short paragraphs — one tile each.
+            Fixed tiles on the public project page. Overview and Holder utility are required. Leave
+            Rewards/staking, Token, or Services blank when they do not apply (tile stays hidden). Prefer
+            short paragraphs — one tile each.
           </p>
         </div>
         {(
@@ -219,15 +220,15 @@ export function ProjectForm({
             },
             {
               name: "sectionStaking",
-              label: "Rewards / staking",
-              hint: "Where to stake, what you receive, collection notes",
+              label: "Rewards / staking (optional)",
+              hint: "Where to stake, what you receive — leave blank if none",
               value: merged.sectionStaking,
               rows: 5,
             },
             {
               name: "sectionToken",
-              label: "Token",
-              hint: "LP / liquidity, utility, secondary token if relevant",
+              label: "Token (optional)",
+              hint: "LP / liquidity, utility — leave blank if no project token",
               value: merged.sectionToken,
               rows: 4,
             },
