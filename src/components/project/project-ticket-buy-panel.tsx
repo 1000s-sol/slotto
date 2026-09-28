@@ -443,10 +443,12 @@ export function ProjectTicketBuyPanel({
             {mintRow.sold.toLocaleString()} /{" "}
             {mintRow.displayCap.toLocaleString()} sold
           </span>
-          <span className="tabular-nums text-foreground/90">{soldPctLabel}</span>
+          <span className="font-semibold tabular-nums text-foreground">
+            {soldPctLabel}
+          </span>
         </div>
         <div
-          className="h-2.5 w-full overflow-hidden rounded-full bg-surface/80"
+          className="h-3.5 w-full overflow-hidden rounded-md border border-border bg-bg-deep"
           role="progressbar"
           aria-valuemin={0}
           aria-valuemax={100}
@@ -454,8 +456,11 @@ export function ProjectTicketBuyPanel({
           aria-label={`${symbol} ticket sales progress`}
         >
           <div
-            className="h-full rounded-full bg-accent-gold transition-[width] duration-300 ease-out"
-            style={{ width: `${soldPct}%` }}
+            className="h-full transition-[width] duration-300 ease-out"
+            style={{
+              width: `${soldPct}%`,
+              backgroundColor: "var(--accent-gold)",
+            }}
           />
         </div>
       </div>
