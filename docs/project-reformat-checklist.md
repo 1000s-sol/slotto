@@ -100,7 +100,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Mob Collective (`mob-collective`)
 - [x] Mutants On Sol Crew (`mutants-on-sol-crew`)
 - [x] Omerta - Empire City (`omerta-empire-city`)
-- [ ] Onchain Bridges (`onchain-bridges`)
+- [x] Onchain Bridges (`onchain-bridges`)
 - [ ] Pandarianz (`pandarianz`)
 - [ ] Pawpular (`pawpular`)
 - [ ] Pepeverse (`pepeverse`)
