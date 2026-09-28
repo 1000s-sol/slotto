@@ -17,7 +17,16 @@ Fixed fields on each listing (map 1:1 to admin / DB):
 4. **Holder utility** — non-staking utilities  
 5. **Services** — only if the project offers tools/infra to **other** collections; otherwise leave blank
 
-A listing is reformatted when **Overview** and **Holder utility** are filled. Rewards/staking, Token, and Services are optional — leave blank when they do not apply so the tile stays hidden. Never write filler that says there is no token, no staking, or no services.
+A listing is reformatted when **Overview** and **Holder utility** are filled, **and** Orbis + GraveMarket links have been checked for every associated collection (add verified URLs to `Project.collections` when available). Rewards/staking, Token, and Services are optional — leave blank when they do not apply so the tile stays hidden. Never write filler that says there is no token, no staking, or no services.
+
+### Marketplace link pass (required with every reformatted listing)
+
+Do this for **each** collection on the listing before ticking the checklist — not only Magic Eden / Tensor:
+
+1. **Orbis** — probe candidate slugs from ME/Tensor paths (underscore↔hyphen) and the collection name. A page is real only when `<title>` is `NAME | Orbis NFT Marketplace`. Bare `NFT Marketplace` means the slug does not exist. Add `{ marketplace: "orbis", href }` when verified and missing.
+2. **GraveMarket** — confirm with `GET https://api.deads.io/gravemarket/v1/collections/{slug}` (success + collection data). Do not trust gravemarket.io HTML alone (SPA shell). Also try search + slug transforms. Add `{ marketplace: "gravemarket", href: "https://gravemarket.io/collection/{slug}" }` when verified and missing.
+3. Remove stored Orbis/GM URLs that fail those checks.
+4. Never invent marketplace URLs. If neither venue lists the collection, leave those links off.
 
 ### Tile writing rules
 

@@ -8,7 +8,7 @@ Track reformatting of published listings into the fixed tiles:
 4. Holder utility (required)  
 5. Services (optional — leave blank if the project does not serve other collections)
 
-A listing counts as **done** when Overview and Holder utility are filled in the DB (`sectionOverview`, `sectionHolderUtility`). Leave Rewards/staking, Token, and Services blank when they do not apply so those tiles stay hidden — do not write “no token” / “no staking” filler.
+A listing counts as **done** when Overview and Holder utility are filled in the DB (`sectionOverview`, `sectionHolderUtility`), **and** every associated collection has been checked for Orbis + GraveMarket marketplace links (add verified URLs to `collections` when available; skip when not listed there). Leave Rewards/staking, Token, and Services blank when they do not apply so those tiles stay hidden — do not write “no token” / “no staking” filler.
 
 ## Format rules (every reformatted listing)
 
