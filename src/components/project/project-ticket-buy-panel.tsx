@@ -403,6 +403,14 @@ export function ProjectTicketBuyPanel({
 
   const remaining = splTicketsRemaining(mintRow);
   const salesOpen = buyableWindow && mintBuyable;
+  const soldPct =
+    mintRow.displayCap > 0
+      ? Math.min(
+          100,
+          Math.max(0, (mintRow.sold / mintRow.displayCap) * 100),
+        )
+      : 0;
+  const soldPctLabel = `${Math.round(soldPct)}%`;
 
   return (
     <section className="rounded-xl border border-accent-gold/35 bg-bg-deep/50 p-4 sm:p-5">
@@ -427,6 +435,29 @@ export function ProjectTicketBuyPanel({
         >
           Full lottery →
         </Link>
+      </div>
+
+      <div className="mt-4">
+        <div className="mb-1.5 flex items-center justify-between gap-3 text-xs text-muted">
+          <span>
+            {mintRow.sold.toLocaleString()} /{" "}
+            {mintRow.displayCap.toLocaleString()} sold
+          </span>
+          <span className="tabular-nums text-foreground/90">{soldPctLabel}</span>
+        </div>
+        <div
+          className="h-2.5 w-full overflow-hidden rounded-full bg-surface/80"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(soldPct)}
+          aria-label={`${symbol} ticket sales progress`}
+        >
+          <div
+            className="h-full rounded-full bg-accent-gold transition-[width] duration-300 ease-out"
+            style={{ width: `${soldPct}%` }}
+          />
+        </div>
       </div>
 
       <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted/90">
