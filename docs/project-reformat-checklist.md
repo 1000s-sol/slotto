@@ -103,7 +103,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Onchain Bridges (`onchain-bridges`)
 - [x] Pandarianz (`pandarianz`)
 - [x] Pawpular (`pawpular`)
-- [ ] Pepeverse (`pepeverse`)
+- [x] Pepeverse (`pepeverse`)
 - [ ] Puffsterz (`puffsterz`)
 - [ ] Shinigami (`shinigami`)
 - [ ] SoDead (`sodead`)
