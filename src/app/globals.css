@@ -11,6 +11,7 @@
   --accent-blue: #3b82f6;
   --accent-gold: #f5c542;
   --accent-cyan: #22d3ee;
+  --accent-green: #34d399;
 }
 
 @theme inline {
@@ -24,6 +25,7 @@
   --color-accent-blue: var(--accent-blue);
   --color-accent-gold: var(--accent-gold);
   --color-accent-cyan: var(--accent-cyan);
+  --color-accent-green: var(--accent-green);
   --font-sans: var(--font-michroma), var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
 }
 
