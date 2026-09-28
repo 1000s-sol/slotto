@@ -78,7 +78,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Energy Wabbits (`energy-wabbits`)
 - [x] Famous Fox Federation (`famous-fox-federation`)
 - [x] Frens Factory (`frens-factory`)
-- [ ] GAINZ (`gainz`)
+- [x] GAINZ (`gainz`)
 - [ ] Geeks (`geeks`)
 - [ ] Gensuki (`gensuki`)
 - [ ] GoodFellas (`goodfellas`)
