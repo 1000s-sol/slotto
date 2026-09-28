@@ -92,7 +92,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Goofy Giraffes (`goofy-giraffes`)
 - [x] Haxz (`haxz`)
 - [x] K.B.D.S (`k-b-d-s`)
-- [ ] Loud Lords (`loud-lords`)
+- [x] Loud Lords (`loud-lords`) — unpublished until more remint/takeover info
 - [ ] Lunarverse (`lunarverse`)
 - [ ] MAGApixel (`magapixel`)
 - [ ] Midevils (`midevils`)
