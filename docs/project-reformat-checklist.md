@@ -89,7 +89,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Geeks (`geeks`)
 - [x] Gensuki (`gensuki`)
 - [x] GoodFellas (`goodfellas`)
-- [ ] Goofy Giraffes (`goofy-giraffes`)
+- [x] Goofy Giraffes (`goofy-giraffes`)
 - [ ] Haxz (`haxz`)
 - [ ] K.B.D.S (`k-b-d-s`)
 - [ ] Loud Lords (`loud-lords`)
