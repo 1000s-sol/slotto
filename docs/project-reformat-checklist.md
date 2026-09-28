@@ -71,7 +71,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] BUXDAO (`buxdao`)
 - [x] Chart Breakers (`chart-breakers`)
 - [x] Crouton Jones (`crouton-jones`)
-- [ ] Dead Bunnies (`dead-bunnies`)
+- [x] Dead Bunnies (`dead-bunnies`)
 - [ ] DMST (`dmst`)
 - [ ] Eapes (`eapes`)
 - [ ] Enchanted Miners (`enchanted-miners`)
