@@ -97,7 +97,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] MAGApixel (`magapixel`)
 - [x] Midevils (`midevils`)
 - [x] Mnk3y Labs (`mnk3y-labs`)
-- [ ] Mob Collective (`mob-collective`)
+- [x] Mob Collective (`mob-collective`)
 - [ ] Mutants On Sol Crew (`mutants-on-sol-crew`)
 - [x] Omerta - Empire City (`omerta-empire-city`)
 - [ ] Onchain Bridges (`onchain-bridges`)
