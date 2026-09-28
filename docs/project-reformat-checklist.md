@@ -123,4 +123,4 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Villagers (`villagers`)
 - [x] Wegens (`wegens`) — deleted from catalog
 - [x] Xape Labz (`xape-labz`)
-- [ ] ZomBabieZ (`zombabiez`)
+- [x] ZomBabieZ (`zombabiez`)
