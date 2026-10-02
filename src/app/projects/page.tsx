@@ -117,9 +117,29 @@ export default async function ProjectsPage({ searchParams }: Props) {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">Projects</h1>
-          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">
+          <p className="mt-2 max-w-2xl text-sm font-bold leading-relaxed text-muted">
             All listings are independent and unbiased. Slotto.gg does not offer paid promotion of any kind.
           </p>
+          <div className="mt-3 flex max-w-2xl gap-2.5 rounded-xl border border-border bg-bg-elevated/70 px-3.5 py-3 text-sm leading-relaxed text-muted">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="mt-0.5 h-4 w-4 shrink-0 text-foreground/70"
+              aria-hidden
+            >
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 16v-4" />
+              <path d="M12 8h.01" />
+            </svg>
+            <p>
+              Listing details are preliminary, agent-compiled research. Treat them as project-provided and
+              verify independently before investing.
+            </p>
+          </div>
           <dl className="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-sm">
             <div>
               <dt className="inline text-muted">Projects listed: </dt>
