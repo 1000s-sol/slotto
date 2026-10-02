@@ -110,6 +110,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Pepeverse (`pepeverse`)
 - [x] Puffsterz (`puffsterz`)
 - [x] Rafflors (`rafflors`)
+- [x] Sharx (`sharx`)
 - [x] Shinigami (`shinigami`)
 - [x] Smyths (`smyths`)
 - [x] SoDead (`sodead`)
