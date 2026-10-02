@@ -67,7 +67,7 @@ JSON shape:
 
 Requires `DATABASE_URL` or `DIRECT_URL` in `.env`. After schema deploy, also run `npm run db:push` once on the production DB if columns are missing.
 
-## Checklist (68 published)
+## Checklist (69 published)
 
 Tick in this file as each listing is reformatted. Keep alphabetical by name.
 
@@ -112,6 +112,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Pandarianz (`pandarianz`)
 - [x] Pawpular (`pawpular`)
 - [x] Pepeverse (`pepeverse`)
+- [x] Planet Kaiju (`planet-kaiju`)
 - [x] Primates (`primates`)
 - [x] Puffsterz (`puffsterz`)
 - [x] Rafflors (`rafflors`)
