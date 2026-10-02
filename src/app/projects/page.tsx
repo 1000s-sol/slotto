@@ -117,7 +117,7 @@ export default async function ProjectsPage({ searchParams }: Props) {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">Projects</h1>
-          <p className="mt-2 max-w-2xl text-sm font-bold leading-relaxed text-muted">
+          <p className="mt-2 max-w-2xl text-sm font-bold leading-relaxed text-foreground">
             All listings are independent and unbiased. Slotto.gg does not offer paid promotion of any kind.
           </p>
           <div className="mt-3 flex max-w-2xl gap-2.5 rounded-xl border border-border bg-bg-elevated/70 px-3.5 py-3 text-sm leading-relaxed text-muted">
