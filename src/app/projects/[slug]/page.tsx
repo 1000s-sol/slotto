@@ -120,11 +120,11 @@ export default async function ProjectPage({ params }: Props) {
 
       <div className="overflow-hidden rounded-2xl border border-border bg-bg-elevated/80">
         {project.bannerImageUrl ? (
-          <div className="relative h-56 w-full sm:h-72 md:h-80">
+          <div className="relative aspect-[3/1] w-full bg-bg-deep">
             <img
               src={project.bannerImageUrl}
               alt=""
-              className="h-full w-full object-cover"
+              className="absolute inset-0 h-full w-full object-cover object-center"
               referrerPolicy="no-referrer"
             />
             <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-bg-elevated via-transparent to-transparent" />
@@ -135,7 +135,7 @@ export default async function ProjectPage({ params }: Props) {
             />
           </div>
         ) : (
-          <div className="relative min-h-52 bg-gradient-to-r from-accent-purple/30 via-surface to-accent-blue/30 sm:min-h-64">
+          <div className="relative aspect-[3/1] w-full bg-gradient-to-r from-accent-purple/30 via-surface to-accent-blue/30">
             <ProjectLikePill
               slug={slug}
               initialLikes={project.likes}
