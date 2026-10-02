@@ -137,6 +137,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] SolGods (`solgods`)
 - [x] Stone Gods (`stone-gods`)
 - [x] Stoned Sloths (`stoned-sloths`)
+- [x] Tensorians (`tensorians`)
 - [x] THC Labz (`thc-labz`)
 - [x] The Fox Club (`the-fox-club`)
 - [x] The Misfits Order (`the-misfits-order`)
