@@ -67,7 +67,7 @@ JSON shape:
 
 Requires `DATABASE_URL` or `DIRECT_URL` in `.env`. After schema deploy, also run `npm run db:push` once on the production DB if columns are missing.
 
-## Checklist (79 published)
+## Checklist (80 published)
 
 Tick in this file as each listing is reformatted. Keep alphabetical by name.
 
@@ -153,6 +153,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Ugly Ape Squad (`ugly-ape-squad`)
 - [x] Uni-Fy (`uni-fy`) — unpublished until UNIFY mint/markets and live product surface are firmer
 - [x] Villagers (`villagers`)
+- [x] VINCENIA (`vincenia`)
 - [x] Wegens (`wegens`) — deleted from catalog
 - [x] Wolf Capital (`wolf-capital`)
 - [x] Xape Labz (`xape-labz`)
