@@ -15,7 +15,42 @@ export type ProjectTokenDisplayOpts = {
   tokenName?: string | null;
 };
 
-/** Symbol + logo for a project token mint (DexScreener + Helius, same spirit as ticker). */
+/** Hosts that often 404 or hang for SPL token icons in browsers. */
+function isUnreliableTokenImageHost(url: string | null): boolean {
+  if (!url) return true;
+  const u = url.toLowerCase();
+  return (
+    u.includes("shdw-drive.genesysgo.net") ||
+    u.includes("genesysgo.net") ||
+    u.startsWith("ipfs://") ||
+    /\/ipfs\//i.test(u) ||
+    u.includes("gateway.pinata.cloud")
+  );
+}
+
+async function fetchGeckoTerminalLogo(
+  mint: string,
+): Promise<{ logo: string | null; symbol?: string }> {
+  try {
+    const res = await fetch(
+      `https://api.geckoterminal.com/api/v2/networks/solana/tokens/${encodeURIComponent(mint)}`,
+      { headers: { Accept: "application/json" }, next: { revalidate: 3600 } },
+    );
+    if (!res.ok) return { logo: null };
+    const json = (await res.json()) as {
+      data?: { attributes?: { symbol?: string; image_url?: string | null } };
+    };
+    const attrs = json.data?.attributes;
+    return {
+      logo: normalizeImageUrl(attrs?.image_url ?? undefined),
+      symbol: attrs?.symbol?.trim(),
+    };
+  } catch {
+    return { logo: null };
+  }
+}
+
+/** Symbol + logo for a project token mint (DexScreener + Helius + Gecko, same spirit as ticker). */
 export async function fetchProjectTokenDisplay(
   mint: string,
   opts?: ProjectTokenDisplayOpts,
@@ -63,29 +98,31 @@ export async function fetchProjectTokenDisplay(
   const helius = needsHelius ? await fetchHeliusTokenMeta(m) : null;
   const heliusLogo = normalizeImageUrl(helius?.image);
 
+  const hasReliableMarketLogo =
+    Boolean(customLogo) ||
+    (Boolean(dexLogo) && !isUnreliableTokenImageHost(dexLogo)) ||
+    (Boolean(heliusLogo) && !isUnreliableTokenImageHost(heliusLogo));
+
   let geckoLogo: string | null = null;
   let geckoSymbol: string | undefined;
-  if (!customLogo && !dexLogo && !heliusLogo) {
-    try {
-      const res = await fetch(
-        `https://api.geckoterminal.com/api/v2/networks/solana/tokens/${encodeURIComponent(m)}`,
-        { headers: { Accept: "application/json" }, next: { revalidate: 3600 } },
-      );
-      if (res.ok) {
-        const json = (await res.json()) as {
-          data?: { attributes?: { symbol?: string; image_url?: string | null } };
-        };
-        const attrs = json.data?.attributes;
-        geckoLogo = normalizeImageUrl(attrs?.image_url ?? undefined);
-        geckoSymbol = attrs?.symbol?.trim();
-      }
-    } catch {
-      /* keep fallbacks */
-    }
+  if (!hasReliableMarketLogo) {
+    const gecko = await fetchGeckoTerminalLogo(m);
+    geckoLogo = gecko.logo;
+    geckoSymbol = gecko.symbol;
   }
 
-  // Liquid tokens: market logos first, then stored tokenImageUrl (Dex/Helius often omit low-cap logos).
-  const logoUrl = customLogo || dexLogo || heliusLogo || geckoLogo || storedLogo || null;
+  // Prefer stable CDN / stored logos over GenesysGo shadow-drive + IPFS (often 404 in browsers).
+  const reliableDex = dexLogo && !isUnreliableTokenImageHost(dexLogo) ? dexLogo : null;
+  const reliableHelius = heliusLogo && !isUnreliableTokenImageHost(heliusLogo) ? heliusLogo : null;
+  const logoUrl =
+    customLogo ||
+    reliableDex ||
+    storedLogo ||
+    geckoLogo ||
+    reliableHelius ||
+    dexLogo ||
+    heliusLogo ||
+    null;
 
   let symbol =
     customName || dexSymbol || helius?.symbol?.trim() || geckoSymbol || abbrevMint(m);
