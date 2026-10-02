@@ -67,7 +67,7 @@ JSON shape:
 
 Requires `DATABASE_URL` or `DIRECT_URL` in `.env`. After schema deploy, also run `npm run db:push` once on the production DB if columns are missing.
 
-## Checklist (80 published)
+## Checklist (81 published)
 
 Tick in this file as each listing is reformatted. Keep alphabetical by name.
 
@@ -116,6 +116,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Mnk3y Labs (`mnk3y-labs`)
 - [x] Mob Collective (`mob-collective`)
 - [x] Mutants On Sol Crew (`mutants-on-sol-crew`)
+- [x] NPP (`npp`)
 - [x] Okay Bears (`okay-bears`)
 - [x] Omerta - Empire City (`omerta-empire-city`)
 - [x] Onchain Bridges (`onchain-bridges`)
@@ -124,7 +125,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Pawpular (`pawpular`)
 - [x] Pepeverse (`pepeverse`)
 - [x] Pickles (`pickles`)
-- [x] Planet Kaiju (`planet-kaiju`)
+- [x] Planet Kaiju (`planet-kaiju`) — includes The Hated
 - [x] Portals (`portals`)
 - [x] Primates (`primates`)
 - [x] Primals (`primals`)
@@ -147,7 +148,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Taiyo Robotics (`taiyo-robotics`) — includes Infants, Oil, Pilots
 - [x] Tensorians (`tensorians`)
 - [x] THC Labz (`thc-labz`)
-- [x] The Fox Club (`the-fox-club`)
+- [x] The Fox Club (`the-fox-club`) — includes Cyber Foxes
 - [x] The Misfits Order (`the-misfits-order`)
 - [x] The Rejects (`the-rejects`)
 - [x] Ugly Ape Squad (`ugly-ape-squad`)
