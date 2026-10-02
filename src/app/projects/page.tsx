@@ -114,50 +114,52 @@ export default async function ProjectsPage({ searchParams }: Props) {
         />
       ) : null}
 
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight">Projects</h1>
-          <p className="mt-2 max-w-2xl text-sm font-bold leading-relaxed text-foreground">
-            All listings are independent and unbiased. Slotto.gg does not offer paid promotion of any kind.
-          </p>
-          <div className="mt-3 flex max-w-2xl gap-2.5 rounded-xl border border-border bg-bg-elevated/70 px-3.5 py-3 text-sm leading-relaxed text-muted">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="mt-0.5 h-4 w-4 shrink-0 text-foreground/70"
-              aria-hidden
-            >
-              <circle cx="12" cy="12" r="10" />
-              <path d="M12 16v-4" />
-              <path d="M12 8h.01" />
-            </svg>
-            <p>
-              Listing details are preliminary, agent-compiled research. Treat them as project-provided and
-              verify independently before investing.
+      <div className="space-y-3">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="text-3xl font-semibold tracking-tight">Projects</h1>
+            <p className="mt-2 text-sm font-bold leading-relaxed text-foreground">
+              All listings are independent and unbiased. Slotto.gg does not offer paid promotion of any kind.
             </p>
           </div>
-          <dl className="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-sm">
-            <div>
-              <dt className="inline text-muted">Projects listed: </dt>
-              <dd className="inline font-semibold tabular-nums text-foreground">{stats.projectCount}</dd>
-            </div>
-            <div>
-              <dt className="inline text-muted">Tokens enabled: </dt>
-              <dd className="inline font-semibold tabular-nums text-foreground">{stats.tokenCount}</dd>
-            </div>
-          </dl>
+          <Suspense
+            fallback={
+              <div className="h-[4.5rem] w-full max-w-sm animate-pulse rounded-xl bg-surface/40 sm:ml-auto sm:w-72" />
+            }
+          >
+            <ProjectsToolbar defaultSort="likes" />
+          </Suspense>
         </div>
-        <Suspense
-          fallback={
-            <div className="h-[4.5rem] w-full max-w-sm animate-pulse rounded-xl bg-surface/40 sm:ml-auto sm:w-72" />
-          }
-        >
-          <ProjectsToolbar defaultSort="likes" />
-        </Suspense>
+        <div className="flex w-full gap-2.5 rounded-xl border border-border bg-bg-elevated/70 px-3.5 py-3 text-sm leading-relaxed text-muted">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="mt-0.5 h-4 w-4 shrink-0 text-foreground/70"
+            aria-hidden
+          >
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 16v-4" />
+            <path d="M12 8h.01" />
+          </svg>
+          <p>
+            Listing details are preliminary, agent-compiled research. Treat them as project-provided and verify
+            independently before investing.
+          </p>
+        </div>
+        <dl className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+          <div>
+            <dt className="inline text-muted">Projects listed: </dt>
+            <dd className="inline font-semibold tabular-nums text-foreground">{stats.projectCount}</dd>
+          </div>
+          <div>
+            <dt className="inline text-muted">Tokens enabled: </dt>
+            <dd className="inline font-semibold tabular-nums text-foreground">{stats.tokenCount}</dd>
+          </div>
+        </dl>
       </div>
 
       {grid.length === 0 && !featured ? (
