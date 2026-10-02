@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { fetchHeliusTokenMeta, normalizeImageUrl } from "@/lib/helius-token-meta";
-import { fetchProjectTokenDisplay } from "@/lib/project-token-display";
+import { isUnreliableTokenImageHost } from "@/lib/project-token-display";
 import { fetchLiquidTickerProjects } from "@/lib/ticker-liquid-projects";
 import {
   fetchDexTokenRows,
@@ -54,6 +54,18 @@ async function buildTickerSlots(): Promise<TickerSlot[]> {
   return slots;
 }
 
+/** Dex/Helius first (what used to work); swap only when missing or known-dead host. */
+function pickTickerLogo(
+  dexLogo: string | null,
+  heliusLogo: string | null,
+  storedLogo: string | null,
+): string | null {
+  const market = dexLogo || heliusLogo || null;
+  if (market && !isUnreliableTokenImageHost(market)) return market;
+  if (storedLogo) return storedLogo;
+  return market;
+}
+
 export async function GET() {
   try {
     const slots = await buildTickerSlots();
@@ -64,61 +76,59 @@ export async function GET() {
       fetchJupiterUsd(mints),
     ]);
 
-    // Project mints: same logo chain as project pages (skip dead GenesysGo/Firebase,
-    // fall back to stored /project-images/* art). SOL keeps Dex/Helius only.
-    const projectDisplayByMint = new Map<
-      string,
-      Awaited<ReturnType<typeof fetchProjectTokenDisplay>>
-    >();
+    const needsHelius = mints.filter((mint) => {
+      const row = byMint.get(mint);
+      const dexLogo = normalizeImageUrl(row?.info?.imageUrl);
+      // Fetch Helius when Dex has no image, or only a known-dead host (GenesysGo).
+      return (
+        mint !== WRAPPED_SOL_MINT &&
+        (!dexLogo || isUnreliableTokenImageHost(dexLogo))
+      );
+    });
+
+    const heliusMap = new Map<string, Awaited<ReturnType<typeof fetchHeliusTokenMeta>>>();
     await Promise.all(
-      slots
-        .filter((s) => s.mint !== WRAPPED_SOL_MINT)
-        .map(async (slot) => {
-          if (projectDisplayByMint.has(slot.mint)) return;
-          projectDisplayByMint.set(
-            slot.mint,
-            await fetchProjectTokenDisplay(slot.mint, {
-              liquid: true,
-              tokenImageUrl: slot.tokenImageUrl,
-              tokenName: slot.tokenName,
-            }),
-          );
-        }),
+      needsHelius.map(async (mint) => {
+        heliusMap.set(mint, await fetchHeliusTokenMeta(mint));
+      }),
     );
 
-    const needsHeliusSol =
-      !byMint.get(WRAPPED_SOL_MINT)?.info?.imageUrl?.trim();
-    const solHelius = needsHeliusSol
-      ? await fetchHeliusTokenMeta(WRAPPED_SOL_MINT)
-      : null;
+    // SOL logo when Dex omits it.
+    if (!byMint.get(WRAPPED_SOL_MINT)?.info?.imageUrl?.trim()) {
+      heliusMap.set(WRAPPED_SOL_MINT, await fetchHeliusTokenMeta(WRAPPED_SOL_MINT));
+    }
 
     const items: TickerItem[] = slots.map((slot) => {
       const { mint, projectSlug, projectName } = slot;
       const row = byMint.get(mint);
+      const helius = heliusMap.get(mint) ?? null;
       const priceUsd = resolveTokenUsdPrice(mint, row, jupUsd[mint] ?? null);
 
-      if (mint === WRAPPED_SOL_MINT) {
-        const dexLogo = normalizeImageUrl(row?.info?.imageUrl);
-        const heliusLogo = normalizeImageUrl(solHelius?.image);
-        return {
-          mint,
-          symbol: "SOL",
-          priceUsd,
-          logoUrl: dexLogo || heliusLogo || null,
-          projectSlug,
-          projectName,
-        };
+      let symbol =
+        mint === WRAPPED_SOL_MINT
+          ? "SOL"
+          : row?.baseToken?.symbol?.trim() ||
+            helius?.symbol?.trim() ||
+            slot.tokenName?.trim() ||
+            abbrevMint(mint);
+
+      if (mint !== WRAPPED_SOL_MINT && symbol.length > 12) {
+        symbol = symbol.slice(0, 12);
       }
 
-      const display = projectDisplayByMint.get(mint);
-      let symbol = display?.symbol || row?.baseToken?.symbol?.trim() || abbrevMint(mint);
-      if (symbol.length > 12) symbol = symbol.slice(0, 12);
+      const dexLogo = normalizeImageUrl(row?.info?.imageUrl);
+      const heliusLogo = normalizeImageUrl(helius?.image);
+      const storedLogo = normalizeImageUrl(slot.tokenImageUrl ?? undefined);
+      const logoUrl =
+        mint === WRAPPED_SOL_MINT
+          ? dexLogo || heliusLogo || null
+          : pickTickerLogo(dexLogo, heliusLogo, storedLogo);
 
       return {
         mint,
         symbol,
         priceUsd,
-        logoUrl: display?.logoUrl ?? null,
+        logoUrl,
         projectSlug,
         projectName,
       };
