@@ -121,6 +121,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Pawpular (`pawpular`)
 - [x] Pepeverse (`pepeverse`)
 - [x] Planet Kaiju (`planet-kaiju`)
+- [x] Portals (`portals`)
 - [x] Primates (`primates`)
 - [x] Puffsterz (`puffsterz`)
 - [x] Rafflors (`rafflors`)
