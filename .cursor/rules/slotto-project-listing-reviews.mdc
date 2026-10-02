@@ -52,7 +52,8 @@ Omit these from every tile unless the user explicitly asks — the project page 
 - Matter-of-fact, third-person catalogue / analysis — not hype, not sarcasm.
 - **Complimentary by default.** Slotto only lists projects we like the look of; founders should recognize the listing as fair and positive. Lead with strengths and distinctive pieces; keep real product caveats (e.g. thin token liquidity) inside normal sentences without undercutting the whole write-up. Do not import stake-platform “paused / maintenance” banners into listing copy.
 
-- One closing orientation sentence is fine on Overview when useful (“For visitors comparing listings…”).
+- One closing orientation sentence is fine on Overview when useful — make it **project-specific** (what the visitor should notice), not a generic “worth listing among established …” stamp.
+- **Do not** close with marketplace branding (“established Orbis utility projects”, “Orbis-established”, etc.). Marketplace buttons already cover venues.
 - Caveats belong inside normal sentences, not under a “Risks” header.
 
 ## Legacy `reviewMd` (fallback only)
@@ -69,6 +70,7 @@ When a listing is not yet on section tiles, or the user asks for a classic revie
 - Bad: “It appears they offer staking…” / “Utilities seem limited…”
 - Bad: “There is no project token.” / “Staking is not live.” / “Reward accrual is currently paused…” / “Partner services: none.”
 - Bad: “Trades on Magic Eden, Tensor, and Orbis…” / “a 3,333-piece collection…” / “with Discord and @Project as the social rails…”
+- Bad: “…worth listing among established Orbis utility projects.”
 - Bad: Bullet lists, “At a glance”, “The verdict”, bracketed links.
 - Good: “Holders stake Absurd Art Apes on GOTM Labs and earn $AAA at a base rate of 5 per day, with higher rates for listed trait bonuses.”
 - Good: “Geeks is the flagship Solana collectible for Sleek Geek — a 3D character line with ancient, modern, and cyber era traits tied to a live pop-culture store and holder hub.”
