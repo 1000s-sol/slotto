@@ -15,8 +15,46 @@ export type ProjectTokenDisplayOpts = {
   tokenName?: string | null;
 };
 
-/** Hosts that often 404 or hang for SPL token icons in browsers. */
-function isUnreliableTokenImageHost(url: string | null): boolean {
+/** Same-origin / relative paths are served by us — treat as reachable. */
+function isLocalAssetUrl(url: string): boolean {
+  return url.startsWith("/") && !url.startsWith("//");
+}
+
+async function urlLooksReachable(url: string): Promise<boolean> {
+  if (isLocalAssetUrl(url)) return true;
+  // DexScreener (and some CDNs) answer 422/405/403 to HEAD but serve GET fine in browsers.
+  // Only treat clear missing responses as dead; otherwise probe a tiny GET.
+  const tryGet = async () => {
+    const get = await fetch(url, {
+      method: "GET",
+      headers: { Range: "bytes=0-0" },
+      redirect: "follow",
+      signal: AbortSignal.timeout(2500),
+      next: { revalidate: 3600 },
+    });
+    return get.ok || get.status === 206;
+  };
+  try {
+    const res = await fetch(url, {
+      method: "HEAD",
+      redirect: "follow",
+      signal: AbortSignal.timeout(2500),
+      next: { revalidate: 3600 },
+    });
+    if (res.ok) return true;
+    if (res.status === 404 || res.status === 410) return false;
+    return await tryGet();
+  } catch {
+    try {
+      return await tryGet();
+    } catch {
+      return false;
+    }
+  }
+}
+
+/** Known-flaky token icon hosts (often 404 in browsers). */
+export function isUnreliableTokenImageHost(url: string | null): boolean {
   if (!url) return true;
   const u = url.toLowerCase();
   return (
@@ -26,38 +64,6 @@ function isUnreliableTokenImageHost(url: string | null): boolean {
     /\/ipfs\//i.test(u) ||
     u.includes("gateway.pinata.cloud")
   );
-}
-
-/** Same-origin / relative paths are served by us — treat as reachable. */
-function isLocalAssetUrl(url: string): boolean {
-  return url.startsWith("/") && !url.startsWith("//");
-}
-
-async function urlLooksReachable(url: string): Promise<boolean> {
-  if (isLocalAssetUrl(url)) return true;
-  try {
-    const res = await fetch(url, {
-      method: "HEAD",
-      redirect: "follow",
-      signal: AbortSignal.timeout(2500),
-      next: { revalidate: 3600 },
-    });
-    if (res.ok) return true;
-    // Some CDNs reject HEAD; try a tiny GET range.
-    if (res.status === 405 || res.status === 403 || res.status === 400) {
-      const get = await fetch(url, {
-        method: "GET",
-        headers: { Range: "bytes=0-0" },
-        redirect: "follow",
-        signal: AbortSignal.timeout(2500),
-        next: { revalidate: 3600 },
-      });
-      return get.ok || get.status === 206;
-    }
-    return false;
-  } catch {
-    return false;
-  }
 }
 
 async function firstReachableLogo(candidates: Array<string | null | undefined>): Promise<string | null> {
