@@ -7,9 +7,10 @@ import { ProjectLikePill, ProjectSocialLinks } from "@/components/project/projec
 import { ProjectListingSections } from "@/components/project/project-listing-sections";
 import { ProjectTicketBuyPanel } from "@/components/project/project-ticket-buy-panel";
 import { ProjectTokenBlock } from "@/components/project/project-token-block";
-import { fetchLiveMagicEdenStats } from "@/lib/magiceden-stats";
+import { fetchLiveCollectionStats } from "@/lib/magiceden-stats";
 import {
   magicEdenLink,
+  orbisLink,
   parseProjectCollections,
 } from "@/lib/project-collections";
 import { ensureProjectSectionColumns } from "@/lib/ensure-project-section-columns";
@@ -99,7 +100,9 @@ export default async function ProjectPage({ params }: Props) {
   );
 
   const statsByIndex = await Promise.all(
-    collections.map((c) => fetchLiveMagicEdenStats(magicEdenLink(c), 120)),
+    collections.map((c) =>
+      fetchLiveCollectionStats(magicEdenLink(c), orbisLink(c), 120),
+    ),
   );
 
   const tokenMint = project.tokenMint?.trim() ?? "";

@@ -5,8 +5,8 @@ import { ProjectCollectionsPanel } from "@/components/project/project-collection
 import { ProjectSocialLinks } from "@/components/project/project-detail-actions";
 import { ProjectListingSections } from "@/components/project/project-listing-sections";
 import { ProjectTokenBlock } from "@/components/project/project-token-block";
-import { fetchLiveMagicEdenStats } from "@/lib/magiceden-stats";
-import { magicEdenLink } from "@/lib/project-collections";
+import { fetchLiveCollectionStats } from "@/lib/magiceden-stats";
+import { magicEdenLink, orbisLink } from "@/lib/project-collections";
 import { OMERTA_PREVIEW as P } from "@/lib/project-preview/omerta-preview-data";
 import { listingSectionsFromProject } from "@/lib/project-listing-sections";
 import { fetchProjectTokenDisplay } from "@/lib/project-token-display";
@@ -21,7 +21,9 @@ export const metadata: Metadata = {
 export default async function ProjectPreviewPage() {
   const collections = [...P.collections];
   const statsByIndex = await Promise.all(
-    collections.map((c) => fetchLiveMagicEdenStats(magicEdenLink(c), 120)),
+    collections.map((c) =>
+      fetchLiveCollectionStats(magicEdenLink(c), orbisLink(c), 120),
+    ),
   );
 
   const tokenDisplay = await fetchProjectTokenDisplay(P.tokenMint, {
