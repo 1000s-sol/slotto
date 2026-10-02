@@ -146,8 +146,8 @@ export default async function ProjectsPage({ searchParams }: Props) {
             <path d="M12 8h.01" />
           </svg>
           <p>
-            Listing details are preliminary, agent-compiled research. Treat them as project-provided and verify
-            independently before investing.
+            Listing details are preliminary, agent-compiled research — not necessarily from the projects
+            themselves, and not guaranteed accurate. Verify independently before investing.
           </p>
         </div>
         <dl className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
