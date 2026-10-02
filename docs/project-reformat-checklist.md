@@ -104,6 +104,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Liminals (`liminals`)
 - [x] Loud Lords (`loud-lords`) — unpublished until more remint/takeover info
 - [x] Lunarverse (`lunarverse`)
+- [x] Mad Lads (`mad-lads`)
 - [x] MAGApixel (`magapixel`)
 - [x] Midevils (`midevils`)
 - [x] Mnk3y Labs (`mnk3y-labs`)
