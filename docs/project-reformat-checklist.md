@@ -95,7 +95,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Energy Wabbits (`energy-wabbits`)
 - [x] Famous Fox Federation (`famous-fox-federation`)
 - [x] Frens Factory (`frens-factory`)
-- [x] GAINZ (`gainz`)
+- [x] GOTM Labz (`gotm-labz`) — was GAINZ; includes GAINZ
 - [x] Galactic Geckos (`galactic-geckos`)
 - [x] Geeks (`geeks`)
 - [x] Gensuki (`gensuki`)
