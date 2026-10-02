@@ -54,12 +54,12 @@ export default async function ProjectPreviewPage() {
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-border bg-bg-elevated/80">
-        <div className="relative h-56 w-full sm:h-72 md:h-80">
+        <div className="relative aspect-[3/1] w-full bg-bg-deep">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={P.bannerImageUrl}
             alt=""
-            className="h-full w-full object-cover"
+            className="absolute inset-0 h-full w-full object-cover object-center"
             referrerPolicy="no-referrer"
           />
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-bg-elevated via-transparent to-transparent" />
