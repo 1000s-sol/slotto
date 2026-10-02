@@ -84,6 +84,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Cyber Frogs (`cyber-frogs`)
 - [x] D1srupt0rs (`d1srupt0rs`)
 - [x] Dead Bunnies (`dead-bunnies`)
+- [x] DeGods (`degods`) — includes y00ts
 - [x] DMST (`dmst`)
 - [x] DKV (`dkv`)
 - [x] Donk (`donk`)
