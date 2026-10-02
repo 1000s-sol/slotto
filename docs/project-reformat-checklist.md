@@ -72,6 +72,7 @@ Requires `DATABASE_URL` or `DIRECT_URL` in `.env`. After schema deploy, also run
 Tick in this file as each listing is reformatted. Keep alphabetical by name.
 
 - [x] Absurd Apes (`absurd-apes`)
+- [x] ABC (`abc`)
 - [x] Aevon (`aevon`)
 - [x] Anomaly (`anomaly`)
 - [x] Big Cats (`big-cats`)
