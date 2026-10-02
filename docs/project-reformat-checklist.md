@@ -77,7 +77,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Anomaly (`anomaly`)
 - [x] B & H Club (`b-h-club`) — includes Degens X
 - [x] Big Cats (`big-cats`)
-- [x] Bored Ape Sol Club (`bored-ape-sol-club`)
+- [x] Bored Ape Sol Club (`bored-ape-sol-club`) — includes XElementia
 - [x] Bulls on Sol Society (`bulls-on-sol-society`)
 - [x] BUXDAO (`buxdao`)
 - [x] Chart Breakers (`chart-breakers`)
