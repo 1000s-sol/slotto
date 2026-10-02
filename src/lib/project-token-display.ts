@@ -62,10 +62,33 @@ export async function fetchProjectTokenDisplay(
   const needsHelius = !customLogo && (!dexLogo || !dexSymbol);
   const helius = needsHelius ? await fetchHeliusTokenMeta(m) : null;
   const heliusLogo = normalizeImageUrl(helius?.image);
-  // Liquid tokens: market logos first, then stored tokenImageUrl (Dex/Helius often omit low-cap logos).
-  const logoUrl = customLogo || dexLogo || heliusLogo || storedLogo || null;
 
-  let symbol = customName || dexSymbol || helius?.symbol?.trim() || abbrevMint(m);
+  let geckoLogo: string | null = null;
+  let geckoSymbol: string | undefined;
+  if (!customLogo && !dexLogo && !heliusLogo) {
+    try {
+      const res = await fetch(
+        `https://api.geckoterminal.com/api/v2/networks/solana/tokens/${encodeURIComponent(m)}`,
+        { headers: { Accept: "application/json" }, next: { revalidate: 3600 } },
+      );
+      if (res.ok) {
+        const json = (await res.json()) as {
+          data?: { attributes?: { symbol?: string; image_url?: string | null } };
+        };
+        const attrs = json.data?.attributes;
+        geckoLogo = normalizeImageUrl(attrs?.image_url ?? undefined);
+        geckoSymbol = attrs?.symbol?.trim();
+      }
+    } catch {
+      /* keep fallbacks */
+    }
+  }
+
+  // Liquid tokens: market logos first, then stored tokenImageUrl (Dex/Helius often omit low-cap logos).
+  const logoUrl = customLogo || dexLogo || heliusLogo || geckoLogo || storedLogo || null;
+
+  let symbol =
+    customName || dexSymbol || helius?.symbol?.trim() || geckoSymbol || abbrevMint(m);
   if (symbol.length > 12) symbol = symbol.slice(0, 12);
 
   return { symbol, logoUrl };
