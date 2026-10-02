@@ -28,6 +28,49 @@ function isUnreliableTokenImageHost(url: string | null): boolean {
   );
 }
 
+/** Same-origin / relative paths are served by us — treat as reachable. */
+function isLocalAssetUrl(url: string): boolean {
+  return url.startsWith("/") && !url.startsWith("//");
+}
+
+async function urlLooksReachable(url: string): Promise<boolean> {
+  if (isLocalAssetUrl(url)) return true;
+  try {
+    const res = await fetch(url, {
+      method: "HEAD",
+      redirect: "follow",
+      signal: AbortSignal.timeout(2500),
+      next: { revalidate: 3600 },
+    });
+    if (res.ok) return true;
+    // Some CDNs reject HEAD; try a tiny GET range.
+    if (res.status === 405 || res.status === 403 || res.status === 400) {
+      const get = await fetch(url, {
+        method: "GET",
+        headers: { Range: "bytes=0-0" },
+        redirect: "follow",
+        signal: AbortSignal.timeout(2500),
+        next: { revalidate: 3600 },
+      });
+      return get.ok || get.status === 206;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+async function firstReachableLogo(candidates: Array<string | null | undefined>): Promise<string | null> {
+  const seen = new Set<string>();
+  for (const raw of candidates) {
+    const url = raw?.trim();
+    if (!url || seen.has(url)) continue;
+    seen.add(url);
+    if (await urlLooksReachable(url)) return url;
+  }
+  return null;
+}
+
 async function fetchGeckoTerminalLogo(
   mint: string,
 ): Promise<{ logo: string | null; symbol?: string }> {
@@ -112,17 +155,18 @@ export async function fetchProjectTokenDisplay(
   }
 
   // Prefer stable CDN / stored logos over GenesysGo shadow-drive + IPFS (often 404 in browsers).
+  // Also skip URLs that already 404 (e.g. expired Firebase tokenImageUrl).
   const reliableDex = dexLogo && !isUnreliableTokenImageHost(dexLogo) ? dexLogo : null;
   const reliableHelius = heliusLogo && !isUnreliableTokenImageHost(heliusLogo) ? heliusLogo : null;
-  const logoUrl =
-    customLogo ||
-    reliableDex ||
-    storedLogo ||
-    geckoLogo ||
-    reliableHelius ||
-    dexLogo ||
-    heliusLogo ||
-    null;
+  const logoUrl = await firstReachableLogo([
+    customLogo,
+    reliableDex,
+    storedLogo,
+    geckoLogo,
+    reliableHelius,
+    dexLogo,
+    heliusLogo,
+  ]);
 
   let symbol =
     customName || dexSymbol || helius?.symbol?.trim() || geckoSymbol || abbrevMint(m);
