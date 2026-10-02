@@ -85,7 +85,9 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] D1srupt0rs (`d1srupt0rs`)
 - [x] Dead Bunnies (`dead-bunnies`)
 - [x] Decentric (`decentric`)
+- [x] DeGods (`degods`) — includes y00ts
 - [x] DMST (`dmst`)
+- [x] DKV (`dkv`)
 - [x] Donk (`donk`)
 - [x] Eapes (`eapes`)
 - [x] Enchanted Miners (`enchanted-miners`)
@@ -104,6 +106,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Liminals (`liminals`)
 - [x] Loud Lords (`loud-lords`) — unpublished until more remint/takeover info
 - [x] Lunarverse (`lunarverse`)
+- [x] Mad Lads (`mad-lads`)
 - [x] MAGApixel (`magapixel`)
 - [x] Midevils (`midevils`)
 - [x] Mnk3y Labs (`mnk3y-labs`)
