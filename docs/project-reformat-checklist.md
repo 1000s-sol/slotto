@@ -112,6 +112,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Fuddy Dogs (`fuddy-dogs`)
 - [x] Famous Fox Federation (`famous-fox-federation`)
 - [x] Frens Factory (`frens-factory`)
+- [x] Frogana (`frogana`)
 - [x] Gearhead Coin (`gearhead-coin`) — includes Rusty Rigs
 - [x] Giraffe Tower (`giraffe-tower`)
 - [x] GOTM Labz (`gotm-labz`) — was GAINZ; includes GAINZ
