@@ -67,7 +67,7 @@ JSON shape:
 
 Requires `DATABASE_URL` or `DIRECT_URL` in `.env`. After schema deploy, also run `npm run db:push` once on the production DB if columns are missing.
 
-## Checklist (195 published)
+## Checklist (196 published)
 
 Tick in this file as each listing is reformatted. Keep alphabetical by name.
 
