@@ -6,10 +6,14 @@ import { useCallback, useMemo, useTransition } from "react";
 
 const SORT_OPTIONS = [
   { value: "likes", label: "Likes" },
+  { value: "discord", label: "Discord members" },
+  { value: "twitter", label: "X followers" },
   { value: "name", label: "A–Z" },
 ] as const;
 
 export type ProjectsSortValue = (typeof SORT_OPTIONS)[number]["value"];
+
+const SORT_VALUES = new Set<string>(SORT_OPTIONS.map((o) => o.value));
 
 export function ProjectsToolbar({ defaultSort }: { defaultSort: ProjectsSortValue }) {
   const router = useRouter();
@@ -20,7 +24,7 @@ export function ProjectsToolbar({ defaultSort }: { defaultSort: ProjectsSortValu
 
   const currentSort = useMemo(() => {
     const s = searchParams.get("sort")?.trim();
-    if (s === "name") return s;
+    if (s && SORT_VALUES.has(s)) return s as ProjectsSortValue;
     return defaultSort;
   }, [searchParams, defaultSort]);
 
