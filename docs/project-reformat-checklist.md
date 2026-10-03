@@ -110,7 +110,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Donk (`donk`)
 - [x] Doopies (`doopies`)
 - [x] Drifters (`drifters`) — Drifters: Masterwork
-- [x] Eapes (`eapes`)
+- [x] EAPES (`eapes`)
 - [x] Elevens (`elevens`) — includes Twelves
 - [x] Enchanted Miners (`enchanted-miners`)
 - [x] Energy Wabbits (`energy-wabbits`)
