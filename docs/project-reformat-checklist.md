@@ -115,7 +115,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Degen Fat Cats (`degen-fat-cats`)
 - [x] Deez Nuts (`deez-nuts`)
 - [x] Decentric (`decentric`)
-- [x] DeGods (`degods`) — includes y00ts
+- [x] DeGods (`degods`) — includes y00ts, t00bs, and g00bs
 - [x] DMST (`dmst`)
 - [x] DKV (`dkv`)
 - [x] Doge Capital (`doge-capital`)
@@ -134,7 +134,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Frogana (`frogana`)
 - [x] Gambulls (`gambulls`)
 - [x] Gearhead Coin (`gearhead-coin`) — includes Rusty Rigs
-- [x] Giraffe Tower (`giraffe-tower`)
+- [x] Giraffe Tower (`giraffe-tower`) — includes MAGA Giraffe
 - [x] GOTM Labz (`gotm-labz`) — was GAINZ; includes GAINZ
 - [x] Galactic Geckos (`galactic-geckos`)
 - [x] Gamba Dogs (`gamba-dogs`)
