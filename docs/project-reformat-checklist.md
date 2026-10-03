@@ -200,7 +200,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Solana Deads (`solana-deads`)
 - [x] Solcasino.io (`solcasino`)
 - [x] Solana Monkey Business (`solana-monkey-business`)
-- [x] Solana Sky Pilots (`solana-sky-pilots`) — unpublished until Sky Pilot NFT markets/mint details are firmer
+- [x] Solana Sky Pilots (`solana-sky-pilots`) — includes Grinders and Companeons
 - [x] Solana Strays (`solana-strays`)
 - [x] Solsteads (`solsteads`) — includes Citizens
 - [x] Solanons (`solanons`)
