@@ -126,6 +126,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Energy Wabbits (`energy-wabbits`)
 - [x] Fuddy Dogs (`fuddy-dogs`)
 - [x] Famous Fox Federation (`famous-fox-federation`)
+- [x] Fearless Bulls (`fearless-bulls`) — includes Fearless Bulls Club
 - [x] Frens Factory (`frens-factory`)
 - [x] Frogana (`frogana`)
 - [x] Gearhead Coin (`gearhead-coin`) — includes Rusty Rigs
@@ -161,7 +162,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Mavrix by Jelly Co (`mavrix`) — includes Gamerooms
 - [x] Midevils (`midevils`)
 - [x] Mindfolk (`mindfolk`) — includes Mindlings
-- [x] Meerkat Millionaires (`meerkat`)
+- [x] Meerkat Millionaires (`meerkat`) — includes Naked Meerkats Beach Club
 - [x] Micros (`micros`) — includes Solnautz
 - [x] Mnk3y Labs (`mnk3y-labs`)
 - [x] Mob Collective (`mob-collective`)
