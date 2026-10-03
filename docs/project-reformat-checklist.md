@@ -218,6 +218,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] THC Labz (`thc-labz`)
 - [x] The Chimpions (`the-chimpions`)
 - [x] The Fracture (`the-fracture`) — includes Gods and Omnium
+- [x] Forest Apes (`forest-apes`) — includes Arborians
 - [x] The Fox Club (`the-fox-club`) — includes Cyber Foxes
 - [x] The Misfits Order (`the-misfits-order`)
 - [x] The Northlanders (`the-northlanders`)
