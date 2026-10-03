@@ -147,6 +147,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Haxz (`haxz`)
 - [x] K.B.D.S (`k-b-d-s`)
 - [x] Kups by Raposa (`kups-by-raposa`)
+- [x] IslandDAO (`islanddao`) — IslandDAO PERKS
 - [x] Kreechures (`kreechures`)
 - [x] Krypto Kronikz (`krypto-kronikz`) — includes Kronik Grow
 - [x] Long Neck Legends (`long-neck-legends`)
