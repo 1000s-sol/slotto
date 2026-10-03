@@ -147,6 +147,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Mad Lads (`mad-lads`)
 - [x] MAGApixel (`magapixel`)
 - [x] Market Elites (`marketelites`)
+- [x] Matrica Labs (`matrica-labs`) — includes Pixels and Corrupted
 - [x] Mavrix by Jelly Co (`mavrix`) — includes Gamerooms
 - [x] Midevils (`midevils`)
 - [x] Mindfolk (`mindfolk`) — includes Mindlings
