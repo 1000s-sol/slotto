@@ -1,15 +1,31 @@
 import Link from "next/link";
 
+import { DiscordLogo } from "@/components/discord-logo";
 import { ProjectLikePill } from "@/components/project/project-detail-actions";
+import { XLogo } from "@/components/x-logo";
+import { formatSocialCount } from "@/lib/project-social-stats";
 
 type TileProps = {
   slug: string;
   name: string;
   likes: number;
   imageUrl: string | null;
+  discordMembers?: number | null;
+  twitterFollowers?: number | null;
 };
 
-export function ProjectCardTile({ slug, name, likes, imageUrl }: TileProps) {
+export function ProjectCardTile({
+  slug,
+  name,
+  likes,
+  imageUrl,
+  discordMembers = null,
+  twitterFollowers = null,
+}: TileProps) {
+  const discordCount = formatSocialCount(discordMembers);
+  const twitterCount = formatSocialCount(twitterFollowers);
+  const hasSocial = !!discordCount || !!twitterCount;
+
   return (
     <div className="group flex min-w-0 max-w-full flex-col overflow-hidden rounded-2xl border border-border bg-bg-elevated/80 shadow-sm transition hover:border-accent-purple/35 hover:shadow-md">
       <div className="relative aspect-square w-full max-w-full overflow-hidden bg-surface/50">
@@ -30,13 +46,35 @@ export function ProjectCardTile({ slug, name, likes, imageUrl }: TileProps) {
           <ProjectLikePill slug={slug} initialLikes={likes} variant="compact" />
         </div>
       </div>
-      <div className="relative z-30 border-t border-border/60 bg-bg-elevated/95 px-2 py-2 sm:px-3 sm:py-2.5">
+      <div className="relative z-30 flex min-w-0 flex-col gap-1.5 border-t border-border/60 bg-bg-elevated/95 px-2 py-2 sm:px-3 sm:py-2.5">
         <Link
           href={`/projects/${slug}`}
           className="line-clamp-2 text-xs font-semibold leading-snug text-foreground transition hover:text-accent-cyan sm:text-sm"
         >
           {name}
         </Link>
+        {hasSocial ? (
+          <div className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1 text-[10px] tabular-nums text-muted sm:text-[11px]">
+            {discordCount ? (
+              <span
+                className="inline-flex items-center gap-1"
+                title={`${discordCount} Discord members`}
+              >
+                <DiscordLogo size={12} className="shrink-0" />
+                <span className="font-semibold text-foreground/90">{discordCount}</span>
+              </span>
+            ) : null}
+            {twitterCount ? (
+              <span
+                className="inline-flex items-center gap-1"
+                title={`${twitterCount} X followers`}
+              >
+                <XLogo size={11} className="shrink-0 text-foreground" />
+                <span className="font-semibold text-foreground/90">{twitterCount}</span>
+              </span>
+            ) : null}
+          </div>
+        ) : null}
       </div>
     </div>
   );
