@@ -461,7 +461,7 @@ function CurrentDrawTable({
 
       <SocialProfileReminder />
 
-      <div className="overflow-x-auto">
+      <div className="min-w-0 max-w-full overflow-x-auto overscroll-x-contain">
         <table className="w-full min-w-[680px] text-left text-sm">
           <thead className="text-[11px] uppercase tracking-wider text-muted/80">
             <tr className="border-b border-border">
@@ -545,7 +545,7 @@ function PastWinnersTable({ draws }: { draws: PastDraw[] }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-border bg-bg-elevated/70">
       <SocialProfileReminder />
-      <div className="overflow-x-auto">
+      <div className="min-w-0 max-w-full overflow-x-auto overscroll-x-contain">
         <table className="w-full min-w-[680px] text-left text-sm">
           <thead className="text-[11px] uppercase tracking-wider text-muted/80">
             <tr className="border-b border-border">

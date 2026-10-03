@@ -38,14 +38,14 @@ function StatsGrid({ live }: { live: LiveMeStats }) {
 
   if (live.ok && statRows.length > 0) {
     return (
-      <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+      <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
         {statRows.map((row) => (
           <div
             key={row.label}
-            className="rounded-xl border border-border bg-surface/50 px-3 py-3 text-sm"
+            className="min-w-0 rounded-xl border border-border bg-surface/50 px-3 py-3 text-sm"
           >
             <div className="text-xs uppercase tracking-wide text-muted">{row.label}</div>
-            <div className="mt-1 font-semibold tabular-nums text-accent-gold">{row.value}</div>
+            <div className="mt-1 break-words font-semibold tabular-nums text-accent-gold">{row.value}</div>
           </div>
         ))}
       </div>
@@ -98,9 +98,9 @@ export function ProjectCollectionsPanel({
   if (collections.length === 0) return null;
 
   return (
-    <div className="space-y-4">
+    <div className="min-w-0 max-w-full space-y-4">
       {collections.length > 1 ? (
-        <label className="flex max-w-md flex-col gap-2 text-xs text-muted">
+        <label className="flex w-full max-w-md min-w-0 flex-col gap-2 text-xs text-muted">
           Collection
           <SiteSelect
             value={safeIndex}
@@ -116,7 +116,7 @@ export function ProjectCollectionsPanel({
       ) : null}
 
       {links.length > 0 ? (
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex w-full min-w-0 max-w-full flex-nowrap items-stretch gap-1 sm:flex-wrap sm:items-center sm:gap-2">
           {links.map((link: CollectionLink) => (
             <MarketplaceLogoLink
               key={`${link.marketplace}-${link.href}`}

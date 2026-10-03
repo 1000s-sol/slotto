@@ -120,18 +120,18 @@ export default async function ProjectPage({ params }: Props) {
   const tokenLiquid = project.tokenLiquid ?? true;
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 max-w-full space-y-6">
       <Link href="/projects" className="inline-flex items-center gap-2 text-sm text-muted hover:text-foreground">
         ← Back to projects
       </Link>
 
-      <div className="overflow-hidden rounded-2xl border border-border bg-bg-elevated/80">
+      <div className="max-w-full min-w-0 overflow-hidden rounded-2xl border border-border bg-bg-elevated/80">
         {project.bannerImageUrl ? (
-          <div className="relative aspect-[3/1] w-full bg-bg-deep">
+          <div className="relative aspect-[3/1] w-full max-w-full overflow-hidden bg-bg-deep">
             <img
               src={project.bannerImageUrl}
               alt=""
-              className="absolute inset-0 h-full w-full object-cover object-center"
+              className="absolute inset-0 h-full w-full max-w-full object-cover object-center"
               referrerPolicy="no-referrer"
             />
             <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-bg-elevated via-transparent to-transparent" />
@@ -142,7 +142,7 @@ export default async function ProjectPage({ params }: Props) {
             />
           </div>
         ) : (
-          <div className="relative aspect-[3/1] w-full bg-gradient-to-r from-accent-purple/30 via-surface to-accent-blue/30">
+          <div className="relative aspect-[3/1] w-full max-w-full overflow-hidden bg-gradient-to-r from-accent-purple/30 via-surface to-accent-blue/30">
             <ProjectLikePill
               slug={slug}
               initialLikes={project.likes}
@@ -150,10 +150,10 @@ export default async function ProjectPage({ params }: Props) {
             />
           </div>
         )}
-        <div className="space-y-6 px-6 pb-8 pt-6 sm:px-8">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0 space-y-6 px-4 pb-8 pt-6 sm:px-8">
+          <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0 flex-1">
-              <h1 className="text-3xl font-semibold tracking-tight">{project.name}</h1>
+              <h1 className="text-3xl font-semibold tracking-tight break-words">{project.name}</h1>
             </div>
             <ProjectSocialLinks
               websiteUrl={project.websiteUrl}

@@ -32,6 +32,10 @@
 /* Let UA treat both schemes; avoids Firefox black backing on alpha PNGs under .dark */
 html {
   color-scheme: dark light;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  overscroll-behavior-x: none;
 }
 
 body {
@@ -39,6 +43,10 @@ body {
     radial-gradient(900px 600px at 100% 0%, #0f2847 0%, transparent 50%), var(--bg-deep);
   color: var(--text);
   min-height: 100dvh;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  overscroll-behavior-x: none;
 }
 
 h1,
@@ -70,9 +78,16 @@ img[src^="/brand/"] {
 }
 
 .ticker-track {
+  position: absolute;
+  left: 0;
+  top: 0;
   display: flex;
+  align-items: center;
+  height: 100%;
   width: max-content;
-  animation: ticker-scroll 32s linear infinite;
+  max-width: none;
+  animation: ticker-scroll var(--ticker-duration, 90s) linear infinite;
+  will-change: transform;
 }
 
 .ticker-track:hover {

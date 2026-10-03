@@ -11,13 +11,13 @@ type TileProps = {
 
 export function ProjectCardTile({ slug, name, likes, imageUrl }: TileProps) {
   return (
-    <div className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-bg-elevated/80 shadow-sm transition hover:border-accent-purple/35 hover:shadow-md">
-      <div className="relative aspect-square w-full bg-surface/50">
+    <div className="group flex min-w-0 max-w-full flex-col overflow-hidden rounded-2xl border border-border bg-bg-elevated/80 shadow-sm transition hover:border-accent-purple/35 hover:shadow-md">
+      <div className="relative aspect-square w-full max-w-full overflow-hidden bg-surface/50">
         {imageUrl ? (
           <img
             src={imageUrl}
             alt=""
-            className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]"
+            className="h-full w-full max-w-full object-cover transition duration-300 group-hover:scale-[1.02]"
             loading="lazy"
             referrerPolicy="no-referrer"
           />

@@ -103,7 +103,7 @@ export default async function ProjectsPage({ searchParams }: Props) {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="min-w-0 max-w-full space-y-8">
       {!query && featured ? (
         <FeaturedProjectOfWeek
           slug={featured.slug}
@@ -114,9 +114,9 @@ export default async function ProjectsPage({ searchParams }: Props) {
         />
       ) : null}
 
-      <div className="space-y-3">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
+      <div className="min-w-0 space-y-3">
+        <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
             <h1 className="text-3xl font-semibold tracking-tight">Projects</h1>
             <p className="mt-2 text-sm font-bold leading-relaxed text-foreground">
               All listings are independent and unbiased. Slotto.gg does not offer paid promotion of any kind.
