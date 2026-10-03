@@ -96,6 +96,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Bulls on Sol Society (`bulls-on-sol-society`)
 - [x] BUXDAO (`buxdao`)
 - [x] CETS (`cets`)
+- [x] CHADS (`chads`)
 - [x] Chart Breakers (`chart-breakers`)
 - [x] Claynosaurz (`claynosaurz`)
 - [x] Collector Crypt (`collector-crypt`) — includes Card Club membership pass
