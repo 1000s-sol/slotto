@@ -189,6 +189,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Portals (`portals`)
 - [x] Primates (`primates`)
 - [x] Primos (`primos`)
+- [x] Prophets (`prophets`)
 - [x] Primals (`primals`)
 - [x] Puffsterz (`puffsterz`)
 - [x] Pythenians (`pythenians`)
