@@ -194,6 +194,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Stone Gods (`stone-gods`)
 - [x] Stoned Ape Crew (`stoned-apes`) — includes Nuked Apes
 - [x] Stoned Sloths (`stoned-sloths`)
+- [x] Steakers (`steakers`)
 - [x] Taiyo Robotics (`taiyo-robotics`) — includes Infants, Oil, Pilots
 - [x] TenseiEXE (`tenseiexe`)
 - [x] Thugbirdz (`thugbirdz`)
