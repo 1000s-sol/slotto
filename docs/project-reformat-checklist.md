@@ -89,7 +89,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] CETS (`cets`)
 - [x] Chart Breakers (`chart-breakers`)
 - [x] Claynosaurz (`claynosaurz`)
-- [x] Crouton Jones (`crouton-jones`)
+- [x] Crouton Jones (`crouton-jones`) — includes Croutonverse Founder's Pass
 - [x] Critters Cult (`critters-cult`)
 - [x] Critters Quest (`critters-quest`) — includes Quest Items and Multipliers
 - [x] Catalina Whale Mixer (`catalina-whale-mixer`)
