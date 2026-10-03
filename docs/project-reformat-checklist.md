@@ -78,6 +78,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Anomaly (`anomaly`)
 - [x] Aurorians (`aurorians`)
 - [x] B & H Club (`b-h-club`) — includes Degens X
+- [x] Battle Bros Club (`battle-bros-club`)
 - [x] Big Cats (`big-cats`)
 - [x] BoDoggos (`bodoggos`)
 - [x] Bobos of War (`bobos-of-war`)
