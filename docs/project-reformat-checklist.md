@@ -229,6 +229,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Solanons (`solanons`)
 - [x] Solarians (`solarians`)
 - [x] SolGods (`solgods`)
+- [x] Spaces Media (`spaces-media`)
 - [x] Stone Gods (`stone-gods`)
 - [x] SquidChops (`squidchops`)
 - [x] Stoned Ape Crew (`stoned-apes`) — includes Nuked Apes
