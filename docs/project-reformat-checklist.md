@@ -88,6 +88,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Bozo Collective (`bozo-collective`) — includes Bozo Council
 - [x] Bored Ape Sol Club (`bored-ape-sol-club`) — includes XElementia
 - [x] BR1 Infinite (`br1`) — includes Ape Operatives and Droid Operatives
+- [x] BullBears (`bullbears`)
 - [x] Bulls on Sol Society (`bulls-on-sol-society`)
 - [x] BUXDAO (`buxdao`)
 - [x] CETS (`cets`)
