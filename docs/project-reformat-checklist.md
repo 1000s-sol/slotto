@@ -199,6 +199,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Shinigami (`shinigami`)
 - [x] Smyths (`smyths`)
 - [x] SoDead (`sodead`)
+- [x] SkulRz (`skulrz`)
 - [x] SOL Decoder (`sol-decoder`)
 - [x] Solana Deads (`solana-deads`)
 - [x] Solcasino.io (`solcasino`)
