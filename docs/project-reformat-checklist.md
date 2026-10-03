@@ -109,7 +109,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Dead Bunnies (`dead-bunnies`)
 - [x] Dead King Society (`dead-king-society`) — includes Nobles
 - [x] Degenerate Ape Academy (`degenerate-ape-academy`) — includes Degenerate Trash Pandas and Degenerate Drop Bears
-- [x] Dgenz (`dgenz`) — includes Radiated Boyz and Degen Pharaohz
+- [x] Dgenz (`dgenz`) — includes Degen Boyz, Radiated Boyz, Degen Pharaohz, and Degen Girlz
 - [x] DEGEN DOJO (`degen-dojo`)
 - [x] Degen Fat Cats (`degen-fat-cats`)
 - [x] Deez Nuts (`deez-nuts`)
@@ -173,7 +173,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] NPP (`npp`)
 - [x] One Crew (`one-crew`)
 - [x] Okay Bears (`okay-bears`) — includes Bear Drop Founders Coins
-- [x] Omerta - Empire City (`omerta-empire-city`)
+- [x] Omerta - Empire City (`omerta-empire-city`) — includes SOLdiers, Capos, Dons, family DAOs, and SOLdiers of the $OATH
 - [x] OMEN (`omen`)
 - [x] Onchain Bridges (`onchain-bridges`)
 - [x] Ovols (`ovols`)
