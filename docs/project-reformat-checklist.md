@@ -217,6 +217,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Quack Heads (`quack-heads`) — Wallchain Genesis
 - [x] the QUAKKPAK (`quakkpak`)
 - [x] Rafflors (`rafflors`)
+- [x] Ratel Mafias (`ratel-mafias`)
 - [x] Rogues (`rogues`)
 - [x] Saga Monkes (`saga-monkes`)
 - [x] Sharx (`sharx`) — includes microSharx
