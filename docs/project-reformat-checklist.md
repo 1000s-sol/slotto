@@ -120,6 +120,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] DKV (`dkv`)
 - [x] Doge Capital (`doge-capital`)
 - [x] Donk (`donk`)
+- [x] DOOMONS (`doomons`) — includes DOOMGODS, DOOMPETS, and DOOMEGGS
 - [x] Doopies (`doopies`)
 - [x] Drifters (`drifters`) — Drifters: Masterwork
 - [x] EAPES (`eapes`)
