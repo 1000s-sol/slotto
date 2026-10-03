@@ -20,7 +20,7 @@ import {
   listingShareBlurb,
 } from "@/lib/project-listing-sections";
 import { prisma } from "@/lib/prisma";
-import { fetchProjectSocialCounts } from "@/lib/project-social-stats";
+import { fetchAndStoreProjectSocialCounts } from "@/lib/project-social-stats";
 import { fetchProjectTokenDisplay } from "@/lib/project-token-display";
 import {
   getRequestSiteUrl,
@@ -106,7 +106,7 @@ export default async function ProjectPage({ params }: Props) {
         fetchLiveCollectionStats(magicEdenLink(c), orbisLink(c), 120),
       ),
     ),
-    fetchProjectSocialCounts(project.discordUrl, project.twitterUrl),
+    fetchAndStoreProjectSocialCounts(project.id, project.discordUrl, project.twitterUrl),
     project.tokenMint?.trim()
       ? fetchProjectTokenDisplay(project.tokenMint.trim(), {
           liquid: project.tokenLiquid ?? true,

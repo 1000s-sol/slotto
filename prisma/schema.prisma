@@ -108,6 +108,12 @@ model Project {
   collections      Json?
   discordUrl       String?
   twitterUrl       String?
+  /// Cached Discord approximate member count (invite `with_counts`)
+  discordMembers   Int?
+  /// Cached X follower count
+  twitterFollowers Int?
+  /// When discordMembers / twitterFollowers were last refreshed
+  socialCountsAt   DateTime?
   websiteUrl       String?
   tokenMint        String?
   /// When true (default), token is tradeable — Dex/Birdeye. When false, use tokenImageUrl and Solscan.
@@ -132,6 +138,8 @@ model Project {
 
   @@index([published, likes])
   @@index([published, name])
+  @@index([published, discordMembers])
+  @@index([published, twitterFollowers])
 }
 
 /// One like per user profile per published project.
