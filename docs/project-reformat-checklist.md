@@ -82,6 +82,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] BoDoggos (`bodoggos`)
 - [x] Bobos of War (`bobos-of-war`)
 - [x] Bohemia Art Fair (`bohemia`) — includes Euphoria and Fabulosa
+- [x] Bozo Collective (`bozo-collective`) — includes Bozo Council
 - [x] Bored Ape Sol Club (`bored-ape-sol-club`) — includes XElementia
 - [x] BR1 Infinite (`br1`) — includes Ape Operatives and Droid Operatives
 - [x] Bulls on Sol Society (`bulls-on-sol-society`)
