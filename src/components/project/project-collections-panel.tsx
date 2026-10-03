@@ -116,7 +116,7 @@ export function ProjectCollectionsPanel({
       ) : null}
 
       {links.length > 0 ? (
-        <div className="flex w-full min-w-0 max-w-full flex-nowrap items-stretch gap-1 sm:flex-wrap sm:items-center sm:gap-2">
+        <div className="flex w-full min-w-0 max-w-full flex-nowrap items-center justify-start gap-1 sm:flex-wrap sm:gap-2">
           {links.map((link: CollectionLink) => (
             <MarketplaceLogoLink
               key={`${link.marketplace}-${link.href}`}
