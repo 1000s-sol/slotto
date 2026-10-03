@@ -80,6 +80,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] B & H Club (`b-h-club`) — includes Degens X
 - [x] Battle Bros Club (`battle-bros-club`)
 - [x] Big Cats (`big-cats`)
+- [x] Big Head Billionaires (`big-head-billionaires`)
 - [x] BoDoggos (`bodoggos`)
 - [x] Bobos of War (`bobos-of-war`)
 - [x] Bohemia Art Fair (`bohemia`) — includes Euphoria and Fabulosa
