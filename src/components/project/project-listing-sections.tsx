@@ -138,7 +138,7 @@ export function ProjectListingSections({
   if (sections.length === 0) return null;
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
+    <div className="grid min-w-0 max-w-full grid-cols-1 gap-4 sm:grid-cols-2">
       {sections.map((section) => {
         const theme = SECTION_THEME[section.id];
         const fullWidth = isFullWidthTile(section, sections);
@@ -146,24 +146,24 @@ export function ProjectListingSections({
           <section
             key={section.id}
             className={[
-              "space-y-3 rounded-xl border bg-bg-deep/40 p-4",
+              "min-w-0 max-w-full space-y-3 overflow-hidden rounded-xl border bg-bg-deep/40 p-4",
               theme.border,
               fullWidth ? "sm:col-span-2" : "",
             ]
               .filter(Boolean)
               .join(" ")}
           >
-            <div className="flex items-center gap-2.5">
+            <div className="flex min-w-0 items-center gap-2.5">
               <span
-                className={`inline-flex h-9 w-9 items-center justify-center rounded-lg border ${theme.chip}`}
+                className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border ${theme.chip}`}
               >
                 <SectionIcon id={section.id} className={theme.icon} />
               </span>
-              <h2 className="text-base font-semibold text-foreground">
+              <h2 className="min-w-0 text-base font-semibold text-foreground">
                 {section.label}
               </h2>
             </div>
-            <p className="text-sm leading-relaxed text-muted">{section.body}</p>
+            <p className="break-words text-sm leading-relaxed text-muted">{section.body}</p>
           </section>
         );
       })}

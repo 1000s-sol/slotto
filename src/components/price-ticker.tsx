@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type TickerItem = {
   mint: string;
@@ -13,6 +13,10 @@ type TickerItem = {
 };
 
 const SOL_MINT = "So11111111111111111111111111111111111111112";
+
+/** Keep a steady reading pace as more tokens are added (px of one strip / second). */
+const TICKER_PX_PER_SEC = 22;
+const TICKER_MIN_DURATION_SEC = 120;
 
 function birdeyeTokenUrl(mint: string) {
   return `https://birdeye.so/solana/token/${mint}`;
@@ -103,6 +107,8 @@ function TickerStrip({ items, track }: { items: TickerItem[]; track: "a" | "b" }
 
 export function PriceTicker() {
   const [items, setItems] = useState<TickerItem[] | undefined>(undefined);
+  const trackRef = useRef<HTMLDivElement>(null);
+  const [durationSec, setDurationSec] = useState(90);
 
   const load = useCallback(async () => {
     try {
@@ -121,9 +127,27 @@ export function PriceTicker() {
     return () => clearInterval(id);
   }, [load]);
 
+  useEffect(() => {
+    if (!items?.length) return;
+    const el = trackRef.current;
+    if (!el) return;
+
+    const measure = () => {
+      // Track is two identical strips; animation moves -50% (one strip).
+      const half = el.scrollWidth / 2;
+      if (half <= 0) return;
+      setDurationSec(Math.max(TICKER_MIN_DURATION_SEC, Math.round(half / TICKER_PX_PER_SEC)));
+    };
+
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [items]);
+
   if (items === undefined) {
     return (
-      <div className="ticker-font border-b border-border bg-bg-elevated/50 py-2.5 text-center text-xs text-muted">
+      <div className="ticker-font w-full max-w-full overflow-x-hidden border-b border-border bg-bg-elevated/50 py-2.5 text-center text-xs text-muted">
         Loading market data…
       </div>
     );
@@ -131,16 +155,24 @@ export function PriceTicker() {
 
   if (items.length === 0) {
     return (
-      <div className="ticker-font border-b border-border bg-bg-elevated/50 py-2.5 text-center text-xs text-muted">
+      <div className="ticker-font w-full max-w-full overflow-x-hidden border-b border-border bg-bg-elevated/50 py-2.5 text-center text-xs text-muted">
         Price feed unavailable.
       </div>
     );
   }
 
   return (
-    <div className="ticker-font border-b border-border bg-bg-elevated/50">
-      <div className="relative overflow-hidden py-2">
-        <div className="ticker-track">
+    <div className="ticker-font w-full max-w-full overflow-x-hidden border-b border-border bg-bg-elevated/50">
+      {/*
+        Absolute track keeps width:max-content out of document flow so the whole
+        site cannot grow a horizontal scrollbar when prices load on mobile.
+      */}
+      <div className="relative h-11 w-full max-w-full overflow-hidden overscroll-x-none touch-pan-y contain-paint">
+        <div
+          ref={trackRef}
+          className="ticker-track"
+          style={{ ["--ticker-duration" as string]: `${durationSec}s` }}
+        >
           <TickerStrip items={items} track="a" />
           <TickerStrip items={items} track="b" />
         </div>

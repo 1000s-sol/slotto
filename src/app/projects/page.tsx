@@ -4,15 +4,18 @@ import { FeaturedProjectOfWeek } from "@/components/project/featured-project-of-
 import { ProjectCardTile } from "@/components/project/project-card-tile";
 import { ProjectsToolbar } from "@/components/project/projects-toolbar";
 import { ensureProjectSectionColumns } from "@/lib/ensure-project-section-columns";
+import { ensureProjectSocialColumns } from "@/lib/ensure-project-social-columns";
 import { pickFeaturedProject } from "@/lib/pick-featured-project";
 import { prisma } from "@/lib/prisma";
+import { refreshSocialCountsForSort } from "@/lib/project-social-stats";
 import { getFeaturedProjectSlugFromDb } from "@/lib/site-settings";
 
 type Props = { searchParams: Promise<{ q?: string; sort?: string }> };
 
-type SortMode = "likes" | "name";
+type SortMode = "likes" | "name" | "discord" | "twitter";
 
 type ProjectRow = {
+  id: string;
   slug: string;
   name: string;
   likes: number;
@@ -20,17 +23,39 @@ type ProjectRow = {
   sectionOverview: string | null;
   bannerImageUrl: string | null;
   listingImageUrl: string | null;
+  discordUrl: string | null;
+  twitterUrl: string | null;
+  discordMembers: number | null;
+  twitterFollowers: number | null;
+  socialCountsAt: Date | null;
 };
 
 function parseSort(raw: string | undefined): SortMode {
-  if (raw === "name") return raw;
+  if (raw === "name" || raw === "discord" || raw === "twitter") return raw;
   return "likes";
 }
 
-function sortProjects(list: ProjectRow[], sort: SortMode): ProjectRow[] {
+function sortProjects(
+  list: ProjectRow[],
+  sort: SortMode,
+  socialCounts?: Map<string, number | null>,
+): ProjectRow[] {
   const out = [...list];
   if (sort === "name") {
     out.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+  } else if (sort === "discord" || sort === "twitter") {
+    out.sort((a, b) => {
+      const av =
+        socialCounts?.get(a.id) ??
+        (sort === "discord" ? a.discordMembers : a.twitterFollowers) ??
+        -1;
+      const bv =
+        socialCounts?.get(b.id) ??
+        (sort === "discord" ? b.discordMembers : b.twitterFollowers) ??
+        -1;
+      if (bv !== av) return bv - av;
+      return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+    });
   } else {
     out.sort((a, b) => {
       if (b.likes !== a.likes) return b.likes - a.likes;
@@ -49,11 +74,12 @@ export default async function ProjectsPage({ searchParams }: Props) {
   const query = q?.trim();
   const sort = parseSort(sortRaw);
 
-  // Prod may not have been db-pushed yet — add nullable section columns if missing.
+  // Prod may not have been db-pushed yet — add nullable columns if missing.
   // Touches only Project via ADD COLUMN IF NOT EXISTS (safe for live draws).
-  await ensureProjectSectionColumns();
+  await Promise.all([ensureProjectSectionColumns(), ensureProjectSocialColumns()]);
 
   const select = {
+    id: true,
     slug: true,
     name: true,
     likes: true,
@@ -61,6 +87,11 @@ export default async function ProjectsPage({ searchParams }: Props) {
     sectionOverview: true,
     bannerImageUrl: true,
     listingImageUrl: true,
+    discordUrl: true,
+    twitterUrl: true,
+    discordMembers: true,
+    twitterFollowers: true,
+    socialCountsAt: true,
   } as const;
 
   const statsPromise = Promise.all([
@@ -85,7 +116,11 @@ export default async function ProjectsPage({ searchParams }: Props) {
       }),
       statsPromise,
     ]);
-    grid = sortProjects(raw as ProjectRow[], sort);
+    let socialCounts: Map<string, number | null> | undefined;
+    if (sort === "discord" || sort === "twitter") {
+      socialCounts = await refreshSocialCountsForSort(raw as ProjectRow[], sort);
+    }
+    grid = sortProjects(raw as ProjectRow[], sort, socialCounts);
     stats = { projectCount: counts[0], tokenCount: counts[1] };
   } else {
     const [allRows, adminFeaturedSlug, counts] = await Promise.all([
@@ -98,12 +133,16 @@ export default async function ProjectsPage({ searchParams }: Props) {
     ]);
     const all = allRows as ProjectRow[];
     featured = pickFeaturedProject(all, adminFeaturedSlug);
-    grid = sortProjects(all, sort);
+    let socialCounts: Map<string, number | null> | undefined;
+    if (sort === "discord" || sort === "twitter") {
+      socialCounts = await refreshSocialCountsForSort(all, sort);
+    }
+    grid = sortProjects(all, sort, socialCounts);
     stats = { projectCount: counts[0], tokenCount: counts[1] };
   }
 
   return (
-    <div className="space-y-8">
+    <div className="min-w-0 max-w-full space-y-8">
       {!query && featured ? (
         <FeaturedProjectOfWeek
           slug={featured.slug}
@@ -114,9 +153,9 @@ export default async function ProjectsPage({ searchParams }: Props) {
         />
       ) : null}
 
-      <div className="space-y-3">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
+      <div className="min-w-0 space-y-3">
+        <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
             <h1 className="text-3xl font-semibold tracking-tight">Projects</h1>
             <p className="mt-2 text-sm font-bold leading-relaxed text-foreground">
               All listings are independent and unbiased. Slotto.gg does not offer paid promotion of any kind.

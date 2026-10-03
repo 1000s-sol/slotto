@@ -3,6 +3,26 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
+/** Compact count for social pills: 6428 → "6.4k", 24176 → "24.2k". */
+function formatSocialCount(n: number | null | undefined): string | null {
+  if (n == null || !Number.isFinite(n) || n < 0) return null;
+  const v = Math.floor(n);
+  if (v < 1000) return v.toLocaleString("en-US");
+  if (v < 10_000) {
+    const k = v / 1000;
+    const s = k >= 10 ? k.toFixed(0) : k.toFixed(1).replace(/\.0$/, "");
+    return `${s}k`;
+  }
+  if (v < 1_000_000) {
+    const k = v / 1000;
+    const s = k >= 100 ? k.toFixed(0) : k.toFixed(1).replace(/\.0$/, "");
+    return `${s}k`;
+  }
+  const m = v / 1_000_000;
+  const s = m >= 100 ? m.toFixed(0) : m.toFixed(1).replace(/\.0$/, "");
+  return `${s}M`;
+}
+
 type LikeProps = {
   slug: string;
   initialLikes: number;
@@ -108,16 +128,32 @@ type SocialProps = {
   websiteUrl: string | null;
   discordUrl: string | null;
   twitterUrl: string | null;
+  /** Approximate Discord member count when known */
+  discordMembers?: number | null;
+  /** X follower count when known */
+  twitterFollowers?: number | null;
 };
 
 const iconBtn =
   "inline-flex h-10 w-10 items-center justify-center rounded-xl border border-border/70 bg-surface/40 text-muted backdrop-blur-sm transition hover:border-accent-purple/40 hover:text-foreground";
 
-export function ProjectSocialLinks({ websiteUrl, discordUrl, twitterUrl }: SocialProps) {
+const countBtn =
+  "inline-flex h-10 items-center gap-1.5 rounded-xl border border-border/70 bg-surface/40 px-2.5 text-muted backdrop-blur-sm transition hover:border-accent-purple/40 hover:text-foreground";
+
+export function ProjectSocialLinks({
+  websiteUrl,
+  discordUrl,
+  twitterUrl,
+  discordMembers = null,
+  twitterFollowers = null,
+}: SocialProps) {
   if (!websiteUrl && !discordUrl && !twitterUrl) return null;
 
+  const discordCount = formatSocialCount(discordMembers);
+  const twitterCount = formatSocialCount(twitterFollowers);
+
   return (
-    <div className="flex shrink-0 flex-wrap justify-end gap-2">
+    <div className="flex w-full min-w-0 max-w-full flex-wrap justify-start gap-2 sm:w-auto sm:shrink-0 sm:justify-end">
       {websiteUrl ? (
         <a
           href={websiteUrl}
@@ -135,11 +171,14 @@ export function ProjectSocialLinks({ websiteUrl, discordUrl, twitterUrl }: Socia
           href={discordUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className={iconBtn}
-          aria-label="Discord"
-          title="Discord"
+          className={discordCount ? countBtn : iconBtn}
+          aria-label={discordCount ? `Discord · ${discordCount} members` : "Discord"}
+          title={discordCount ? `Discord · ${discordCount} members` : "Discord"}
         >
-          <DiscordIcon className="h-5 w-5" />
+          <DiscordIcon className="h-5 w-5 shrink-0" />
+          {discordCount ? (
+            <span className="text-xs font-semibold tabular-nums text-foreground">{discordCount}</span>
+          ) : null}
         </a>
       ) : null}
       {twitterUrl ? (
@@ -147,11 +186,14 @@ export function ProjectSocialLinks({ websiteUrl, discordUrl, twitterUrl }: Socia
           href={twitterUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className={iconBtn}
-          aria-label="X"
-          title="X"
+          className={twitterCount ? countBtn : iconBtn}
+          aria-label={twitterCount ? `X · ${twitterCount} followers` : "X"}
+          title={twitterCount ? `X · ${twitterCount} followers` : "X"}
         >
-          <XIcon className="h-5 w-5" />
+          <XIcon className="h-5 w-5 shrink-0" />
+          {twitterCount ? (
+            <span className="text-xs font-semibold tabular-nums text-foreground">{twitterCount}</span>
+          ) : null}
         </a>
       ) : null}
     </div>

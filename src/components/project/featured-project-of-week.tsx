@@ -15,19 +15,19 @@ export function FeaturedProjectOfWeek({ slug, name, likes, reviewMd, imageUrl }:
   const excerpt = excerptFromReviewMd(reviewMd, 360);
 
   return (
-    <section aria-labelledby="featured-project-heading" className="space-y-2">
+    <section aria-labelledby="featured-project-heading" className="min-w-0 max-w-full space-y-2">
       <p id="featured-project-heading" className="text-[11px] font-medium uppercase tracking-[0.2em] text-accent-gold/90">
         Featured this week
       </p>
-      <div className="overflow-hidden rounded-2xl border-2 border-accent-gold/55 bg-bg-elevated/85 shadow-lg shadow-accent-gold/10">
-        <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-stretch sm:gap-6 sm:p-6">
+      <div className="max-w-full min-w-0 overflow-hidden rounded-2xl border-2 border-accent-gold/55 bg-bg-elevated/85 shadow-lg shadow-accent-gold/10">
+        <div className="flex min-w-0 flex-col gap-4 p-4 sm:flex-row sm:items-stretch sm:gap-6 sm:p-6">
           <div className="relative mx-auto w-full max-w-[min(100%,20rem)] shrink-0 sm:mx-0 sm:w-44 md:w-52">
-            <div className="relative aspect-square w-full overflow-hidden rounded-xl border border-border bg-surface/50">
+            <div className="relative aspect-square w-full max-w-full overflow-hidden rounded-xl border border-border bg-surface/50">
               {imageUrl ? (
                 <img
                   src={imageUrl}
                   alt=""
-                  className="h-full w-full object-cover"
+                  className="h-full w-full max-w-full object-cover"
                   loading="eager"
                   referrerPolicy="no-referrer"
                 />

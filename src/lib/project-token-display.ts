@@ -15,7 +15,91 @@ export type ProjectTokenDisplayOpts = {
   tokenName?: string | null;
 };
 
-/** Symbol + logo for a project token mint (DexScreener + Helius, same spirit as ticker). */
+/** Same-origin / relative paths are served by us — treat as reachable. */
+function isLocalAssetUrl(url: string): boolean {
+  return url.startsWith("/") && !url.startsWith("//");
+}
+
+async function urlLooksReachable(url: string): Promise<boolean> {
+  if (isLocalAssetUrl(url)) return true;
+  // DexScreener (and some CDNs) answer 422/405/403 to HEAD but serve GET fine in browsers.
+  // Only treat clear missing responses as dead; otherwise probe a tiny GET.
+  const tryGet = async () => {
+    const get = await fetch(url, {
+      method: "GET",
+      headers: { Range: "bytes=0-0" },
+      redirect: "follow",
+      signal: AbortSignal.timeout(2500),
+      next: { revalidate: 3600 },
+    });
+    return get.ok || get.status === 206;
+  };
+  try {
+    const res = await fetch(url, {
+      method: "HEAD",
+      redirect: "follow",
+      signal: AbortSignal.timeout(2500),
+      next: { revalidate: 3600 },
+    });
+    if (res.ok) return true;
+    if (res.status === 404 || res.status === 410) return false;
+    return await tryGet();
+  } catch {
+    try {
+      return await tryGet();
+    } catch {
+      return false;
+    }
+  }
+}
+
+/** Known-flaky token icon hosts (often 404 in browsers). */
+export function isUnreliableTokenImageHost(url: string | null): boolean {
+  if (!url) return true;
+  const u = url.toLowerCase();
+  return (
+    u.includes("shdw-drive.genesysgo.net") ||
+    u.includes("genesysgo.net") ||
+    u.startsWith("ipfs://") ||
+    /\/ipfs\//i.test(u) ||
+    u.includes("gateway.pinata.cloud")
+  );
+}
+
+async function firstReachableLogo(candidates: Array<string | null | undefined>): Promise<string | null> {
+  const seen = new Set<string>();
+  for (const raw of candidates) {
+    const url = raw?.trim();
+    if (!url || seen.has(url)) continue;
+    seen.add(url);
+    if (await urlLooksReachable(url)) return url;
+  }
+  return null;
+}
+
+async function fetchGeckoTerminalLogo(
+  mint: string,
+): Promise<{ logo: string | null; symbol?: string }> {
+  try {
+    const res = await fetch(
+      `https://api.geckoterminal.com/api/v2/networks/solana/tokens/${encodeURIComponent(mint)}`,
+      { headers: { Accept: "application/json" }, next: { revalidate: 3600 } },
+    );
+    if (!res.ok) return { logo: null };
+    const json = (await res.json()) as {
+      data?: { attributes?: { symbol?: string; image_url?: string | null } };
+    };
+    const attrs = json.data?.attributes;
+    return {
+      logo: normalizeImageUrl(attrs?.image_url ?? undefined),
+      symbol: attrs?.symbol?.trim(),
+    };
+  } catch {
+    return { logo: null };
+  }
+}
+
+/** Symbol + logo for a project token mint (DexScreener + Helius + Gecko, same spirit as ticker). */
 export async function fetchProjectTokenDisplay(
   mint: string,
   opts?: ProjectTokenDisplayOpts,
@@ -62,10 +146,36 @@ export async function fetchProjectTokenDisplay(
   const needsHelius = !customLogo && (!dexLogo || !dexSymbol);
   const helius = needsHelius ? await fetchHeliusTokenMeta(m) : null;
   const heliusLogo = normalizeImageUrl(helius?.image);
-  // Liquid tokens: market logos first, then stored tokenImageUrl (Dex/Helius often omit low-cap logos).
-  const logoUrl = customLogo || dexLogo || heliusLogo || storedLogo || null;
 
-  let symbol = customName || dexSymbol || helius?.symbol?.trim() || abbrevMint(m);
+  const hasReliableMarketLogo =
+    Boolean(customLogo) ||
+    (Boolean(dexLogo) && !isUnreliableTokenImageHost(dexLogo)) ||
+    (Boolean(heliusLogo) && !isUnreliableTokenImageHost(heliusLogo));
+
+  let geckoLogo: string | null = null;
+  let geckoSymbol: string | undefined;
+  if (!hasReliableMarketLogo) {
+    const gecko = await fetchGeckoTerminalLogo(m);
+    geckoLogo = gecko.logo;
+    geckoSymbol = gecko.symbol;
+  }
+
+  // Prefer stable CDN / stored logos over GenesysGo shadow-drive + IPFS (often 404 in browsers).
+  // Also skip URLs that already 404 (e.g. expired Firebase tokenImageUrl).
+  const reliableDex = dexLogo && !isUnreliableTokenImageHost(dexLogo) ? dexLogo : null;
+  const reliableHelius = heliusLogo && !isUnreliableTokenImageHost(heliusLogo) ? heliusLogo : null;
+  const logoUrl = await firstReachableLogo([
+    customLogo,
+    reliableDex,
+    storedLogo,
+    geckoLogo,
+    reliableHelius,
+    dexLogo,
+    heliusLogo,
+  ]);
+
+  let symbol =
+    customName || dexSymbol || helius?.symbol?.trim() || geckoSymbol || abbrevMint(m);
   if (symbol.length > 12) symbol = symbol.slice(0, 12);
 
   return { symbol, logoUrl };

@@ -67,67 +67,198 @@ JSON shape:
 
 Requires `DATABASE_URL` or `DIRECT_URL` in `.env`. After schema deploy, also run `npm run db:push` once on the production DB if columns are missing.
 
-## Checklist (60 published)
+## Checklist (125 published)
 
 Tick in this file as each listing is reformatted. Keep alphabetical by name.
 
 - [x] Absurd Apes (`absurd-apes`)
+- [x] ABC (`abc`)
 - [x] Aevon (`aevon`)
-- [x] Bored Ape Sol Club (`bored-ape-sol-club`)
+- [x] Alpha Gardeners (`alpha-gardeners`)
+- [x] Anomaly (`anomaly`)
+- [x] Art Solana Icons (`art-solana-icons`)
+- [x] Aurorians (`aurorians`)
+- [x] B & H Club (`b-h-club`) — includes Degens X
+- [x] Bando Kids (`bando-kids`)
+- [x] Bakeland (`bakeland`) — Bakeland: Origins
+- [x] Battle Bros Club (`battle-bros-club`)
+- [x] Big Cats (`big-cats`)
+- [x] Big Head Billionaires (`big-head-billionaires`)
+- [x] BoDoggos (`bodoggos`)
+- [x] Bobos of War (`bobos-of-war`)
+- [x] Bohemia Art Fair (`bohemia`) — includes Euphoria and Fabulosa
+- [x] Bozo Collective (`bozo-collective`) — includes Bozo Council
+- [x] Bored Ape Sol Club (`bored-ape-sol-club`) — includes XElementia and DeApes Abducted
+- [x] BR1 Infinite (`br1`) — includes Ape Operatives and Droid Operatives
+- [x] BullBears (`bullbears`)
 - [x] Bulls on Sol Society (`bulls-on-sol-society`)
 - [x] BUXDAO (`buxdao`)
+- [x] CETS (`cets`)
 - [x] Chart Breakers (`chart-breakers`)
 - [x] Claynosaurz (`claynosaurz`)
-- [x] Crouton Jones (`crouton-jones`)
+- [x] Collector Crypt (`collector-crypt`) — includes Card Club membership pass
+- [x] Crouton Jones (`crouton-jones`) — includes Croutonverse Founder's Pass
+- [x] Critters Cult (`critters-cult`) — includes Solsunsets and Suns Saga
+- [x] Critters Quest (`critters-quest`) — includes Quest Items and Multipliers
+- [x] CannaSolz (`cannasolz`)
+- [x] Catalina Whale Mixer (`catalina-whale-mixer`)
+- [x] Chadbots (`chadbots`)
+- [x] Coral Tribe (`coral-tribe`)
+- [x] Cyber Frogs (`cyber-frogs`)
+- [x] D1srupt0rs (`d1srupt0rs`)
+- [x] D3fenders (`d3fenders`)
+- [x] D.T.F. (`d-t-f`) — includes Bengal Tigers and Degenerate Tiger Federation
 - [x] Dead Bunnies (`dead-bunnies`)
+- [x] Dead King Society (`dead-king-society`) — includes Nobles
+- [x] Degenerate Ape Academy (`degenerate-ape-academy`) — includes Degenerate Trash Pandas and Degenerate Drop Bears
+- [x] Dgenz (`dgenz`) — includes Degen Boyz, Radiated Boyz, Degen Pharaohz, and Degen Girlz
+- [x] DEGEN DOJO (`degen-dojo`) — includes TETO
+- [x] Degen Fat Cats (`degen-fat-cats`)
+- [x] Deez Nuts (`deez-nuts`)
+- [x] Decentric (`decentric`)
+- [x] DeGods (`degods`) — includes y00ts, t00bs, and g00bs
 - [x] DMST (`dmst`)
-- [x] Eapes (`eapes`)
+- [x] DKV (`dkv`)
+- [x] Doge Capital (`doge-capital`)
+- [x] Donk (`donk`)
+- [x] DOOMONS (`doomons`) — includes DOOMGODS, DOOMPETS, and DOOMEGGS
+- [x] Doopies (`doopies`)
+- [x] Drifters (`drifters`) — Drifters: Masterwork
+- [x] EAPES (`eapes`)
+- [x] Elevens (`elevens`) — includes Twelves
 - [x] Enchanted Miners (`enchanted-miners`)
 - [x] Energy Wabbits (`energy-wabbits`)
+- [x] Fuddy Dogs (`fuddy-dogs`)
 - [x] Famous Fox Federation (`famous-fox-federation`)
+- [x] Fearless Bulls (`fearless-bulls`) — includes Fearless Bulls Club
 - [x] Frens Factory (`frens-factory`)
-- [x] GAINZ (`gainz`)
+- [x] Frogana (`frogana`)
+- [x] Gambulls (`gambulls`)
+- [x] Gearhead Coin (`gearhead-coin`) — includes Rusty Rigs
+- [x] Giraffe Tower (`giraffe-tower`) — includes MAGA Giraffe
+- [x] GOTM Labz (`gotm-labz`) — was GAINZ; includes GAINZ
 - [x] Galactic Geckos (`galactic-geckos`)
+- [x] Gamba Dogs (`gamba-dogs`)
 - [x] Geeks (`geeks`)
 - [x] Gensuki (`gensuki`)
+- [x] Ghost Kid (`ghost-kid`)
 - [x] GoodFellas (`goodfellas`)
 - [x] Goofy Giraffes (`goofy-giraffes`)
+- [x] GolfN (`golfn`) — includes Season 1 Cards
+- [x] Goats of Solana (`goats-of-solana`) — includes Cave Creative
+- [x] Grim Syndicate (`grim-syndicate`)
 - [x] Haxz (`haxz`)
 - [x] K.B.D.S (`k-b-d-s`)
 - [x] Kups by Raposa (`kups-by-raposa`)
+- [x] IslandDAO (`islanddao`) — IslandDAO PERKS
+- [x] Kreechures (`kreechures`)
+- [x] Krypto Kronikz (`krypto-kronikz`) — includes Kronik Grow
+- [x] Long Neck Legends (`long-neck-legends`)
+- [x] LeSharX (`lesharx`)
+- [x] Lil Chillers (`lil-chillers`)
+- [x] Liberty Square (`liberty-square`) — includes The Hallowed
+- [x] LILY (`lily`) — The Lotus brand
+- [x] Lifinity Flares (`lifinity-flares`)
+- [x] Liminals (`liminals`)
+- [x] Lions of Liquania (`lions-of-liquania`)
+- [x] Lucky DAO (`lucky-dao`)
+- [x] LLama (`llpic`)
 - [x] Loud Lords (`loud-lords`) — unpublished until more remint/takeover info
 - [x] Lunarverse (`lunarverse`)
+- [x] Mad Lads (`mad-lads`)
 - [x] MAGApixel (`magapixel`)
+- [x] Market Elites (`marketelites`)
+- [x] Matrica Labs (`matrica-labs`) — includes Pixels and Corrupted
+- [x] Mavrix by Jelly Co (`mavrix`) — includes Gamerooms
+- [x] Meatbags (`meatbags`) — includes Meatbags: Geocache
 - [x] Midevils (`midevils`)
+- [x] MinTechSOL (`mintechsol`)
+- [x] Mindfolk (`mindfolk`) — includes Mindlings
+- [x] Meerkat Millionaires (`meerkat`) — includes Naked Meerkats Beach Club
+- [x] Micros (`micros`) — includes Solnautz
 - [x] Mnk3y Labs (`mnk3y-labs`)
 - [x] Mob Collective (`mob-collective`)
 - [x] Mutants On Sol Crew (`mutants-on-sol-crew`)
-- [x] Okay Bears (`okay-bears`)
-- [x] Omerta - Empire City (`omerta-empire-city`)
+- [x] Necros (`necros`)
+- [x] NPP (`npp`)
+- [x] One Crew (`one-crew`)
+- [x] Okay Bears (`okay-bears`) — includes Bear Drop Founders Coins
+- [x] Omerta - Empire City (`omerta-empire-city`) — includes SOLdiers, Capos, Dons, family DAOs, and SOLdiers of the $OATH
+- [x] OMEN (`omen`)
 - [x] Onchain Bridges (`onchain-bridges`)
+- [x] Ovols (`ovols`)
+- [x] Owltopia (`owltopia`)
 - [x] Pandarianz (`pandarianz`)
 - [x] Pawpular (`pawpular`)
+- [x] Pesky Penguins (`pesky-penguins`)
+- [x] Peanut Protocol (`peanut-protocol`)
 - [x] Pepeverse (`pepeverse`)
+- [x] Pixel by Pixel (`pixel-by-pixel`) — includes Candies, Morbies, Drippies, Great Goats, Undead Genesis
+- [x] Pickles (`pickles`)
+- [x] Play Solana (`play-solana`) — includes Player2 and Play Solana NFT
+- [x] Planet Kaiju (`planet-kaiju`) — includes The Hated
+- [x] Portals (`portals`)
+- [x] Primates (`primates`)
+- [x] Primos (`primos`)
+- [x] Prophets (`prophets`)
+- [x] Primals (`primals`)
 - [x] Puffsterz (`puffsterz`)
+- [x] Pythenians (`pythenians`)
+- [x] Quack Heads (`quack-heads`) — Wallchain Genesis
 - [x] Rafflors (`rafflors`)
+- [x] Rogues (`rogues`)
+- [x] Saga Monkes (`saga-monkes`)
+- [x] Sharx (`sharx`) — includes microSharx
+- [x] SharpAIO (`sharpaio`)
+- [x] SempireDAO (`sempiredao`)
+- [x] Sensei (`sensei`)
+- [x] Shaolin Saga (`shaolin-saga`)
 - [x] Shinigami (`shinigami`)
 - [x] Smyths (`smyths`)
 - [x] SoDead (`sodead`)
+- [x] SkulRz (`skulrz`)
+- [x] SOL Decoder (`sol-decoder`)
 - [x] Solana Deads (`solana-deads`)
+- [x] Solcasino.io (`solcasino`)
 - [x] Solana Monkey Business (`solana-monkey-business`)
-- [x] Solana Sky Pilots (`solana-sky-pilots`) — unpublished until Sky Pilot NFT markets/mint details are firmer
+- [x] Solana Sky Pilots (`solana-sky-pilots`) — includes Grinders and Companeons
 - [x] Solana Strays (`solana-strays`)
+- [x] Solsteads (`solsteads`) — includes Citizens
+- [x] Solanons (`solanons`)
 - [x] Solarians (`solarians`)
 - [x] SolGods (`solgods`)
 - [x] Stone Gods (`stone-gods`)
+- [x] SquidChops (`squidchops`)
+- [x] Stoned Ape Crew (`stoned-apes`) — includes Nuked Apes
 - [x] Stoned Sloths (`stoned-sloths`)
+- [x] Steakers (`steakers`)
+- [x] Taiyo Robotics (`taiyo-robotics`) — includes Infants, Oil, Pilots
+- [x] TekTools (`tektools`) — Toolboxes
+- [x] TenseiEXE (`tenseiexe`)
+- [x] Thugbirdz (`thugbirdz`)
+- [x] Tensorians (`tensorians`)
 - [x] THC Labz (`thc-labz`)
-- [x] The Fox Club (`the-fox-club`)
+- [x] The Chimpions (`the-chimpions`)
+- [x] The Conmen (`the-conmen`)
+- [x] The Fracture (`the-fracture`) — includes Gods and Omnium
+- [x] The Heist (`the-heist`)
+- [x] Forest Apes (`forest-apes`) — includes Arborians
+- [x] The Fox Club (`the-fox-club`) — includes Cyber Foxes
 - [x] The Misfits Order (`the-misfits-order`)
-- [x] The Rejects (`the-rejects`)
+- [x] The Northlanders (`the-northlanders`)
+- [x] The Pond (`the-pond`)
+- [x] The Rejects (`the-rejects`) — includes Rejected Mutations, Idol Boosters, GM Life
+- [x] The Strays (`the-strays`)
+- [x] Tribal Games (`tribal-games`) — includes Trippin' Ape Tribe and Arcadians
 - [x] Ugly Ape Squad (`ugly-ape-squad`)
 - [x] Uni-Fy (`uni-fy`) — unpublished until UNIFY mint/markets and live product surface are firmer
 - [x] Villagers (`villagers`)
+- [x] VINCENIA (`vincenia`)
+- [x] VTOPIANS (`vtopians`) — includes Vtopian Monolith
+- [x] Wassieverse (`wassieverse`)
 - [x] Wegens (`wegens`) — deleted from catalog
+- [x] Whal3s (`whal3s`)
+- [x] Wolf Capital (`wolf-capital`)
 - [x] Xape Labz (`xape-labz`)
+- [x] Zero Monke Biz (`zero-monke-biz`)
 - [x] ZomBabieZ (`zombabiez`)

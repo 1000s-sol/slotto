@@ -110,6 +110,11 @@ export function magicEdenLink(collection: ProjectCollection): string | null {
   return link?.href.trim() ?? null;
 }
 
+export function orbisLink(collection: ProjectCollection): string | null {
+  const link = collection.links.find((l) => l.marketplace === "orbis" && l.href.trim());
+  return link?.href.trim() ?? null;
+}
+
 export function collectionDisplayName(collection: ProjectCollection, index: number): string {
   if (collection.name.trim()) return collection.name.trim();
   const me = magicEdenLink(collection);
@@ -204,9 +209,12 @@ export function validateCollectionsJson(raw: string): {
       links.push({ marketplace, href });
     }
     if (links.length === 0) continue;
-    if (collections.length === 0 && !links.some((l) => l.marketplace === "magicEden")) {
+    if (
+      collections.length === 0 &&
+      !links.some((l) => l.marketplace === "magicEden" || l.marketplace === "orbis")
+    ) {
       throw new Error(
-        "Primary collection must include a Magic Eden link when using marketplace listings (live floor/volume stats).",
+        "Primary collection must include a Magic Eden or Orbis link when using marketplace listings (live floor/volume stats).",
       );
     }
     collections.push({ name, links });

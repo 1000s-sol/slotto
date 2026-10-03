@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { fetchHeliusTokenMeta, normalizeImageUrl } from "@/lib/helius-token-meta";
+import { isUnreliableTokenImageHost } from "@/lib/project-token-display";
 import { fetchLiquidTickerProjects } from "@/lib/ticker-liquid-projects";
 import {
   fetchDexTokenRows,
@@ -22,6 +23,8 @@ type TickerSlot = {
   mint: string;
   projectSlug: string | null;
   projectName: string | null;
+  tokenImageUrl: string | null;
+  tokenName: string | null;
 };
 
 function abbrevMint(mint: string) {
@@ -31,12 +34,36 @@ function abbrevMint(mint: string) {
 async function buildTickerSlots(): Promise<TickerSlot[]> {
   const projects = await fetchLiquidTickerProjects();
   const slots: TickerSlot[] = [
-    { mint: WRAPPED_SOL_MINT, projectSlug: null, projectName: null },
+    {
+      mint: WRAPPED_SOL_MINT,
+      projectSlug: null,
+      projectName: null,
+      tokenImageUrl: null,
+      tokenName: null,
+    },
   ];
   for (const p of projects) {
-    slots.push({ mint: p.mint, projectSlug: p.slug, projectName: p.name });
+    slots.push({
+      mint: p.mint,
+      projectSlug: p.slug,
+      projectName: p.name,
+      tokenImageUrl: p.tokenImageUrl,
+      tokenName: p.tokenName,
+    });
   }
   return slots;
+}
+
+/** Dex/Helius first (what used to work); swap only when missing or known-dead host. */
+function pickTickerLogo(
+  dexLogo: string | null,
+  heliusLogo: string | null,
+  storedLogo: string | null,
+): string | null {
+  const market = dexLogo || heliusLogo || null;
+  if (market && !isUnreliableTokenImageHost(market)) return market;
+  if (storedLogo) return storedLogo;
+  return market;
 }
 
 export async function GET() {
@@ -51,7 +78,12 @@ export async function GET() {
 
     const needsHelius = mints.filter((mint) => {
       const row = byMint.get(mint);
-      return mint !== WRAPPED_SOL_MINT && !row?.info?.imageUrl?.trim();
+      const dexLogo = normalizeImageUrl(row?.info?.imageUrl);
+      // Fetch Helius when Dex has no image, or only a known-dead host (GenesysGo).
+      return (
+        mint !== WRAPPED_SOL_MINT &&
+        (!dexLogo || isUnreliableTokenImageHost(dexLogo))
+      );
     });
 
     const heliusMap = new Map<string, Awaited<ReturnType<typeof fetchHeliusTokenMeta>>>();
@@ -60,6 +92,11 @@ export async function GET() {
         heliusMap.set(mint, await fetchHeliusTokenMeta(mint));
       }),
     );
+
+    // SOL logo when Dex omits it.
+    if (!byMint.get(WRAPPED_SOL_MINT)?.info?.imageUrl?.trim()) {
+      heliusMap.set(WRAPPED_SOL_MINT, await fetchHeliusTokenMeta(WRAPPED_SOL_MINT));
+    }
 
     const items: TickerItem[] = slots.map((slot) => {
       const { mint, projectSlug, projectName } = slot;
@@ -72,6 +109,7 @@ export async function GET() {
           ? "SOL"
           : row?.baseToken?.symbol?.trim() ||
             helius?.symbol?.trim() ||
+            slot.tokenName?.trim() ||
             abbrevMint(mint);
 
       if (mint !== WRAPPED_SOL_MINT && symbol.length > 12) {
@@ -80,7 +118,11 @@ export async function GET() {
 
       const dexLogo = normalizeImageUrl(row?.info?.imageUrl);
       const heliusLogo = normalizeImageUrl(helius?.image);
-      const logoUrl = dexLogo || heliusLogo || null;
+      const storedLogo = normalizeImageUrl(slot.tokenImageUrl ?? undefined);
+      const logoUrl =
+        mint === WRAPPED_SOL_MINT
+          ? dexLogo || heliusLogo || null
+          : pickTickerLogo(dexLogo, heliusLogo, storedLogo);
 
       return {
         mint,
@@ -98,7 +140,13 @@ export async function GET() {
     );
   } catch {
     const slots = await buildTickerSlots().catch(() => [
-      { mint: WRAPPED_SOL_MINT, projectSlug: null, projectName: null },
+      {
+        mint: WRAPPED_SOL_MINT,
+        projectSlug: null,
+        projectName: null,
+        tokenImageUrl: null,
+        tokenName: null,
+      },
     ]);
     return NextResponse.json({
       items: slots.map((slot) => ({

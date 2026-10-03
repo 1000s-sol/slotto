@@ -1,4 +1,5 @@
 import { fetchCollectionNftCountViaHelius } from "@/lib/helius-collection-nft-count";
+import { fetchLiveOrbisStats } from "@/lib/orbis-stats";
 
 const ME_API = "https://api-mainnet.magiceden.dev/v2";
 const LAMPORTS_PER_SOL = 1e9;
@@ -243,4 +244,46 @@ export async function fetchLiveMagicEdenStats(
     ok: true,
     message: null,
   };
+}
+
+/**
+ * Prefer Magic Eden live stats; fall back to Orbis when ME is missing or fails.
+ * Pass per-collection marketplace URLs from `ProjectCollection.links`.
+ */
+export async function fetchLiveCollectionStats(
+  meUrl: string | null | undefined,
+  orbisUrl: string | null | undefined,
+  revalidateSec = 120,
+): Promise<LiveMeStats> {
+  const hasMe = Boolean(meUrl?.trim());
+  const hasOrbis = Boolean(orbisUrl?.trim());
+
+  if (!hasMe && !hasOrbis) {
+    return {
+      symbol: null,
+      floorSol: null,
+      listings: null,
+      volumeSol: null,
+      avg24hSol: null,
+      supply: null,
+      ok: false,
+      message: "Add a Magic Eden or Orbis collection URL to show live stats.",
+    };
+  }
+
+  if (hasMe) {
+    const me = await fetchLiveMagicEdenStats(meUrl, revalidateSec);
+    // Hollow ME payloads (e.g. listings "0" with no floor/volume) should not block Orbis.
+    const meUseful =
+      me.ok &&
+      Boolean(me.floorSol || me.volumeSol || (me.listings && me.listings !== "0"));
+    if (meUseful) return me;
+    if (hasOrbis) {
+      const orbis = await fetchLiveOrbisStats(orbisUrl, revalidateSec);
+      if (orbis.ok) return orbis;
+    }
+    return me;
+  }
+
+  return fetchLiveOrbisStats(orbisUrl, revalidateSec);
 }

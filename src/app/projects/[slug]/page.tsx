@@ -7,9 +7,10 @@ import { ProjectLikePill, ProjectSocialLinks } from "@/components/project/projec
 import { ProjectListingSections } from "@/components/project/project-listing-sections";
 import { ProjectTicketBuyPanel } from "@/components/project/project-ticket-buy-panel";
 import { ProjectTokenBlock } from "@/components/project/project-token-block";
-import { fetchLiveMagicEdenStats } from "@/lib/magiceden-stats";
+import { fetchLiveCollectionStats } from "@/lib/magiceden-stats";
 import {
   magicEdenLink,
+  orbisLink,
   parseProjectCollections,
 } from "@/lib/project-collections";
 import { ensureProjectSectionColumns } from "@/lib/ensure-project-section-columns";
@@ -19,6 +20,7 @@ import {
   listingShareBlurb,
 } from "@/lib/project-listing-sections";
 import { prisma } from "@/lib/prisma";
+import { fetchAndStoreProjectSocialCounts } from "@/lib/project-social-stats";
 import { fetchProjectTokenDisplay } from "@/lib/project-token-display";
 import {
   getRequestSiteUrl,
@@ -98,33 +100,38 @@ export default async function ProjectPage({ params }: Props) {
     project.marketplaces,
   );
 
-  const statsByIndex = await Promise.all(
-    collections.map((c) => fetchLiveMagicEdenStats(magicEdenLink(c), 120)),
-  );
+  const [statsByIndex, socialCounts, tokenDisplay] = await Promise.all([
+    Promise.all(
+      collections.map((c) =>
+        fetchLiveCollectionStats(magicEdenLink(c), orbisLink(c), 120),
+      ),
+    ),
+    fetchAndStoreProjectSocialCounts(project.id, project.discordUrl, project.twitterUrl),
+    project.tokenMint?.trim()
+      ? fetchProjectTokenDisplay(project.tokenMint.trim(), {
+          liquid: project.tokenLiquid ?? true,
+          tokenImageUrl: project.tokenImageUrl,
+          tokenName: project.tokenName,
+        })
+      : Promise.resolve(null),
+  ]);
 
   const tokenMint = project.tokenMint?.trim() ?? "";
   const tokenLiquid = project.tokenLiquid ?? true;
-  const tokenDisplay = tokenMint
-    ? await fetchProjectTokenDisplay(tokenMint, {
-        liquid: tokenLiquid,
-        tokenImageUrl: project.tokenImageUrl,
-        tokenName: project.tokenName,
-      })
-    : null;
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 max-w-full space-y-6">
       <Link href="/projects" className="inline-flex items-center gap-2 text-sm text-muted hover:text-foreground">
         ← Back to projects
       </Link>
 
-      <div className="overflow-hidden rounded-2xl border border-border bg-bg-elevated/80">
+      <div className="max-w-full min-w-0 overflow-hidden rounded-2xl border border-border bg-bg-elevated/80">
         {project.bannerImageUrl ? (
-          <div className="relative h-56 w-full sm:h-72 md:h-80">
+          <div className="relative aspect-[3/1] w-full max-w-full overflow-hidden bg-bg-deep">
             <img
               src={project.bannerImageUrl}
               alt=""
-              className="h-full w-full object-cover"
+              className="absolute inset-0 h-full w-full max-w-full object-cover object-center"
               referrerPolicy="no-referrer"
             />
             <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-bg-elevated via-transparent to-transparent" />
@@ -135,7 +142,7 @@ export default async function ProjectPage({ params }: Props) {
             />
           </div>
         ) : (
-          <div className="relative min-h-52 bg-gradient-to-r from-accent-purple/30 via-surface to-accent-blue/30 sm:min-h-64">
+          <div className="relative aspect-[3/1] w-full max-w-full overflow-hidden bg-gradient-to-r from-accent-purple/30 via-surface to-accent-blue/30">
             <ProjectLikePill
               slug={slug}
               initialLikes={project.likes}
@@ -143,15 +150,17 @@ export default async function ProjectPage({ params }: Props) {
             />
           </div>
         )}
-        <div className="space-y-6 px-6 pb-8 pt-6 sm:px-8">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0 space-y-6 px-4 pb-8 pt-6 sm:px-8">
+          <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0 flex-1">
-              <h1 className="text-3xl font-semibold tracking-tight">{project.name}</h1>
+              <h1 className="text-3xl font-semibold tracking-tight break-words">{project.name}</h1>
             </div>
             <ProjectSocialLinks
               websiteUrl={project.websiteUrl}
               discordUrl={project.discordUrl}
               twitterUrl={project.twitterUrl}
+              discordMembers={socialCounts.discordMembers}
+              twitterFollowers={socialCounts.twitterFollowers}
             />
           </div>
 
