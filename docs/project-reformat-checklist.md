@@ -133,6 +133,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Gensuki (`gensuki`)
 - [x] GoodFellas (`goodfellas`)
 - [x] Goofy Giraffes (`goofy-giraffes`)
+- [x] GolfN (`golfn`) — includes Season 1 Cards
 - [x] Goats of Solana (`goats-of-solana`) — includes Cave Creative
 - [x] Grim Syndicate (`grim-syndicate`)
 - [x] Haxz (`haxz`)
