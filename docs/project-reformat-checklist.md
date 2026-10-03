@@ -244,7 +244,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] The Misfits Order (`the-misfits-order`)
 - [x] The Northlanders (`the-northlanders`)
 - [x] The Pond (`the-pond`)
-- [x] The Rejects (`the-rejects`)
+- [x] The Rejects (`the-rejects`) — includes Rejected Mutations, Idol Boosters, GM Life
 - [x] The Strays (`the-strays`)
 - [x] Tribal Games (`tribal-games`) — includes Trippin' Ape Tribe and Arcadians
 - [x] Ugly Ape Squad (`ugly-ape-squad`)
