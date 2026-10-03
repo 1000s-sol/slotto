@@ -5,7 +5,7 @@ import { marketplaceLogo, type MarketplaceId } from "@/lib/marketplace-icons";
  * size; four still fit on one line. Logos fill the chip. Desktop keeps auto width.
  */
 const chipClass =
-  "inline-flex h-9 w-[calc((100%-0.75rem)/4)] shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border/60 bg-surface/35 p-0.5 transition hover:border-accent-purple/35 hover:bg-surface/55 sm:h-auto sm:w-auto sm:max-w-[10.5rem] sm:justify-start sm:p-1.5";
+  "inline-flex h-9 w-[calc((100%-0.75rem)/4)] shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border/60 bg-surface/35 p-px transition hover:border-accent-purple/35 hover:bg-surface/55 sm:h-auto sm:w-auto sm:max-w-[10.5rem] sm:justify-start sm:p-1";
 
 export function MarketplaceLogoLink({
   href,
