@@ -32,6 +32,7 @@
 /* Let UA treat both schemes; avoids Firefox black backing on alpha PNGs under .dark */
 html {
   color-scheme: dark light;
+  overflow-x: clip;
 }
 
 body {
@@ -39,6 +40,7 @@ body {
     radial-gradient(900px 600px at 100% 0%, #0f2847 0%, transparent 50%), var(--bg-deep);
   color: var(--text);
   min-height: 100dvh;
+  overflow-x: clip;
 }
 
 h1,

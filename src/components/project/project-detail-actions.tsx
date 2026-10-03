@@ -153,7 +153,7 @@ export function ProjectSocialLinks({
   const twitterCount = formatSocialCount(twitterFollowers);
 
   return (
-    <div className="flex shrink-0 flex-wrap justify-end gap-2">
+    <div className="flex w-full min-w-0 max-w-full flex-wrap justify-start gap-2 sm:w-auto sm:shrink-0 sm:justify-end">
       {websiteUrl ? (
         <a
           href={websiteUrl}

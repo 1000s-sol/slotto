@@ -49,10 +49,10 @@ export default function RootLayout({
         <SolanaWalletProvider>
           <AuthSessionProvider>
           <MaintenanceGate>
-            <div className="mx-auto flex min-h-dvh max-w-6xl flex-col px-4 pb-8 pt-4 sm:px-6">
+            <div className="mx-auto flex min-h-dvh w-full min-w-0 max-w-6xl flex-col overflow-x-clip px-4 pb-8 pt-4 sm:px-6">
             <SiteHeader />
             <PriceTicker />
-            <main className="mt-8 flex-1">{children}</main>
+            <main className="mt-8 min-w-0 flex-1">{children}</main>
             <SiteFooter />
             </div>
           </MaintenanceGate>
