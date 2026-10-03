@@ -97,7 +97,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Claynosaurz (`claynosaurz`)
 - [x] Collector Crypt (`collector-crypt`) — includes Card Club membership pass
 - [x] Crouton Jones (`crouton-jones`) — includes Croutonverse Founder's Pass
-- [x] Critters Cult (`critters-cult`) — includes Solsunsets
+- [x] Critters Cult (`critters-cult`) — includes Solsunsets and Suns Saga
 - [x] Critters Quest (`critters-quest`) — includes Quest Items and Multipliers
 - [x] CannaSolz (`cannasolz`)
 - [x] Catalina Whale Mixer (`catalina-whale-mixer`)
