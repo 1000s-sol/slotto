@@ -151,7 +151,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Mob Collective (`mob-collective`)
 - [x] Mutants On Sol Crew (`mutants-on-sol-crew`)
 - [x] NPP (`npp`)
-- [x] Okay Bears (`okay-bears`)
+- [x] Okay Bears (`okay-bears`) — includes Bear Drop Founders Coins
 - [x] Omerta - Empire City (`omerta-empire-city`)
 - [x] OMEN (`omen`)
 - [x] Onchain Bridges (`onchain-bridges`)
