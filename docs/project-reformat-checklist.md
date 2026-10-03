@@ -133,6 +133,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] K.B.D.S (`k-b-d-s`)
 - [x] Kups by Raposa (`kups-by-raposa`)
 - [x] Kreechures (`kreechures`)
+- [x] Liberty Square (`liberty-square`) — includes The Hallowed
 - [x] Lifinity Flares (`lifinity-flares`)
 - [x] Liminals (`liminals`)
 - [x] Lions of Liquania (`lions-of-liquania`)
