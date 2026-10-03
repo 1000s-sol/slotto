@@ -188,7 +188,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Nuddies (`nuddies`)
 - [x] One Crew (`one-crew`)
 - [x] Okay Bears (`okay-bears`) — includes Bear Drop Founders Coins
-- [x] Omerta - Empire City (`omerta-empire-city`) — includes SOLdiers, Capos, Dons, family DAOs, SOLdiers of the $OATH, and Lucky Dogs
+- [x] Omerta - Empire City (`omerta-empire-city`) — includes SOLdiers, Capos, Dons, family DAOs, and SOLdiers of the $OATH
 - [x] OMEN (`omen`)
 - [x] Onchain Bridges (`onchain-bridges`)
 - [x] Ovols (`ovols`)
