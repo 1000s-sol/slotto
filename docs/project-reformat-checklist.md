@@ -166,6 +166,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Market Elites (`marketelites`)
 - [x] Matrica Labs (`matrica-labs`) — includes Pixels and Corrupted
 - [x] Mavrix by Jelly Co (`mavrix`) — includes Gamerooms
+- [x] Meatbags (`meatbags`) — includes Meatbags: Geocache
 - [x] Midevils (`midevils`)
 - [x] MinTechSOL (`mintechsol`)
 - [x] Mindfolk (`mindfolk`) — includes Mindlings
