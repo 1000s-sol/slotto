@@ -67,7 +67,7 @@ JSON shape:
 
 Requires `DATABASE_URL` or `DIRECT_URL` in `.env`. After schema deploy, also run `npm run db:push` once on the production DB if columns are missing.
 
-## Checklist (89 published)
+## Checklist (90 published)
 
 Tick in this file as each listing is reformatted. Keep alphabetical by name.
 
@@ -112,6 +112,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Mad Lads (`mad-lads`)
 - [x] MAGApixel (`magapixel`)
 - [x] Midevils (`midevils`)
+- [x] Mindfolk (`mindfolk`) — includes Mindlings
 - [x] Micros (`micros`) — includes Solnautz
 - [x] Mnk3y Labs (`mnk3y-labs`)
 - [x] Mob Collective (`mob-collective`)
