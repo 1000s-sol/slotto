@@ -141,6 +141,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] K.B.D.S (`k-b-d-s`)
 - [x] Kups by Raposa (`kups-by-raposa`)
 - [x] Kreechures (`kreechures`)
+- [x] Krypto Kronikz (`krypto-kronikz`) — includes Kronik Grow
 - [x] Liberty Square (`liberty-square`) — includes The Hallowed
 - [x] LILY (`lily`) — The Lotus brand
 - [x] Lifinity Flares (`lifinity-flares`)
