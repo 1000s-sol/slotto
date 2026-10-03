@@ -67,7 +67,7 @@ JSON shape:
 
 Requires `DATABASE_URL` or `DIRECT_URL` in `.env`. After schema deploy, also run `npm run db:push` once on the production DB if columns are missing.
 
-## Checklist (104 published)
+## Checklist (105 published)
 
 Tick in this file as each listing is reformatted. Keep alphabetical by name.
 
@@ -161,6 +161,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Stoned Ape Crew (`stoned-apes`) — includes Nuked Apes
 - [x] Stoned Sloths (`stoned-sloths`)
 - [x] Taiyo Robotics (`taiyo-robotics`) — includes Infants, Oil, Pilots
+- [x] Thugbirdz (`thugbirdz`)
 - [x] Tensorians (`tensorians`)
 - [x] THC Labz (`thc-labz`)
 - [x] The Fox Club (`the-fox-club`) — includes Cyber Foxes
