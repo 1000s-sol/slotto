@@ -162,6 +162,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Matrica Labs (`matrica-labs`) — includes Pixels and Corrupted
 - [x] Mavrix by Jelly Co (`mavrix`) — includes Gamerooms
 - [x] Midevils (`midevils`)
+- [x] MinTechSOL (`mintechsol`)
 - [x] Mindfolk (`mindfolk`) — includes Mindlings
 - [x] Meerkat Millionaires (`meerkat`) — includes Naked Meerkats Beach Club
 - [x] Micros (`micros`) — includes Solnautz
