@@ -153,7 +153,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Pawpular (`pawpular`)
 - [x] Peanut Protocol (`peanut-protocol`)
 - [x] Pepeverse (`pepeverse`)
-- [x] Pixel by Pixel (`pixel-by-pixel`) — includes Candies, Morbies, Drippies, Great Goats
+- [x] Pixel by Pixel (`pixel-by-pixel`) — includes Candies, Morbies, Drippies, Great Goats, Undead Genesis
 - [x] Pickles (`pickles`)
 - [x] Play Solana (`play-solana`) — includes Player2 and Play Solana NFT
 - [x] Planet Kaiju (`planet-kaiju`) — includes The Hated
