@@ -67,7 +67,7 @@ JSON shape:
 
 Requires `DATABASE_URL` or `DIRECT_URL` in `.env`. After schema deploy, also run `npm run db:push` once on the production DB if columns are missing.
 
-## Checklist (110 published)
+## Checklist (111 published)
 
 Tick in this file as each listing is reformatted. Keep alphabetical by name.
 
@@ -159,6 +159,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Solana Monkey Business (`solana-monkey-business`)
 - [x] Solana Sky Pilots (`solana-sky-pilots`) — unpublished until Sky Pilot NFT markets/mint details are firmer
 - [x] Solana Strays (`solana-strays`)
+- [x] Solsteads (`solsteads`) — includes Citizens
 - [x] Solanons (`solanons`)
 - [x] Solarians (`solarians`)
 - [x] SolGods (`solgods`)
