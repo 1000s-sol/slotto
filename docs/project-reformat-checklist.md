@@ -76,6 +76,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Aevon (`aevon`)
 - [x] Alpha Gardeners (`alpha-gardeners`)
 - [x] Anomaly (`anomaly`)
+- [x] Art Solana Icons (`art-solana-icons`)
 - [x] Aurorians (`aurorians`)
 - [x] B & H Club (`b-h-club`) — includes Degens X
 - [x] Bando Kids (`bando-kids`)
