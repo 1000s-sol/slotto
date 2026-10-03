@@ -238,6 +238,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] The Chimpions (`the-chimpions`)
 - [x] The Conmen (`the-conmen`)
 - [x] The Fracture (`the-fracture`) — includes Gods and Omnium
+- [x] The Heist (`the-heist`)
 - [x] Forest Apes (`forest-apes`) — includes Arborians
 - [x] The Fox Club (`the-fox-club`) — includes Cyber Foxes
 - [x] The Misfits Order (`the-misfits-order`)
