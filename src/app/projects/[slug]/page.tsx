@@ -20,6 +20,7 @@ import {
   listingShareBlurb,
 } from "@/lib/project-listing-sections";
 import { prisma } from "@/lib/prisma";
+import { fetchProjectSocialCounts } from "@/lib/project-social-stats";
 import { fetchProjectTokenDisplay } from "@/lib/project-token-display";
 import {
   getRequestSiteUrl,
@@ -99,21 +100,24 @@ export default async function ProjectPage({ params }: Props) {
     project.marketplaces,
   );
 
-  const statsByIndex = await Promise.all(
-    collections.map((c) =>
-      fetchLiveCollectionStats(magicEdenLink(c), orbisLink(c), 120),
+  const [statsByIndex, socialCounts, tokenDisplay] = await Promise.all([
+    Promise.all(
+      collections.map((c) =>
+        fetchLiveCollectionStats(magicEdenLink(c), orbisLink(c), 120),
+      ),
     ),
-  );
+    fetchProjectSocialCounts(project.discordUrl, project.twitterUrl),
+    project.tokenMint?.trim()
+      ? fetchProjectTokenDisplay(project.tokenMint.trim(), {
+          liquid: project.tokenLiquid ?? true,
+          tokenImageUrl: project.tokenImageUrl,
+          tokenName: project.tokenName,
+        })
+      : Promise.resolve(null),
+  ]);
 
   const tokenMint = project.tokenMint?.trim() ?? "";
   const tokenLiquid = project.tokenLiquid ?? true;
-  const tokenDisplay = tokenMint
-    ? await fetchProjectTokenDisplay(tokenMint, {
-        liquid: tokenLiquid,
-        tokenImageUrl: project.tokenImageUrl,
-        tokenName: project.tokenName,
-      })
-    : null;
 
   return (
     <div className="space-y-6">
@@ -155,6 +159,8 @@ export default async function ProjectPage({ params }: Props) {
               websiteUrl={project.websiteUrl}
               discordUrl={project.discordUrl}
               twitterUrl={project.twitterUrl}
+              discordMembers={socialCounts.discordMembers}
+              twitterFollowers={socialCounts.twitterFollowers}
             />
           </div>
 
