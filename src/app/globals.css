@@ -86,7 +86,7 @@ img[src^="/brand/"] {
   height: 100%;
   width: max-content;
   max-width: none;
-  animation: ticker-scroll var(--ticker-duration, 90s) linear infinite;
+  animation: ticker-scroll var(--ticker-duration, 180s) linear infinite;
   will-change: transform;
 }
 

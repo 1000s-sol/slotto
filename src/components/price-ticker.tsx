@@ -15,8 +15,8 @@ type TickerItem = {
 const SOL_MINT = "So11111111111111111111111111111111111111112";
 
 /** Keep a steady reading pace as more tokens are added (px of one strip / second). */
-const TICKER_PX_PER_SEC = 48;
-const TICKER_MIN_DURATION_SEC = 60;
+const TICKER_PX_PER_SEC = 22;
+const TICKER_MIN_DURATION_SEC = 120;
 
 function birdeyeTokenUrl(mint: string) {
   return `https://birdeye.so/solana/token/${mint}`;
