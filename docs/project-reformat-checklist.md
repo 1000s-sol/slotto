@@ -120,6 +120,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Giraffe Tower (`giraffe-tower`)
 - [x] GOTM Labz (`gotm-labz`) — was GAINZ; includes GAINZ
 - [x] Galactic Geckos (`galactic-geckos`)
+- [x] Gamba Dogs (`gamba-dogs`)
 - [x] Geeks (`geeks`)
 - [x] Gensuki (`gensuki`)
 - [x] GoodFellas (`goodfellas`)
