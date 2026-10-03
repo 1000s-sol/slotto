@@ -98,7 +98,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] D1srupt0rs (`d1srupt0rs`)
 - [x] Dead Bunnies (`dead-bunnies`)
 - [x] Dead King Society (`dead-king-society`) — includes Nobles
-- [x] Degenerate Ape Academy (`degenerate-ape-academy`) — includes Degenerate Trash Pandas
+- [x] Degenerate Ape Academy (`degenerate-ape-academy`) — includes Degenerate Trash Pandas and Degenerate Drop Bears
 - [x] DEGEN DOJO (`degen-dojo`)
 - [x] Decentric (`decentric`)
 - [x] DeGods (`degods`) — includes y00ts
