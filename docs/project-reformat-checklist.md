@@ -110,6 +110,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Dgenz (`dgenz`) — includes Radiated Boyz and Degen Pharaohz
 - [x] DEGEN DOJO (`degen-dojo`)
 - [x] Degen Fat Cats (`degen-fat-cats`)
+- [x] Deez Nuts (`deez-nuts`)
 - [x] Decentric (`decentric`)
 - [x] DeGods (`degods`) — includes y00ts
 - [x] DMST (`dmst`)
