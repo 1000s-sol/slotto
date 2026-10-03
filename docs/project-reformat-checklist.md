@@ -126,6 +126,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] GoodFellas (`goodfellas`)
 - [x] Goofy Giraffes (`goofy-giraffes`)
 - [x] Goats of Solana (`goats-of-solana`) — includes Cave Creative
+- [x] Grim Syndicate (`grim-syndicate`)
 - [x] Haxz (`haxz`)
 - [x] K.B.D.S (`k-b-d-s`)
 - [x] Kups by Raposa (`kups-by-raposa`)
