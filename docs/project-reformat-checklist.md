@@ -152,6 +152,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Krypto Kronikz (`krypto-kronikz`) — includes Kronik Grow
 - [x] Long Neck Legends (`long-neck-legends`)
 - [x] LeSharX (`lesharx`)
+- [x] Lil Chillers (`lil-chillers`)
 - [x] Liberty Square (`liberty-square`) — includes The Hallowed
 - [x] LILY (`lily`) — The Lotus brand
 - [x] Lifinity Flares (`lifinity-flares`)
