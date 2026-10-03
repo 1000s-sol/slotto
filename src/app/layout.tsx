@@ -44,16 +44,18 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body
-        className={`${zenDots.variable} ${michroma.variable} ${geistSans.variable} ${geistMono.variable} font-sans antialiased`}
+        className={`${zenDots.variable} ${michroma.variable} ${geistSans.variable} ${geistMono.variable} font-sans antialiased overflow-x-hidden`}
       >
         <SolanaWalletProvider>
           <AuthSessionProvider>
           <MaintenanceGate>
-            <div className="mx-auto flex min-h-dvh w-full min-w-0 max-w-6xl flex-col overflow-x-clip px-4 pb-8 pt-4 sm:px-6">
-            <SiteHeader />
-            <PriceTicker />
-            <main className="mt-8 min-w-0 flex-1">{children}</main>
-            <SiteFooter />
+            <div className="min-h-dvh w-full max-w-full overflow-x-hidden">
+              <div className="mx-auto flex min-h-dvh w-full min-w-0 max-w-6xl flex-col px-4 pb-8 pt-4 sm:px-6">
+                <SiteHeader />
+                <PriceTicker />
+                <main className="mt-8 min-w-0 max-w-full flex-1">{children}</main>
+                <SiteFooter />
+              </div>
             </div>
           </MaintenanceGate>
           </AuthSessionProvider>

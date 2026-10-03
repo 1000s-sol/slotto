@@ -6,8 +6,8 @@ import { HomeDrawsSection } from "@/components/home-draws-section";
 
 export default function HomePage() {
   return (
-    <div className="space-y-16">
-      <section className="grid items-center gap-6 lg:grid-cols-[minmax(280px,440px)_1fr] lg:gap-10">
+    <div className="min-w-0 max-w-full space-y-16">
+      <section className="grid min-w-0 max-w-full items-center gap-6 lg:grid-cols-[minmax(280px,440px)_1fr] lg:gap-10">
         <div className="relative hidden justify-center bg-transparent py-0 lg:flex lg:justify-start">
           <BrandPng
             src="/brand/slotto-guy.png"

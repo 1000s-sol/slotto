@@ -4,7 +4,7 @@ import { SiteHeaderNav } from "@/components/site-header-nav";
 
 export function SiteHeader() {
   return (
-    <header className="relative z-[100] flex flex-row items-center justify-between gap-2 py-2 leading-none sm:py-2.5 md:gap-4 md:py-0">
+    <header className="relative z-[100] flex min-w-0 max-w-full flex-row items-center justify-between gap-2 py-2 leading-none sm:py-2.5 md:gap-4 md:py-0">
       <Link
         href="/"
         className="flex min-h-0 min-w-0 flex-1 items-center justify-start bg-transparent pr-2 leading-none"
