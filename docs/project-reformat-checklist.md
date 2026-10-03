@@ -91,6 +91,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Claynosaurz (`claynosaurz`)
 - [x] Crouton Jones (`crouton-jones`)
 - [x] Critters Cult (`critters-cult`)
+- [x] Critters Quest (`critters-quest`) — includes Quest Items and Multipliers
 - [x] Catalina Whale Mixer (`catalina-whale-mixer`)
 - [x] Coral Tribe (`coral-tribe`)
 - [x] Cyber Frogs (`cyber-frogs`)
