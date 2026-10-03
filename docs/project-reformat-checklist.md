@@ -115,7 +115,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Degen Fat Cats (`degen-fat-cats`)
 - [x] Deez Nuts (`deez-nuts`)
 - [x] Decentric (`decentric`)
-- [x] DeGods (`degods`) — includes y00ts, t00bs, and g00bs — includes y00ts
+- [x] DeGods (`degods`) — includes y00ts, t00bs, and g00bs
 - [x] DMST (`dmst`)
 - [x] DKV (`dkv`)
 - [x] Doge Capital (`doge-capital`)
