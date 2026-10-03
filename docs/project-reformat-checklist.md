@@ -205,6 +205,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Solarians (`solarians`)
 - [x] SolGods (`solgods`)
 - [x] Stone Gods (`stone-gods`)
+- [x] SquidChops (`squidchops`)
 - [x] Stoned Ape Crew (`stoned-apes`) — includes Nuked Apes
 - [x] Stoned Sloths (`stoned-sloths`)
 - [x] Steakers (`steakers`)
