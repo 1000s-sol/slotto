@@ -239,4 +239,5 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Whal3s (`whal3s`)
 - [x] Wolf Capital (`wolf-capital`)
 - [x] Xape Labz (`xape-labz`)
+- [x] Zero Monke Biz (`zero-monke-biz`)
 - [x] ZomBabieZ (`zombabiez`)
