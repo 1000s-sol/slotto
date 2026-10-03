@@ -161,6 +161,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Owltopia (`owltopia`)
 - [x] Pandarianz (`pandarianz`)
 - [x] Pawpular (`pawpular`)
+- [x] Pesky Penguins (`pesky-penguins`)
 - [x] Peanut Protocol (`peanut-protocol`)
 - [x] Pepeverse (`pepeverse`)
 - [x] Pixel by Pixel (`pixel-by-pixel`) — includes Candies, Morbies, Drippies, Great Goats, Undead Genesis
