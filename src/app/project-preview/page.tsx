@@ -9,6 +9,7 @@ import { fetchLiveCollectionStats } from "@/lib/magiceden-stats";
 import { magicEdenLink, orbisLink } from "@/lib/project-collections";
 import { OMERTA_PREVIEW as P } from "@/lib/project-preview/omerta-preview-data";
 import { listingSectionsFromProject } from "@/lib/project-listing-sections";
+import { fetchProjectSocialCounts } from "@/lib/project-social-stats";
 import { fetchProjectTokenDisplay } from "@/lib/project-token-display";
 
 export const metadata: Metadata = {
@@ -20,17 +21,19 @@ export const metadata: Metadata = {
 
 export default async function ProjectPreviewPage() {
   const collections = [...P.collections];
-  const statsByIndex = await Promise.all(
-    collections.map((c) =>
-      fetchLiveCollectionStats(magicEdenLink(c), orbisLink(c), 120),
+  const [statsByIndex, socialCounts, tokenDisplay] = await Promise.all([
+    Promise.all(
+      collections.map((c) =>
+        fetchLiveCollectionStats(magicEdenLink(c), orbisLink(c), 120),
+      ),
     ),
-  );
-
-  const tokenDisplay = await fetchProjectTokenDisplay(P.tokenMint, {
-    liquid: P.tokenLiquid,
-    tokenImageUrl: P.tokenImageUrl,
-    tokenName: P.tokenName,
-  });
+    fetchProjectSocialCounts(P.discordUrl, P.twitterUrl),
+    fetchProjectTokenDisplay(P.tokenMint, {
+      liquid: P.tokenLiquid,
+      tokenImageUrl: P.tokenImageUrl,
+      tokenName: P.tokenName,
+    }),
+  ]);
 
   const sections = listingSectionsFromProject({
     sectionOverview: P.sections.find((s) => s.id === "overview")?.body,
@@ -76,6 +79,8 @@ export default async function ProjectPreviewPage() {
               websiteUrl={P.websiteUrl}
               discordUrl={P.discordUrl}
               twitterUrl={P.twitterUrl}
+              discordMembers={socialCounts.discordMembers}
+              twitterFollowers={socialCounts.twitterFollowers}
             />
           </div>
 
