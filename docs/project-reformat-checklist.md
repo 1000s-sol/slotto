@@ -172,6 +172,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Planet Kaiju (`planet-kaiju`) — includes The Hated
 - [x] Portals (`portals`)
 - [x] Primates (`primates`)
+- [x] Primos (`primos`)
 - [x] Primals (`primals`)
 - [x] Puffsterz (`puffsterz`)
 - [x] Pythenians (`pythenians`)
