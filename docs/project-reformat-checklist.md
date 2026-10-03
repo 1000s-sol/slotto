@@ -230,6 +230,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] The Fox Club (`the-fox-club`) — includes Cyber Foxes
 - [x] The Misfits Order (`the-misfits-order`)
 - [x] The Northlanders (`the-northlanders`)
+- [x] The Pond (`the-pond`)
 - [x] The Rejects (`the-rejects`)
 - [x] The Strays (`the-strays`)
 - [x] Tribal Games (`tribal-games`) — includes Trippin' Ape Tribe and Arcadians
