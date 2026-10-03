@@ -140,6 +140,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Gamba Dogs (`gamba-dogs`)
 - [x] Geeks (`geeks`)
 - [x] Gensuki (`gensuki`)
+- [x] Ghost Kid (`ghost-kid`)
 - [x] GoodFellas (`goodfellas`)
 - [x] Goofy Giraffes (`goofy-giraffes`)
 - [x] GolfN (`golfn`) — includes Season 1 Cards
