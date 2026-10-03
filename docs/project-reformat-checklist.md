@@ -84,6 +84,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] BR1 Infinite (`br1`) — includes Ape Operatives and Droid Operatives
 - [x] Bulls on Sol Society (`bulls-on-sol-society`)
 - [x] BUXDAO (`buxdao`)
+- [x] CETS (`cets`)
 - [x] Chart Breakers (`chart-breakers`)
 - [x] Claynosaurz (`claynosaurz`)
 - [x] Crouton Jones (`crouton-jones`)
