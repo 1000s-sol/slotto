@@ -78,6 +78,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Anomaly (`anomaly`)
 - [x] Aurorians (`aurorians`)
 - [x] B & H Club (`b-h-club`) — includes Degens X
+- [x] Bando Kids (`bando-kids`)
 - [x] Bakeland (`bakeland`) — Bakeland: Origins
 - [x] Battle Bros Club (`battle-bros-club`)
 - [x] Big Cats (`big-cats`)
