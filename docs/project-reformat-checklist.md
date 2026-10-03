@@ -187,6 +187,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] The Misfits Order (`the-misfits-order`)
 - [x] The Northlanders (`the-northlanders`)
 - [x] The Rejects (`the-rejects`)
+- [x] The Strays (`the-strays`)
 - [x] Ugly Ape Squad (`ugly-ape-squad`)
 - [x] Uni-Fy (`uni-fy`) — unpublished until UNIFY mint/markets and live product surface are firmer
 - [x] Villagers (`villagers`)
