@@ -97,6 +97,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Critters Cult (`critters-cult`) — includes Solsunsets
 - [x] Critters Quest (`critters-quest`) — includes Quest Items and Multipliers
 - [x] Catalina Whale Mixer (`catalina-whale-mixer`)
+- [x] Chadbots (`chadbots`)
 - [x] Coral Tribe (`coral-tribe`)
 - [x] Cyber Frogs (`cyber-frogs`)
 - [x] D1srupt0rs (`d1srupt0rs`)
