@@ -199,6 +199,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Primals (`primals`)
 - [x] Puffsterz (`puffsterz`)
 - [x] Pythenians (`pythenians`)
+- [x] Quack Heads (`quack-heads`) — Wallchain Genesis
 - [x] Rafflors (`rafflors`)
 - [x] Rogues (`rogues`)
 - [x] Saga Monkes (`saga-monkes`)
