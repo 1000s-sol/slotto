@@ -67,7 +67,7 @@ JSON shape:
 
 Requires `DATABASE_URL` or `DIRECT_URL` in `.env`. After schema deploy, also run `npm run db:push` once on the production DB if columns are missing.
 
-## Checklist (196 published)
+## Checklist (197 published)
 
 Tick in this file as each listing is reformatted. Keep alphabetical by name.
 
@@ -185,6 +185,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Mutants On Sol Crew (`mutants-on-sol-crew`)
 - [x] Necros (`necros`)
 - [x] NPP (`npp`)
+- [x] Nuddies (`nuddies`)
 - [x] One Crew (`one-crew`)
 - [x] Okay Bears (`okay-bears`) — includes Bear Drop Founders Coins
 - [x] Omerta - Empire City (`omerta-empire-city`) — includes SOLdiers, Capos, Dons, family DAOs, SOLdiers of the $OATH, and Lucky Dogs
