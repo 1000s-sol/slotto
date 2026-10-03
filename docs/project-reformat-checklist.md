@@ -199,6 +199,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Rafflors (`rafflors`)
 - [x] Rogues (`rogues`)
 - [x] Saga Monkes (`saga-monkes`)
+- [x] Sharx (`sharx`) — includes microSharx
 - [x] Sensei (`sensei`)
 - [x] Shaolin Saga (`shaolin-saga`)
 - [x] Shinigami (`shinigami`)
