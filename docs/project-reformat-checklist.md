@@ -67,7 +67,7 @@ JSON shape:
 
 Requires `DATABASE_URL` or `DIRECT_URL` in `.env`. After schema deploy, also run `npm run db:push` once on the production DB if columns are missing.
 
-## Checklist (192 published)
+## Checklist (193 published)
 
 Tick in this file as each listing is reformatted. Keep alphabetical by name.
 
@@ -130,6 +130,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] Enchanted Miners (`enchanted-miners`)
 - [x] Energy Wabbits (`energy-wabbits`)
 - [x] Fuddy Dogs (`fuddy-dogs`)
+- [x] Flux Inc (`flux-inc`) — includes Time Traveling Chimps, Portal Beasts, and Flux Inc Characters
 - [x] Famous Fox Federation (`famous-fox-federation`)
 - [x] Fearless Bulls (`fearless-bulls`) — includes Fearless Bulls Club
 - [x] Frens Factory (`frens-factory`)
