@@ -262,6 +262,7 @@ Tick in this file as each listing is reformatted. Keep alphabetical by name.
 - [x] The Pond (`the-pond`)
 - [x] The Rejects (`the-rejects`) — includes Rejected Mutations, Idol Boosters, GM Life
 - [x] The Strays (`the-strays`)
+- [x] The Wallowlands (`the-wallowlands`) — includes Forever Angry and The WallowCats
 - [x] Tribal Games (`tribal-games`) — includes Trippin' Ape Tribe and Arcadians
 - [x] Ugly Ape Squad (`ugly-ape-squad`)
 - [x] Uni-Fy (`uni-fy`) — unpublished until UNIFY mint/markets and live product surface are firmer
