@@ -24,7 +24,7 @@ import { fetchWalletSocialsClient } from "@/lib/fetch-wallet-social-client";
 import type { WalletSocialPublic } from "@/lib/social-profile-url";
 import { buySolTickets } from "@/lib/lottery/buy-sol-tickets";
 import { buySplTickets } from "@/lib/lottery/buy-spl-tickets";
-import { ensureTicketChunksForPurchaseAction } from "@/app/admin/(dashboard)/lotteries/draw-infrastructure-actions";
+import { prepareTicketChunksForBuy } from "@/lib/lottery/prepare-ticket-chunks-client";
 import { fetchTickerPricesClient } from "@/lib/lottery/fetch-ticker-prices-client";
 import { resolveSplQuotedPricePerTicket } from "@/lib/lottery/resolve-spl-quoted-price";
 import { liquidSplPriceFromTickerItems } from "@/lib/lottery/liquid-ticket-price";
@@ -538,8 +538,9 @@ export function HomeLotterySection({ preview = false }: { preview?: boolean }) {
       setTicketCount(count);
     }
     setPhase({ kind: "busy", label: "Preparing draw…" });
-    const chunkPrep = await ensureTicketChunksForPurchaseAction(
+    const chunkPrep = await prepareTicketChunksForBuy(
       activeDraw.drawId,
+      activeDraw.totalTickets,
       count,
     );
     if (!chunkPrep.ok && chunkPrep.error !== "Keeper not configured") {

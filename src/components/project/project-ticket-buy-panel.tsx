@@ -15,7 +15,7 @@ import {
 } from "@/components/lottery/purchase-success-modal";
 import { SplPoolInfoButton } from "@/components/lottery/spl-pool-info-modal";
 import { TicketCountInput } from "@/components/lottery/ticket-count-input";
-import { ensureTicketChunksForPurchaseAction } from "@/app/admin/(dashboard)/lotteries/draw-infrastructure-actions";
+import { prepareTicketChunksForBuy } from "@/lib/lottery/prepare-ticket-chunks-client";
 import { notifyDiscordTicketSaleClient } from "@/lib/discord-ticket-bot/notify-client";
 import { buySplTickets } from "@/lib/lottery/buy-spl-tickets";
 import { isDrawBuyable, type LotteryDrawView } from "@/lib/lottery/chain";
@@ -264,8 +264,9 @@ export function ProjectTicketBuyPanel({
     if (count !== ticketCount) setTicketCount(count);
 
     setPhase({ kind: "busy", label: "Preparing draw…" });
-    const chunkPrep = await ensureTicketChunksForPurchaseAction(
+    const chunkPrep = await prepareTicketChunksForBuy(
       activeDraw.drawId,
+      activeDraw.totalTickets,
       count,
     );
     if (!chunkPrep.ok && chunkPrep.error !== "Keeper not configured") {

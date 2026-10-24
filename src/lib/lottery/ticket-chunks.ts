@@ -13,3 +13,16 @@ export function ticketChunkIndicesForRange(base: number, count: number): number[
   }
   return out;
 }
+
+/** True when this purchase can touch a chunk that `create_draw` did not create (chunk 0). */
+export function purchaseNeedsChunkInit(base: number, count: number): boolean {
+  if (ticketChunkIndicesForRange(base, count).some((idx) => idx > 0)) {
+    return true;
+  }
+  const endTicket = base + count;
+  if (endTicket <= 0) return false;
+  return (
+    endTicket % TICKETS_PER_CHUNK === 0 ||
+    endTicket % TICKETS_PER_CHUNK === TICKETS_PER_CHUNK - 1
+  );
+}

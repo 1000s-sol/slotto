@@ -121,7 +121,7 @@ export async function ensureTicketChunksForPurchaseAction(
   }
 
   try {
-    return await withLotteryServerRpc(async (connection) => {
+    const work = withLotteryServerRpc(async (connection) => {
       const programId = lotteryProgramId();
       const draw = await fetchDrawById(connection, programId, drawId);
       if (!draw) return { ok: false, error: "Draw not found" };
@@ -150,6 +150,15 @@ export async function ensureTicketChunksForPurchaseAction(
       );
       return { ok: true, inited: sigs.length };
     });
+    const timeout = new Promise<{ ok: true; inited: 0 }>((resolve) => {
+      setTimeout(() => {
+        console.warn(
+          "[lottery chunks] RPC timed out — continuing buy without chunk init",
+        );
+        resolve({ ok: true, inited: 0 });
+      }, 6_000);
+    });
+    return await Promise.race([work, timeout]);
   } catch (e) {
     const message = lotteryRpcErrorText(e);
     if (isRpcRateLimitError(message)) {
