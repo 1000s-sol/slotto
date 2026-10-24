@@ -107,6 +107,7 @@ export async function buildDrawTokenMeta(
         projectName,
         dexSymbol,
         heliusSymbol,
+        marketSymbol: "" as string,
         imageUrl,
         projectXHandle: p?.projectXHandle ?? null,
       };
@@ -132,8 +133,10 @@ export async function buildDrawTokenMeta(
       dexByMint,
     );
     for (const row of missingLogo) {
-      const resolved = displays.get(row.mint)?.imageUrl ?? null;
-      if (resolved) row.imageUrl = resolved;
+      const resolved = displays.get(row.mint);
+      if (resolved?.imageUrl) row.imageUrl = resolved.imageUrl;
+      const sym = resolved?.symbol?.trim();
+      if (sym && !sym.includes("…")) row.marketSymbol = sym;
     }
   }
 
@@ -142,12 +145,14 @@ export async function buildDrawTokenMeta(
     let symbol = row.liquid
       ? row.dexSymbol ||
         row.heliusSymbol ||
+        row.marketSymbol ||
         row.projTokenName ||
         abbrevMint(row.mint)
       : row.projTokenName ||
         row.splLabel ||
         row.dexSymbol ||
         row.heliusSymbol ||
+        row.marketSymbol ||
         abbrevMint(row.mint);
     if (symbol.length > 12) symbol = symbol.slice(0, 12);
 

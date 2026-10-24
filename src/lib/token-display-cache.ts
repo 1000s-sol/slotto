@@ -22,6 +22,12 @@ function abbrevMint(mint: string): string {
   return `${mint.slice(0, 4)}…${mint.slice(-4)}`;
 }
 
+function isAbbrevSymbol(symbol: string | null | undefined, mint: string): boolean {
+  if (!symbol?.trim()) return true;
+  const s = symbol.trim();
+  return s.includes("…") || s.includes("...") || s === abbrevMint(mint);
+}
+
 /** Prefer stable HTTPS CDNs over IPFS gateways when upgrading a cache hit. */
 function isIpfsHosted(url: string | null): boolean {
   if (!url) return false;
@@ -185,6 +191,7 @@ async function resolveOneTokenDisplay(
   if (
     cached?.imageUrl &&
     cached.symbol &&
+    !isAbbrevSymbol(cached.symbol, mint) &&
     isMarketTokenImage(cached.imageUrl, cached.source) &&
     !isIpfsHosted(cached.imageUrl)
   ) {

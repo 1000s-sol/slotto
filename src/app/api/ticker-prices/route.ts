@@ -120,7 +120,14 @@ export async function GET() {
           slot.mint === WRAPPED_SOL_MINT
             ? dexLogo || heliusLogo
             : pickTickerLogo(dexLogo, heliusLogo, storedLogo);
-        return !picked || isUnreliableTokenImageHost(picked);
+        const named =
+          slot.mint === WRAPPED_SOL_MINT ||
+          Boolean(
+            row?.baseToken?.symbol?.trim() ||
+              heliusMap.get(slot.mint)?.symbol?.trim() ||
+              slot.tokenName?.trim(),
+          );
+        return !picked || isUnreliableTokenImageHost(picked) || !named;
       })
       .map((slot) => slot.mint);
     const displays = needsCachedLogo.length
@@ -138,11 +145,15 @@ export async function GET() {
       const helius = heliusMap.get(mint) ?? null;
       const priceUsd = resolveTokenUsdPrice(mint, row, jupUsd[mint] ?? null);
 
+      const resolvedSymbol = displays.get(mint)?.symbol?.trim();
       let symbol =
         mint === WRAPPED_SOL_MINT
           ? "SOL"
           : row?.baseToken?.symbol?.trim() ||
             helius?.symbol?.trim() ||
+            (resolvedSymbol && !resolvedSymbol.includes("…")
+              ? resolvedSymbol
+              : "") ||
             slot.tokenName?.trim() ||
             abbrevMint(mint);
 
