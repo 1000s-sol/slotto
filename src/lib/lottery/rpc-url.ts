@@ -41,7 +41,8 @@ export function isRpcRateLimitError(message: string): boolean {
     lower.includes("too many requests") ||
     lower.includes("rate limit") ||
     lower.includes("rate limited") ||
-    lower.includes("-32429")
+    lower.includes("-32429") ||
+    lower.includes("max usage")
   );
 }
 

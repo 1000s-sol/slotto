@@ -1,6 +1,7 @@
 import type { Connection, SignatureStatus } from "@solana/web3.js";
 
 import { lotteryRpcErrorText } from "./user-facing-error";
+import { isRpcRateLimitError } from "./rpc-url";
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -93,6 +94,7 @@ export async function pollSignatureConfirmation(
       }
     } catch (e) {
       lastPollError = lotteryRpcErrorText(e);
+      if (isRpcRateLimitError(lastPollError)) throw e;
     }
     await sleep(pollIntervalMs);
   }

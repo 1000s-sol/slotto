@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { lotteryRpcErrorText } from "@/lib/lottery/user-facing-error";
-import { withLotteryHeliusRpc, withLotteryServerRpc } from "@/lib/lottery/server-rpc";
+import { withLotteryServerRpc } from "@/lib/lottery/server-rpc";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
@@ -41,7 +41,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const signature = await withLotteryHeliusRpc((connection) =>
+    const signature = await withLotteryServerRpc((connection) =>
       connection.sendRawTransaction(raw, {
         // Phantom already simulated; server preflight often false-fails (Token-2022, public RPC).
         skipPreflight: true,

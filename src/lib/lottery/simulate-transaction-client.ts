@@ -1,6 +1,7 @@
 import type { Transaction } from "@solana/web3.js";
 
 import { BuyPreflightError } from "./preflight-buy-sol";
+import { isRpcRateLimitError } from "./rpc-url";
 
 /** Server RPC simulate before Phantom — surfaces real on-chain errors early. */
 export async function simulateTransactionClient(
@@ -26,6 +27,10 @@ export async function simulateTransactionClient(
 
   const logs = (json.logs ?? []).join("\n");
   const detail = [json.error, logs].filter(Boolean).join("\n").slice(0, 400);
+  if (res.status === 429 || isRpcRateLimitError(detail)) {
+    console.warn("[lottery simulate] RPC rate limit — continuing without preflight");
+    return;
+  }
   throw new BuyPreflightError(
     detail
       ? `This purchase would fail on-chain: ${detail}`

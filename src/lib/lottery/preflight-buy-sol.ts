@@ -12,6 +12,7 @@ import {
 import { globalConfigPda, ticketChunkPda } from "./pdas";
 import { createLotteryProgram } from "./program";
 import { LOTTERY_PARTNER_VAULT_1, LOTTERY_PARTNER_VAULT_2 } from "./recipients";
+import { isRpcRateLimitError } from "./rpc-url";
 import { ticketChunkIndicesForRange } from "./ticket-chunks";
 
 export class BuyPreflightError extends Error {
@@ -130,8 +131,13 @@ export async function preflightBuySolTickets(
     );
   }
 
-  if (vaults) {
-    await preflightFeeRecipientAccounts(vaults, accountExists);
+  if (vaults && accountExists) {
+    try {
+      await preflightFeeRecipientAccounts(vaults, accountExists);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (!isRpcRateLimitError(msg)) throw e;
+    }
   }
 
   const required =

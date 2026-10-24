@@ -14,7 +14,9 @@ import {
   loadLotteryKeeperKeypair,
 } from "@/lib/lottery/keeper-wallet";
 import { lotteryKeeperSendOpts } from "@/lib/lottery/keeper-send-opts";
+import { isRpcRateLimitError } from "@/lib/lottery/rpc-url";
 import { withLotteryServerRpc } from "@/lib/lottery/server-rpc";
+import { lotteryRpcErrorText } from "@/lib/lottery/user-facing-error";
 import { globalConfigPda } from "@/lib/lottery/pdas";
 import { createLotteryReadOnlyProgram } from "@/lib/lottery/program";
 
@@ -149,9 +151,16 @@ export async function ensureTicketChunksForPurchaseAction(
       return { ok: true, inited: sigs.length };
     });
   } catch (e) {
+    const message = lotteryRpcErrorText(e);
+    if (isRpcRateLimitError(message)) {
+      console.warn(
+        "[lottery chunks] RPC rate limit — skipping chunk init, buy can still proceed",
+      );
+      return { ok: true, inited: 0 };
+    }
     return {
       ok: false,
-      error: e instanceof Error ? e.message : "chunk init failed",
+      error: message || "chunk init failed",
     };
   }
 }
