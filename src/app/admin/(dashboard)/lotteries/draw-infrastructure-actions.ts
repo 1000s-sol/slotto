@@ -103,11 +103,15 @@ export async function adminPrepareNewDrawInfrastructureAction(
   return { ok: false, error: lastError };
 }
 
+type ChunkPrepResult =
+  | { ok: true; inited: number }
+  | { ok: false; error: string };
+
 /** Before a ticket buy: init any missing ticket-chunk PDAs for this purchase. */
 export async function ensureTicketChunksForPurchaseAction(
   drawId: number,
   count: number,
-): Promise<{ ok: true; inited: number } | { ok: false; error: string }> {
+): Promise<ChunkPrepResult> {
   if (!Number.isInteger(drawId) || drawId < 0) {
     return { ok: false, error: "Invalid draw id" };
   }
@@ -121,7 +125,7 @@ export async function ensureTicketChunksForPurchaseAction(
   }
 
   try {
-    const work = withLotteryServerRpc(async (connection) => {
+    const work = withLotteryServerRpc(async (connection): Promise<ChunkPrepResult> => {
       const programId = lotteryProgramId();
       const draw = await fetchDrawById(connection, programId, drawId);
       if (!draw) return { ok: false, error: "Draw not found" };
@@ -150,7 +154,7 @@ export async function ensureTicketChunksForPurchaseAction(
       );
       return { ok: true, inited: sigs.length };
     });
-    const timeout = new Promise<{ ok: true; inited: 0 }>((resolve) => {
+    const timeout = new Promise<ChunkPrepResult>((resolve) => {
       setTimeout(() => {
         console.warn(
           "[lottery chunks] RPC timed out — continuing buy without chunk init",
