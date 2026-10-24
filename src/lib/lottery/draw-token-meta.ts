@@ -1,5 +1,6 @@
 import { fetchHeliusTokenMeta, normalizeImageUrl } from "@/lib/helius-token-meta";
 import { fetchDexTokenRows, WRAPPED_SOL_MINT } from "@/lib/token-usd-prices";
+import { resolveTokenDisplays } from "@/lib/token-display-cache";
 
 import {
   FREE_ENTRY_IMAGE_PATH,
@@ -57,7 +58,8 @@ export async function buildDrawTokenMeta(
     projectXHandle: null,
   };
 
-  await Promise.all(
+  const pending = (
+    await Promise.all(
     rows.map(async (r) => {
       // SLOTTO FREE ENTRY: fixed identity + bundled art, independent of Helius.
       if (isFreeEntryMint(r.mint)) {
@@ -97,27 +99,68 @@ export async function buildDrawTokenMeta(
         if (!imageUrl) imageUrl = normalizeImageUrl(helius?.image);
       }
 
-      // Draw SPL `symbol` in Postgres is the project label — not the market ticker.
-      let symbol = liquid
-        ? dexSymbol || heliusSymbol || projTokenName || abbrevMint(r.mint)
-        : projTokenName ||
-          splLabel ||
-          dexSymbol ||
-          heliusSymbol ||
-          abbrevMint(r.mint);
-      if (symbol.length > 12) symbol = symbol.slice(0, 12);
-
-      out[r.mint] = {
+      return {
         mint: r.mint,
-        symbol,
-        name: symbol,
-        projectName,
-        imageUrl,
         liquid,
+        splLabel,
+        projTokenName,
+        projectName,
+        dexSymbol,
+        heliusSymbol,
+        imageUrl,
         projectXHandle: p?.projectXHandle ?? null,
       };
     }),
-  );
+    )
+  ).filter((row): row is NonNullable<typeof row> => row != null);
+
+  const missingLogo = pending.filter((row) => row && !row.imageUrl);
+  if (missingLogo.length > 0) {
+    const hints = new Map(
+      missingLogo.map((row) => [
+        row.mint,
+        {
+          tokenName: row.projTokenName || null,
+          tokenImageUrl: projByMint.get(row.mint)?.tokenImageUrl ?? null,
+          liquid: row.liquid,
+        },
+      ]),
+    );
+    const displays = await resolveTokenDisplays(
+      missingLogo.map((row) => row.mint),
+      hints,
+      dexByMint,
+    );
+    for (const row of missingLogo) {
+      const resolved = displays.get(row.mint)?.imageUrl ?? null;
+      if (resolved) row.imageUrl = resolved;
+    }
+  }
+
+  for (const row of pending) {
+    if (!row) continue;
+    let symbol = row.liquid
+      ? row.dexSymbol ||
+        row.heliusSymbol ||
+        row.projTokenName ||
+        abbrevMint(row.mint)
+      : row.projTokenName ||
+        row.splLabel ||
+        row.dexSymbol ||
+        row.heliusSymbol ||
+        abbrevMint(row.mint);
+    if (symbol.length > 12) symbol = symbol.slice(0, 12);
+
+    out[row.mint] = {
+      mint: row.mint,
+      symbol,
+      name: symbol,
+      projectName: row.projectName,
+      imageUrl: row.imageUrl,
+      liquid: row.liquid,
+      projectXHandle: row.projectXHandle,
+    };
+  }
 
   return out;
 }

@@ -1,4 +1,5 @@
 import { fetchHeliusTokenMeta, normalizeImageUrl } from "@/lib/helius-token-meta";
+import { resolveTokenDisplays } from "@/lib/token-display-cache";
 
 function abbrevMint(mint: string) {
   return `${mint.slice(0, 4)}…${mint.slice(-4)}`;
@@ -174,9 +175,27 @@ export async function fetchProjectTokenDisplay(
     heliusLogo,
   ]);
 
+  let resolvedLogo = logoUrl;
+  if (!resolvedLogo) {
+    const resolved = await resolveTokenDisplays(
+      [m],
+      new Map([
+        [
+          m,
+          {
+            liquid: !nonLiquid,
+            tokenImageUrl: opts?.tokenImageUrl ?? null,
+            tokenName: opts?.tokenName ?? null,
+          },
+        ],
+      ]),
+    ).catch(() => null);
+    resolvedLogo = resolved?.get(m)?.imageUrl ?? null;
+  }
+
   let symbol =
     customName || dexSymbol || helius?.symbol?.trim() || geckoSymbol || abbrevMint(m);
   if (symbol.length > 12) symbol = symbol.slice(0, 12);
 
-  return { symbol, logoUrl };
+  return { symbol, logoUrl: resolvedLogo };
 }

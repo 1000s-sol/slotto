@@ -268,6 +268,7 @@ async function resolveOneTokenDisplay(
 export async function resolveTokenDisplays(
   mints: string[],
   hintsByMint?: Map<string, ProjectDisplayHints>,
+  dexMap?: Awaited<ReturnType<typeof fetchDexTokenRows>>,
 ): Promise<Map<string, ResolvedDisplay>> {
   const unique = [...new Set(mints.map((m) => m.trim()).filter(Boolean))];
   const out = new Map<string, ResolvedDisplay>();
@@ -296,14 +297,14 @@ export async function resolveTokenDisplays(
     ]),
   );
 
-  // Always pull Dex for this batch — cheap + authoritative token icons.
-  const dexMap = await fetchDexTokenRows(unique);
+  // Dex is authoritative when it has an icon; callers can pass a batch they already fetched.
+  const dexRows = dexMap ?? (await fetchDexTokenRows(unique));
 
   await Promise.all(
     unique.map(async (mint) => {
       const hints = hintsByMint?.get(mint);
       const cached = cacheByMint.get(mint) ?? null;
-      const dex = dexMap.get(mint);
+      const dex = dexRows.get(mint);
       const resolved = await resolveOneTokenDisplay(
         mint,
         hints,
