@@ -3,9 +3,11 @@ import { BrandPng } from "@/components/brand-png";
 import { DiscordTicketBotButton } from "@/components/discord-ticket-bot-modal";
 import { HomeLotterySection } from "@/components/home-lottery-section";
 import { HomeDrawsSection } from "@/components/home-draws-section";
+import { SlottoRadioButton, SlottoRadioProvider } from "@/components/slotto-radio";
 
 export default function HomePage() {
   return (
+    <SlottoRadioProvider>
     <div className="min-w-0 max-w-full space-y-16">
       <section className="grid min-w-0 max-w-full items-center gap-6 lg:grid-cols-[minmax(280px,440px)_1fr] lg:gap-10">
         <div className="relative hidden justify-center bg-transparent py-0 lg:flex lg:justify-start">
@@ -17,14 +19,12 @@ export default function HomePage() {
             priority
             className="h-auto w-full max-w-[min(100%,440px)] object-contain"
           />
+          <SlottoRadioButton />
         </div>
         <div className="min-w-0 rounded-2xl border border-border bg-bg-elevated/55 p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.03)_inset] backdrop-blur-md sm:p-8">
           <h1 className="flex min-w-0 flex-row items-center gap-3 text-3xl font-semibold tracking-tight text-accent-gold sm:gap-4 sm:text-4xl lg:block lg:text-5xl lg:leading-tight">
             <span className="min-w-0 flex-1 text-balance leading-[1.1] lg:block lg:w-full lg:flex-none">Welcome to Slotto</span>
-            <span
-              className="inline-flex h-28 w-28 shrink-0 items-center justify-center sm:h-36 sm:w-36 lg:hidden"
-              aria-hidden
-            >
+            <span className="relative inline-flex h-28 w-28 shrink-0 items-center justify-center sm:h-36 sm:w-36 lg:hidden">
               <BrandPng
                 src="/brand/slotto-guy.png"
                 alt=""
@@ -33,6 +33,7 @@ export default function HomePage() {
                 priority
                 className="h-full w-full max-h-full max-w-full object-contain"
               />
+              <SlottoRadioButton panel="right" />
             </span>
           </h1>
           <p className="mt-4 w-full text-left text-2xl font-semibold leading-snug text-accent-gold hyphens-none sm:text-3xl lg:max-w-2xl lg:text-3xl">
@@ -59,5 +60,6 @@ export default function HomePage() {
 
       <HomeDrawsSection />
     </div>
+    </SlottoRadioProvider>
   );
 }
