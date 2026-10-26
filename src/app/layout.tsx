@@ -80,7 +80,7 @@ export default async function RootLayout({
                 }
               >
                 {isDesignPreview ? (
-                  <div className="sticky top-0 z-[120] -mx-5 bg-[#070b14]/95 px-5 pb-2 pt-3 backdrop-blur-md sm:-mx-8 sm:px-8">
+                  <div className="sticky top-0 z-[120] -mx-5 bg-transparent px-5 pb-2 pt-3 sm:-mx-8 sm:px-8">
                     <SiteHeader />
                     <PriceTicker />
                   </div>
