@@ -83,7 +83,7 @@ export default async function RootLayout({
                   <div className="sticky top-0 z-[120] -mx-5 bg-transparent px-5 pb-2 pt-3 sm:-mx-8 sm:px-8">
                     <div
                       aria-hidden
-                      className="preview-scroll-fade pointer-events-none absolute inset-x-0 top-0 -bottom-18 -z-10"
+                      className="preview-scroll-fade pointer-events-none absolute inset-x-0 top-0 -bottom-18 -z-10 hidden md:block"
                     />
                     <SiteHeader />
                     <PriceTicker />
