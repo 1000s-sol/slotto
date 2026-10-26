@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import localFont from "next/font/local";
-import { Bricolage_Grotesque, Geist, Geist_Mono, Sora } from "next/font/google";
+import { Alfa_Slab_One, Geist, Geist_Mono, Rowdies } from "next/font/google";
 import "./globals.css";
 import { AuthSessionProvider } from "@/components/auth-session-provider";
 import { MaintenanceGate } from "@/components/maintenance-gate";
@@ -25,16 +25,16 @@ const michroma = localFont({
   weight: "400",
 });
 
-const previewDisplay = Bricolage_Grotesque({
+const previewDisplay = Alfa_Slab_One({
   variable: "--font-preview-display",
   subsets: ["latin"],
-  weight: ["600", "700", "800"],
+  weight: "400",
 });
 
-const previewBody = Sora({
+const previewBody = Rowdies({
   variable: "--font-preview-body",
   subsets: ["latin"],
-  weight: ["400", "500", "600"],
+  weight: ["400", "700"],
 });
 
 const geistSans = Geist({

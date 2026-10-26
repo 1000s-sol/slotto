@@ -276,7 +276,7 @@ export function SlottoRadioDock() {
   const { track } = radio;
 
   return (
-    <div className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-white/[0.035] px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] sm:flex-row sm:items-center sm:gap-5 sm:px-5">
+    <div className="preview-panel flex flex-col gap-4 rounded-2xl border px-4 py-4 sm:flex-row sm:items-center sm:gap-5 sm:px-5">
       <button
         type="button"
         aria-label={radio.playing ? "Pause" : "Play"}
