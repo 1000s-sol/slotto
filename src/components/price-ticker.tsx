@@ -14,9 +14,12 @@ type TickerItem = {
 
 const SOL_MINT = "So11111111111111111111111111111111111111112";
 
-/** Keep a steady reading pace as more tokens are added (px of one strip / second). */
+/** Mobile pace. Desktop uses a faster rate so a wide screen does not crawl. */
 const TICKER_PX_PER_SEC = 22;
+const TICKER_PX_PER_SEC_DESKTOP = 90;
 const TICKER_MIN_DURATION_SEC = 120;
+const TICKER_MIN_DURATION_SEC_DESKTOP = 36;
+const TICKER_DESKTOP_MQ = "(min-width: 1024px)";
 
 function birdeyeTokenUrl(mint: string) {
   return `https://birdeye.so/solana/token/${mint}`;
@@ -109,6 +112,7 @@ export function PriceTicker() {
   const [items, setItems] = useState<TickerItem[] | undefined>(undefined);
   const trackRef = useRef<HTMLDivElement>(null);
   const [durationSec, setDurationSec] = useState(90);
+  const [desktopTicker, setDesktopTicker] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -128,6 +132,14 @@ export function PriceTicker() {
   }, [load]);
 
   useEffect(() => {
+    const mq = window.matchMedia(TICKER_DESKTOP_MQ);
+    const apply = () => setDesktopTicker(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
+
+  useEffect(() => {
     if (!items?.length) return;
     const el = trackRef.current;
     if (!el) return;
@@ -136,14 +148,16 @@ export function PriceTicker() {
       // Track is two identical strips; animation moves -50% (one strip).
       const half = el.scrollWidth / 2;
       if (half <= 0) return;
-      setDurationSec(Math.max(TICKER_MIN_DURATION_SEC, Math.round(half / TICKER_PX_PER_SEC)));
+      const speed = desktopTicker ? TICKER_PX_PER_SEC_DESKTOP : TICKER_PX_PER_SEC;
+      const min = desktopTicker ? TICKER_MIN_DURATION_SEC_DESKTOP : TICKER_MIN_DURATION_SEC;
+      setDurationSec(Math.max(min, Math.round(half / speed)));
     };
 
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [items]);
+  }, [items, desktopTicker]);
 
   if (items === undefined) {
     return (

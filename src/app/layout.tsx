@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import localFont from "next/font/local";
-import { Geist, Geist_Mono, Outfit, Syne } from "next/font/google";
+import { Bricolage_Grotesque, Geist, Geist_Mono, Sora } from "next/font/google";
 import "./globals.css";
 import { AuthSessionProvider } from "@/components/auth-session-provider";
 import { MaintenanceGate } from "@/components/maintenance-gate";
@@ -25,13 +25,13 @@ const michroma = localFont({
   weight: "400",
 });
 
-const previewDisplay = Syne({
+const previewDisplay = Bricolage_Grotesque({
   variable: "--font-preview-display",
   subsets: ["latin"],
   weight: ["600", "700", "800"],
 });
 
-const previewBody = Outfit({
+const previewBody = Sora({
   variable: "--font-preview-body",
   subsets: ["latin"],
   weight: ["400", "500", "600"],
