@@ -62,13 +62,14 @@ export default async function RootLayout({
       <body
         className={`${zenDots.variable} ${michroma.variable} ${geistSans.variable} ${geistMono.variable} font-sans antialiased overflow-x-clip`}
       >
+        {isDesignPreview ? <div aria-hidden className="preview-fixed-bg" /> : null}
         <SolanaWalletProvider>
           <AuthSessionProvider>
           <MaintenanceGate>
             <div
                 className={
                   isDesignPreview
-                    ? `${previewDisplay.variable} ${previewBody.variable} preview-shell min-h-dvh w-full overflow-x-clip`
+                    ? `${previewDisplay.variable} ${previewBody.variable} preview-shell relative z-[1] min-h-dvh w-full`
                     : "min-h-dvh w-full max-w-full overflow-x-hidden"
                 }
               >
