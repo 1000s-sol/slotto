@@ -63,17 +63,16 @@ export default function DesignPreviewPage() {
     <SlottoRadioProvider>
       <div className="min-w-0 max-w-full space-y-20">
         <section>
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-center lg:gap-10">
-            <div className="order-2 w-full lg:order-1 lg:w-[40rem] lg:shrink-0">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-center xl:gap-8">
+            <div className="order-2 w-full xl:order-1 xl:w-max xl:max-w-[46rem]">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent-gold">
                 Monthly lotto game on Solana
               </p>
-              <h1 className="mt-3 text-[2.75rem] font-extrabold leading-[0.92] text-white sm:text-[3.35rem] lg:whitespace-nowrap lg:text-[3.85rem]">
+              <h1 className="mt-3 text-[2.75rem] font-extrabold leading-[0.92] text-white sm:text-6xl xl:whitespace-nowrap xl:text-[4.15rem]">
                 Welcome to Slotto
               </h1>
-              <p className="mt-4 max-w-[34rem] text-lg leading-snug text-muted sm:text-xl">
-                Supporting your favorite trusted
-                <br className="hidden sm:block" /> and transparent Solana projects.
+              <p className="mt-4 max-w-[36rem] text-pretty text-lg leading-snug text-muted sm:text-xl">
+                Supporting your favorite trusted and transparent Solana projects.
               </p>
               <ul className="mt-7 space-y-3">
                 {POINTS.map(({ text, icon: Icon }) => (
@@ -96,7 +95,7 @@ export default function DesignPreviewPage() {
               </div>
             </div>
 
-            <div className="relative order-1 mx-auto w-full max-w-[420px] shrink-0 lg:order-2 lg:mx-0 lg:w-[400px]">
+            <div className="relative order-1 mx-auto w-full max-w-[420px] shrink-0 xl:order-2 xl:mx-0 xl:w-[380px]">
               <div
                 aria-hidden
                 className="pointer-events-none absolute inset-x-[8%] bottom-[8%] top-[14%] rounded-full bg-[radial-gradient(circle_at_50%_42%,rgba(245,197,66,0.28),rgba(124,58,237,0.16)_46%,transparent_72%)] blur-2xl"
