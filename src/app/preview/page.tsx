@@ -11,51 +11,73 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
+const POINTS = [
+  "Play our monthly lotto",
+  "Enter with SOL or featured project tokens",
+  "Find projects worth a closer look",
+];
+
 export default function DesignPreviewPage() {
   return (
     <SlottoRadioProvider>
-      <div className="min-w-0 max-w-full space-y-16">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-accent-gold/80">
-          Design preview
-        </p>
-        <section className="grid min-w-0 max-w-full items-center gap-8 lg:grid-cols-[minmax(320px,460px)_minmax(0,1fr)] lg:gap-12">
-          <div className="flex min-w-0 flex-col gap-3">
-            <BrandPng
-              src="/brand/slotto-guy.png"
-              alt="Slotto mascot"
-              width={480}
-              height={480}
-              priority
-              className="mx-auto h-auto w-full max-w-[460px] object-contain"
-            />
-            <SlottoRadioDock />
-          </div>
-          <div className="preview-metal min-w-0 rounded-2xl p-4 backdrop-blur-md sm:p-8">
-            <h1 className="text-balance text-3xl font-semibold leading-[1.1] text-accent-gold sm:text-4xl lg:text-5xl">
-              Welcome to Slotto
-            </h1>
-            <p className="mt-4 w-full text-left text-2xl font-semibold leading-snug text-accent-gold hyphens-none sm:text-3xl lg:max-w-3xl lg:text-4xl">
-              Supporting your favorite trusted and transparent Solana projects
-            </p>
-            <ul className="mt-6 list-disc space-y-2 pl-5 text-lg leading-relaxed text-muted sm:text-xl">
-              <li>Play our monthly lotto</li>
-              <li>Enter using Sol or featured project tokens</li>
-              <li>Discover new projects and exciting investment opportunities</li>
-            </ul>
-            <div className="mt-8 flex flex-wrap items-center gap-3">
-              <Link
-                href="/projects"
-                className="inline-flex rounded-xl border border-white/30 bg-gradient-to-b from-white/25 to-accent-gold/80 px-6 py-3 text-base font-semibold text-bg-deep shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] transition hover:brightness-110"
-              >
-                Browse projects
-              </Link>
-              <DiscordTicketBotButton />
+      <div className="min-w-0 max-w-full space-y-20">
+        <section>
+          <div className="grid items-end gap-2 lg:grid-cols-[minmax(0,1.05fr)_minmax(300px,480px)] lg:gap-8">
+            <div className="order-2 pb-2 lg:order-1 lg:pb-6">
+              <p className="text-xs font-medium uppercase tracking-[0.22em] text-accent-gold">
+                Monthly lottery on Solana
+              </p>
+              <h1 className="mt-4 max-w-xl text-5xl font-bold leading-[0.92] text-white sm:text-6xl lg:text-7xl">
+                Welcome to Slotto
+              </h1>
+              <p className="mt-5 max-w-lg text-lg leading-relaxed text-muted sm:text-xl">
+                Supporting your favorite trusted and transparent Solana projects.
+              </p>
+              <ul className="mt-8 space-y-2.5">
+                {POINTS.map((point) => (
+                  <li
+                    key={point}
+                    className="border-l border-accent-gold/70 pl-3 text-sm leading-snug text-foreground/90"
+                  >
+                    {point}
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-8 flex flex-wrap items-center gap-3">
+                <Link
+                  href="/projects"
+                  className="inline-flex rounded-full bg-accent-gold px-6 py-3 text-sm font-semibold text-bg-deep transition hover:brightness-110"
+                >
+                  Browse projects
+                </Link>
+                <DiscordTicketBotButton />
+              </div>
             </div>
+
+            <div className="order-1 lg:order-2">
+              <div className="relative mx-auto w-full max-w-[440px]">
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute inset-x-[8%] bottom-[8%] top-[14%] rounded-full bg-[radial-gradient(circle_at_50%_42%,rgba(245,197,66,0.28),rgba(124,58,237,0.16)_46%,transparent_72%)] blur-2xl"
+                />
+                <BrandPng
+                  src="/brand/slotto-guy.png"
+                  alt="Slotto mascot"
+                  width={640}
+                  height={640}
+                  priority
+                  className="relative h-auto w-full object-contain"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 lg:mt-2">
+            <SlottoRadioDock />
           </div>
         </section>
 
         <HomeLotterySection />
-
         <HomeDrawsSection />
       </div>
     </SlottoRadioProvider>

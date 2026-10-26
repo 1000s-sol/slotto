@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import localFont from "next/font/local";
-import { Exo_2, Geist, Geist_Mono, Orbitron } from "next/font/google";
+import { Geist, Geist_Mono, Outfit, Syne } from "next/font/google";
 import "./globals.css";
 import { AuthSessionProvider } from "@/components/auth-session-provider";
 import { MaintenanceGate } from "@/components/maintenance-gate";
@@ -25,13 +25,13 @@ const michroma = localFont({
   weight: "400",
 });
 
-const previewDisplay = Orbitron({
+const previewDisplay = Syne({
   variable: "--font-preview-display",
   subsets: ["latin"],
-  weight: ["500", "700"],
+  weight: ["600", "700", "800"],
 });
 
-const previewBody = Exo_2({
+const previewBody = Outfit({
   variable: "--font-preview-body",
   subsets: ["latin"],
   weight: ["400", "500", "600"],
@@ -75,7 +75,7 @@ export default async function RootLayout({
               <div
                 className={
                   isDesignPreview
-                    ? "mx-auto flex min-h-dvh w-full min-w-0 max-w-[1680px] flex-col px-4 pb-8 pt-4 sm:px-6 lg:px-8"
+                    ? "mx-auto flex min-h-dvh w-full min-w-0 max-w-[1440px] flex-col px-5 pb-10 pt-4 sm:px-8"
                     : "mx-auto flex min-h-dvh w-full min-w-0 max-w-6xl flex-col px-4 pb-8 pt-4 sm:px-6"
                 }
               >

@@ -270,14 +270,75 @@ function RadioTransport({ radio }: { radio: RadioContextValue }) {
   );
 }
 
-/** Always-open player, meant to sit under the mascot rather than over the face. */
+/** Always-open player. A full-width bar, not a popup on the mascot. */
 export function SlottoRadioDock() {
   const radio = useRadio();
+  const { track } = radio;
 
   return (
-    <div className="preview-metal w-full rounded-2xl p-3 text-left backdrop-blur-md">
-      <RadioTrackMeta track={radio.track} />
-      <RadioTransport radio={radio} />
+    <div className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-white/[0.035] px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] sm:flex-row sm:items-center sm:gap-5 sm:px-5">
+      <button
+        type="button"
+        aria-label={radio.playing ? "Pause" : "Play"}
+        onClick={radio.togglePlay}
+        className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-accent-gold text-bg-deep shadow-[0_0_0_6px_rgba(245,197,66,0.12)] transition hover:brightness-110"
+      >
+        {radio.playing ? (
+          <svg viewBox="0 0 20 20" className="h-5 w-5 fill-current" aria-hidden>
+            <path d="M5 4h3.5v12H5V4zm6.5 0H15v12h-3.5V4z" />
+          </svg>
+        ) : (
+          <svg viewBox="0 0 20 20" className="ml-0.5 h-5 w-5 fill-current" aria-hidden>
+            <path d="M6 4.5v11l10-5.5-10-5.5z" />
+          </svg>
+        )}
+      </button>
+
+      <div className="min-w-0 flex-1">
+        <div className="flex items-baseline justify-between gap-3">
+          <p className="truncate text-base font-medium text-foreground">{track.title}</p>
+          <span className="shrink-0 text-xs tabular-nums text-muted">
+            {formatTime(radio.currentTime)}
+            {radio.duration ? ` / ${formatTime(radio.duration)}` : ""}
+          </span>
+        </div>
+        <p className="mt-0.5 text-sm text-muted">
+          Slotto Radio
+          <span aria-hidden> · </span>
+          by{" "}
+          <a
+            href={track.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-accent-cyan hover:underline"
+          >
+            @{track.artist}
+          </a>
+        </p>
+        <input
+          type="range"
+          min={0}
+          max={radio.duration || 0}
+          step={0.1}
+          value={Math.min(radio.currentTime, radio.duration || 0)}
+          aria-label="Seek"
+          onChange={(e) => radio.seek(Number(e.target.value))}
+          className="mt-3 h-1 w-full cursor-pointer accent-accent-gold"
+        />
+      </div>
+
+      <div className="flex shrink-0 items-center gap-1">
+        <IconButton label="Previous tune" onClick={radio.prev}>
+          <svg viewBox="0 0 20 20" className="h-4 w-4 fill-current" aria-hidden>
+            <path d="M4 4h2v12H4V4zm12 0-8 6 8 6V4z" />
+          </svg>
+        </IconButton>
+        <IconButton label="Next tune" onClick={radio.next}>
+          <svg viewBox="0 0 20 20" className="h-4 w-4 fill-current" aria-hidden>
+            <path d="M14 4h2v12h-2V4zM4 4l8 6-8 6V4z" />
+          </svg>
+        </IconButton>
+      </div>
     </div>
   );
 }
