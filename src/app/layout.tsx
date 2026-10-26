@@ -60,7 +60,7 @@ export default async function RootLayout({
   return (
     <html lang="en" className="dark">
       <body
-        className={`${zenDots.variable} ${michroma.variable} ${geistSans.variable} ${geistMono.variable} font-sans antialiased overflow-x-hidden`}
+        className={`${zenDots.variable} ${michroma.variable} ${geistSans.variable} ${geistMono.variable} font-sans antialiased overflow-x-clip`}
       >
         <SolanaWalletProvider>
           <AuthSessionProvider>
@@ -68,19 +68,28 @@ export default async function RootLayout({
             <div
                 className={
                   isDesignPreview
-                    ? `${previewDisplay.variable} ${previewBody.variable} preview-shell min-h-dvh w-full overflow-x-hidden`
+                    ? `${previewDisplay.variable} ${previewBody.variable} preview-shell min-h-dvh w-full overflow-x-clip`
                     : "min-h-dvh w-full max-w-full overflow-x-hidden"
                 }
               >
               <div
                 className={
                   isDesignPreview
-                    ? "mx-auto flex min-h-dvh w-full min-w-0 max-w-[1440px] flex-col px-5 pb-10 pt-4 sm:px-8"
+                    ? "mx-auto flex min-h-dvh w-full min-w-0 max-w-[1440px] flex-col px-5 pb-10 sm:px-8"
                     : "mx-auto flex min-h-dvh w-full min-w-0 max-w-6xl flex-col px-4 pb-8 pt-4 sm:px-6"
                 }
               >
-                <SiteHeader />
-                <PriceTicker />
+                {isDesignPreview ? (
+                  <div className="sticky top-0 z-[120] -mx-5 bg-[#070b14]/95 px-5 pb-2 pt-3 backdrop-blur-md sm:-mx-8 sm:px-8">
+                    <SiteHeader />
+                    <PriceTicker />
+                  </div>
+                ) : (
+                  <>
+                    <SiteHeader />
+                    <PriceTicker />
+                  </>
+                )}
                 <main className="mt-8 min-w-0 max-w-full flex-1">{children}</main>
                 <SiteFooter />
               </div>
