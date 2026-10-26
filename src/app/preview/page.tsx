@@ -68,13 +68,13 @@ export default function DesignPreviewPage() {
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent-gold">
                 Monthly lotto game on Solana
               </p>
-              <h1 className="mt-3 text-5xl leading-[0.9] text-white sm:text-6xl xl:text-7xl">
-                Welcome to
-                <br />
-                Slotto
+              <h1 className="mt-3 whitespace-nowrap text-[2.6rem] font-extrabold leading-none text-white sm:text-5xl xl:text-[3.7rem]">
+                Welcome to Slotto
               </h1>
-              <p className="mt-4 max-w-[36rem] text-pretty text-lg leading-snug text-muted sm:text-xl">
-                Supporting your favorite trusted and transparent Solana projects.
+              <p className="mt-4 text-lg leading-snug text-muted sm:text-xl">
+                Supporting your favorite trusted
+                <br />
+                and transparent Solana projects.
               </p>
               <ul className="mt-7 space-y-3">
                 {POINTS.map(({ text, icon: Icon }) => (
