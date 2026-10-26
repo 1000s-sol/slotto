@@ -195,6 +195,10 @@ img[src^="/brand/"] {
   --font-zen-dots: var(--font-preview-display);
   --font-michroma: var(--font-preview-body);
   font-family: var(--font-preview-body), ui-sans-serif, system-ui, sans-serif;
+}
+
+.preview-shell,
+.preview-scroll-fade {
   background-color: #05070c;
   background-image:
     linear-gradient(180deg, rgba(5, 8, 14, 0.05) 0%, rgba(5, 7, 12, 0.45) 38%, rgba(4, 5, 8, 0.92) 100%),
@@ -203,6 +207,12 @@ img[src^="/brand/"] {
     linear-gradient(180deg, #2a3548 0%, #141b2a 24%, #0a0e16 58%, #05070c 100%);
   background-size: auto, 980px 670px, auto, auto;
   background-attachment: fixed;
+}
+
+/* Covers scrolling content with the page map, then dissolves just under the ticker. */
+.preview-scroll-fade {
+  -webkit-mask-image: linear-gradient(to bottom, #000 0, #000 calc(100% - 4.5rem), transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 0, #000 calc(100% - 4.5rem), transparent 100%);
 }
 
 .preview-shell h2,
