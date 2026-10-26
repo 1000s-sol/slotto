@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import localFont from "next/font/local";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Exo_2, Geist, Geist_Mono, Orbitron } from "next/font/google";
 import "./globals.css";
 import { AuthSessionProvider } from "@/components/auth-session-provider";
 import { MaintenanceGate } from "@/components/maintenance-gate";
@@ -24,6 +25,18 @@ const michroma = localFont({
   weight: "400",
 });
 
+const previewDisplay = Orbitron({
+  variable: "--font-preview-display",
+  subsets: ["latin"],
+  weight: ["500", "700"],
+});
+
+const previewBody = Exo_2({
+  variable: "--font-preview-body",
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+});
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -36,11 +49,14 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = rootSiteMetadata;
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const pathname = (await headers()).get("x-pathname") ?? "";
+  const isDesignPreview = pathname === "/preview";
+
   return (
     <html lang="en" className="dark">
       <body
@@ -49,8 +65,20 @@ export default function RootLayout({
         <SolanaWalletProvider>
           <AuthSessionProvider>
           <MaintenanceGate>
-            <div className="min-h-dvh w-full max-w-full overflow-x-hidden">
-              <div className="mx-auto flex min-h-dvh w-full min-w-0 max-w-6xl flex-col px-4 pb-8 pt-4 sm:px-6">
+            <div
+                className={
+                  isDesignPreview
+                    ? `${previewDisplay.variable} ${previewBody.variable} preview-shell min-h-dvh w-full overflow-x-hidden`
+                    : "min-h-dvh w-full max-w-full overflow-x-hidden"
+                }
+              >
+              <div
+                className={
+                  isDesignPreview
+                    ? "mx-auto flex min-h-dvh w-full min-w-0 max-w-[1680px] flex-col px-4 pb-8 pt-4 sm:px-6 lg:px-8"
+                    : "mx-auto flex min-h-dvh w-full min-w-0 max-w-6xl flex-col px-4 pb-8 pt-4 sm:px-6"
+                }
+              >
                 <SiteHeader />
                 <PriceTicker />
                 <main className="mt-8 min-w-0 max-w-full flex-1">{children}</main>

@@ -205,6 +205,83 @@ function IconButton({
   );
 }
 
+function RadioTrackMeta({ track }: { track: Track }) {
+  return (
+    <>
+      <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-accent-gold">
+        Slotto Radio
+      </p>
+      <p className="mt-1 truncate text-sm font-medium text-foreground">{track.title}</p>
+      <p className="mt-0.5 text-xs text-muted">
+        by{" "}
+        <a
+          href={track.href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-accent-cyan hover:underline"
+        >
+          @{track.artist}
+        </a>
+      </p>
+    </>
+  );
+}
+
+function RadioTransport({ radio }: { radio: RadioContextValue }) {
+  return (
+    <>
+      <div className="mt-3 flex items-center gap-1">
+        <IconButton label="Previous tune" onClick={radio.prev}>
+          <svg viewBox="0 0 20 20" className="h-4 w-4 fill-current" aria-hidden>
+            <path d="M4 4h2v12H4V4zm12 0-8 6 8 6V4z" />
+          </svg>
+        </IconButton>
+        <IconButton label={radio.playing ? "Pause" : "Play"} onClick={radio.togglePlay}>
+          {radio.playing ? (
+            <svg viewBox="0 0 20 20" className="h-4 w-4 fill-current" aria-hidden>
+              <path d="M5 4h3.5v12H5V4zm6.5 0H15v12h-3.5V4z" />
+            </svg>
+          ) : (
+            <svg viewBox="0 0 20 20" className="ml-0.5 h-4 w-4 fill-current" aria-hidden>
+              <path d="M6 4.5v11l10-5.5-10-5.5z" />
+            </svg>
+          )}
+        </IconButton>
+        <IconButton label="Next tune" onClick={radio.next}>
+          <svg viewBox="0 0 20 20" className="h-4 w-4 fill-current" aria-hidden>
+            <path d="M14 4h2v12h-2V4zM4 4l8 6-8 6V4z" />
+          </svg>
+        </IconButton>
+        <span className="ml-auto text-[10px] tabular-nums text-muted">
+          {formatTime(radio.currentTime)} / {formatTime(radio.duration)}
+        </span>
+      </div>
+      <input
+        type="range"
+        min={0}
+        max={radio.duration || 0}
+        step={0.1}
+        value={Math.min(radio.currentTime, radio.duration || 0)}
+        aria-label="Seek"
+        onChange={(e) => radio.seek(Number(e.target.value))}
+        className="mt-2 h-1 w-full cursor-pointer accent-accent-gold"
+      />
+    </>
+  );
+}
+
+/** Always-open player, meant to sit under the mascot rather than over the face. */
+export function SlottoRadioDock() {
+  const radio = useRadio();
+
+  return (
+    <div className="preview-metal w-full rounded-2xl p-3 text-left backdrop-blur-md">
+      <RadioTrackMeta track={radio.track} />
+      <RadioTransport radio={radio} />
+    </div>
+  );
+}
+
 /** Round Slotto Radio control, meant to sit on the top-left of the mascot. */
 export function SlottoRadioButton({ panel = "left" }: { panel?: "left" | "right" }) {
   const radio = useRadio();
@@ -240,59 +317,8 @@ export function SlottoRadioButton({ panel = "left" }: { panel?: "left" | "right"
               : "left-[5%] top-[calc(18%+3rem)]"
           }`}
         >
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-accent-gold">
-            Slotto Radio
-          </p>
-          <p className="mt-1 truncate text-sm font-medium text-foreground">{track.title}</p>
-          <p className="mt-0.5 text-xs text-muted">
-            by{" "}
-            <a
-              href={track.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-accent-cyan hover:underline"
-            >
-              @{track.artist}
-            </a>
-          </p>
-
-          <div className="mt-3 flex items-center gap-1">
-            <IconButton label="Previous tune" onClick={radio.prev}>
-              <svg viewBox="0 0 20 20" className="h-4 w-4 fill-current" aria-hidden>
-                <path d="M4 4h2v12H4V4zm12 0-8 6 8 6V4z" />
-              </svg>
-            </IconButton>
-            <IconButton label={radio.playing ? "Pause" : "Play"} onClick={radio.togglePlay}>
-              {radio.playing ? (
-                <svg viewBox="0 0 20 20" className="h-4 w-4 fill-current" aria-hidden>
-                  <path d="M5 4h3.5v12H5V4zm6.5 0H15v12h-3.5V4z" />
-                </svg>
-              ) : (
-                <svg viewBox="0 0 20 20" className="ml-0.5 h-4 w-4 fill-current" aria-hidden>
-                  <path d="M6 4.5v11l10-5.5-10-5.5z" />
-                </svg>
-              )}
-            </IconButton>
-            <IconButton label="Next tune" onClick={radio.next}>
-              <svg viewBox="0 0 20 20" className="h-4 w-4 fill-current" aria-hidden>
-                <path d="M14 4h2v12h-2V4zM4 4l8 6-8 6V4z" />
-              </svg>
-            </IconButton>
-            <span className="ml-auto text-[10px] tabular-nums text-muted">
-              {formatTime(radio.currentTime)} / {formatTime(radio.duration)}
-            </span>
-          </div>
-
-          <input
-            type="range"
-            min={0}
-            max={radio.duration || 0}
-            step={0.1}
-            value={Math.min(radio.currentTime, radio.duration || 0)}
-            aria-label="Seek"
-            onChange={(e) => radio.seek(Number(e.target.value))}
-            className="mt-2 h-1 w-full cursor-pointer accent-accent-gold"
-          />
+          <RadioTrackMeta track={track} />
+          <RadioTransport radio={radio} />
         </div>
       ) : null}
     </div>
