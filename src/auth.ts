@@ -7,9 +7,11 @@ import {
   discordProfileFromApiUser,
   fetchDiscordUserMe,
 } from "@/lib/discord-api";
+import { cookies } from "next/headers";
+
 import {
+  buildProfileHandoffToken,
   readProfileSessionCookie,
-  setProfileSessionCookie,
 } from "@/lib/profile-session";
 import { ensureAuthUrlEnv } from "@/lib/auth-url";
 import {
@@ -18,6 +20,22 @@ import {
 } from "@/lib/user-profile-db";
 
 ensureAuthUrlEnv();
+
+async function handoffRedirect(profileId: string, provider: string): Promise<string> {
+  const token = buildProfileHandoffToken(profileId);
+  let next = "/profile";
+  try {
+    const jar = await cookies();
+    const cb =
+      jar.get("__Secure-authjs.callback-url")?.value ||
+      jar.get("authjs.callback-url")?.value;
+    if (cb) next = cb;
+  } catch {
+    /* Returning to the page that started OAuth is optional. */
+  }
+  const params = new URLSearchParams({ token, next, linked: provider });
+  return `/api/profile/session/establish?${params.toString()}`;
+}
 
 function authSecret(): string | undefined {
   const s =
@@ -104,7 +122,7 @@ export const { handlers, signIn } = NextAuth({
             sessionProfileId,
             discordProfileFromApiUser(user),
           );
-          await setProfileSessionCookie(row.id);
+          return await handoffRedirect(row.id, account.provider);
         } else if (account.provider === "twitter") {
           const row = await linkTwitterToProfile(
             sessionProfileId,
@@ -116,7 +134,7 @@ export const { handlers, signIn } = NextAuth({
               picture?: string | null;
             },
           );
-          await setProfileSessionCookie(row.id);
+          return await handoffRedirect(row.id, account.provider);
         } else {
           return "/profile?error=unknown_provider";
         }
@@ -124,7 +142,6 @@ export const { handlers, signIn } = NextAuth({
         const msg = e instanceof Error ? e.message : "link_failed";
         return `/profile?error=${encodeURIComponent(msg)}`;
       }
-      return `/profile?linked=${account.provider}`;
     },
   },
   pages: {

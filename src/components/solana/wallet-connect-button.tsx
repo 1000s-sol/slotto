@@ -223,16 +223,18 @@ export function WalletConnectButton({
         title={address ?? "Account"}
         disabled={connecting}
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex max-w-full items-center gap-2 rounded-xl border border-border bg-surface/60 px-2.5 py-1.5 text-left shadow-sm transition hover:border-accent-purple/40 hover:bg-surface disabled:cursor-not-allowed disabled:opacity-60"
+        className={
+          connected || face
+            ? "inline-flex h-11 max-w-full items-center gap-2 rounded-xl border border-border bg-surface/60 px-3 text-left shadow-sm transition hover:border-accent-purple/40 hover:bg-surface disabled:cursor-not-allowed disabled:opacity-60"
+            : "inline-flex h-11 max-w-full items-center gap-2 rounded-xl bg-gradient-to-r from-accent-purple to-accent-blue px-4 text-sm font-semibold text-white shadow-md shadow-accent-purple/30 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+        }
       >
         {face ? <AccountAvatar profile={face} /> : null}
-        <span className={`truncate text-xs font-semibold ${connected ? "font-mono" : ""}`}>{label}</span>
-        <span className="flex shrink-0 items-center gap-1.5" aria-hidden>
-          <DiscordLogo size={14} className={social?.discord ? undefined : "opacity-35"} />
-          <XLogo size={13} className={social?.x ? "text-foreground" : "text-muted opacity-35"} />
+        <span className={`truncate text-sm font-semibold ${connected ? "font-mono" : ""}`}>{label}</span>
+        <span className="flex shrink-0 items-center" aria-hidden>
           <svg
             viewBox="0 0 20 20"
-            className={`h-4 w-4 text-muted transition ${open ? "rotate-180" : ""}`}
+            className={`h-4 w-4 text-current transition ${open ? "rotate-180" : ""}`}
             fill="none"
             stroke="currentColor"
             strokeWidth="1.8"

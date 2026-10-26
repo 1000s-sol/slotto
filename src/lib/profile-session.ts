@@ -60,6 +60,39 @@ export async function readProfileSessionCookie(): Promise<string | null> {
   return parsed?.userProfileId ?? null;
 }
 
+/** Short-lived token so the OAuth callback can hand the profile id to a route that sets the cookie. */
+export function buildProfileHandoffToken(userProfileId: string): string {
+  const exp = Date.now() + 2 * 60 * 1000;
+  const payload = `h:${userProfileId}.${exp}`;
+  const sig = hmac(payload);
+  return `${payload}.${sig}`;
+}
+
+export function parseProfileHandoffToken(raw: string | undefined): string | null {
+  if (!raw) return null;
+  const parts = raw.split(".");
+  if (parts.length !== 3) return null;
+  const [markedId, expStr, sig] = parts;
+  if (!markedId?.startsWith("h:") || !expStr || !sig) return null;
+  const expected = hmac(`${markedId}.${expStr}`);
+  if (!safeEq(sig, expected)) return null;
+  const exp = Number(expStr);
+  if (!Number.isFinite(exp) || Date.now() > exp) return null;
+  return markedId.slice(2);
+}
+
+function sessionCookieDomain(): string | undefined {
+  if (process.env.NODE_ENV !== "production") return undefined;
+  const host = (
+    process.env.AUTH_URL ||
+    process.env.NEXTAUTH_URL ||
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    ""
+  ).toLowerCase();
+  if (host.includes("slotto.gg")) return ".slotto.gg";
+  return undefined;
+}
+
 export async function setProfileSessionCookie(userProfileId: string) {
   const token = buildProfileSessionToken(userProfileId);
   (await cookies()).set(PROFILE_SESSION_COOKIE, token, {
@@ -68,6 +101,7 @@ export async function setProfileSessionCookie(userProfileId: string) {
     sameSite: "lax",
     path: "/",
     maxAge: SESSION_MAX_AGE_SEC,
+    domain: sessionCookieDomain(),
   });
 }
 
