@@ -205,10 +205,6 @@ img[src^="/brand/"] {
   background-attachment: fixed;
 }
 
-.preview-shell h1 {
-  letter-spacing: -0.03em;
-}
-
 .preview-shell h2,
 .preview-shell h3 {
   letter-spacing: -0.02em;

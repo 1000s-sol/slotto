@@ -63,13 +63,16 @@ export default function DesignPreviewPage() {
     <SlottoRadioProvider>
       <div className="min-w-0 max-w-full space-y-20">
         <section>
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-center xl:gap-8">
-            <div className="order-2 w-full xl:order-1 xl:w-max xl:max-w-[46rem]">
+          <div className="grid w-full items-center gap-6 xl:grid-cols-[minmax(0,1fr)_380px] xl:gap-12">
+            <div className="order-2 min-w-0 w-full xl:order-1">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent-gold">
                 Monthly lotto game on Solana
               </p>
-              <h1 className="mt-3 whitespace-nowrap text-[2.6rem] font-extrabold leading-none text-white sm:text-5xl xl:text-[3.7rem]">
-                Welcome to Slotto
+              <h1 className="mt-3 text-white">
+                <span className="block text-base tracking-[0.18em] sm:text-lg">Welcome to</span>
+                <span className="mt-2 block text-4xl leading-none tracking-[0.14em] sm:text-6xl lg:text-7xl xl:text-8xl">
+                  SLOTTO.gg
+                </span>
               </h1>
               <p className="mt-4 text-lg leading-snug text-muted sm:text-xl">
                 Supporting your favorite trusted
