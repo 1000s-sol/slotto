@@ -63,14 +63,14 @@ export default function DesignPreviewPage() {
     <SlottoRadioProvider>
       <div className="min-w-0 max-w-full space-y-20">
         <section>
-          <div className="grid w-full items-center gap-6 xl:grid-cols-[minmax(0,1fr)_380px] xl:gap-12">
-            <div className="order-2 min-w-0 w-full xl:order-1">
+          <div className="grid w-full items-start gap-6 xl:grid-cols-[minmax(0,1fr)_560px] xl:items-stretch xl:gap-10">
+            <div className="relative z-10 order-2 min-w-0 w-full xl:order-1">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent-gold">
                 Monthly lotto game on Solana
               </p>
               <h1 className="mt-3 text-white">
                 <span className="block text-base tracking-[0.18em] sm:text-lg">Welcome to</span>
-                <span className="mt-2 block text-4xl leading-none tracking-[0.14em] sm:text-6xl lg:text-7xl xl:text-8xl">
+                <span className="preview-wordmark mt-2 block text-[clamp(2.35rem,4.4vw,4.5rem)] leading-none">
                   SLOTTO.gg
                 </span>
               </h1>
@@ -98,7 +98,7 @@ export default function DesignPreviewPage() {
               </div>
             </div>
 
-            <div className="relative order-1 mx-auto w-full max-w-[420px] shrink-0 xl:order-2 xl:mx-0 xl:w-[380px]">
+            <div className="relative order-1 mx-auto w-full max-w-[420px] shrink-0 xl:order-2 xl:mx-0 xl:h-full xl:w-[560px] xl:max-w-none">
               <div
                 aria-hidden
                 className="pointer-events-none absolute inset-x-[8%] bottom-[8%] top-[14%] rounded-full bg-[radial-gradient(circle_at_50%_42%,rgba(245,197,66,0.28),rgba(124,58,237,0.16)_46%,transparent_72%)] blur-2xl"
@@ -109,7 +109,7 @@ export default function DesignPreviewPage() {
                 width={640}
                 height={640}
                 priority
-                className="relative h-auto w-full object-contain"
+                className="relative h-auto w-full object-contain xl:absolute xl:bottom-[-7%] xl:right-0 xl:h-[134%] xl:w-auto xl:max-w-none"
               />
             </div>
           </div>
