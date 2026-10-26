@@ -28,6 +28,37 @@ export function parseProfileWalletVerifyMessage(message: string): {
   return out;
 }
 
+export function buildWalletUnlinkMessage(signer: string, remove: string): string {
+  const issued = new Date();
+  const expires = new Date(issued.getTime() + VERIFY_MAX_AGE_MS);
+  return [
+    "Slotto unlink linked wallet",
+    "",
+    `Signer: ${signer}`,
+    `Remove: ${remove}`,
+    `Issued at: ${issued.toISOString()}`,
+    `Expires: ${expires.toISOString()}`,
+  ].join("\n");
+}
+
+export function parseWalletUnlinkMessage(message: string): {
+  signer?: string;
+  remove?: string;
+  expires?: number;
+} {
+  const out: { signer?: string; remove?: string; expires?: number } = {};
+  for (const line of message.split("\n")) {
+    const idx = line.indexOf(":");
+    if (idx < 0) continue;
+    const key = line.slice(0, idx).trim().toLowerCase();
+    const val = line.slice(idx + 1).trim();
+    if (key === "signer") out.signer = val;
+    if (key === "remove") out.remove = val;
+    if (key === "expires") out.expires = Date.parse(val);
+  }
+  return out;
+}
+
 export function profileWalletMessageValid(expires: number | undefined): boolean {
   if (!expires || !Number.isFinite(expires)) return false;
   return Date.now() <= expires;

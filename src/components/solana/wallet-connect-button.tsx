@@ -3,11 +3,12 @@
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { signIn } from "next-auth/react";
-import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 
 import { DiscordLogo } from "@/components/discord-logo";
 import { XLogo } from "@/components/x-logo";
 import type { SocialProfile, WalletSocialPublic } from "@/lib/social-profile-url";
+import { buildWalletUnlinkMessage } from "@/lib/wallet-verify-message";
 
 function shortenAddress(address: string) {
   if (address.length <= 12) return address;
@@ -18,7 +19,13 @@ type ProfileMe = {
   loggedIn: boolean;
   profile: {
     social: WalletSocialPublic;
+    wallets?: string[];
   } | null;
+};
+
+type Cluster = {
+  social: WalletSocialPublic | null;
+  wallets: string[];
 };
 
 function AccountAvatar({ profile, size = 28 }: { profile: SocialProfile; size?: number }) {
@@ -49,14 +56,6 @@ function AccountAvatar({ profile, size = 28 }: { profile: SocialProfile; size?: 
   );
 }
 
-function StatusMark({ on }: { on: boolean }) {
-  return (
-    <span className={`text-[10px] font-semibold uppercase tracking-wide ${on ? "text-accent-cyan" : "text-muted"}`}>
-      {on ? "Connected" : "Not connected"}
-    </span>
-  );
-}
-
 export function WalletConnectButton({
   variant = "default",
 }: {
@@ -64,24 +63,43 @@ export function WalletConnectButton({
   variant?: "default" | "toolbar";
 }) {
   void variant;
-  const { publicKey, disconnect, connecting, connected } = useWallet();
+  const { publicKey, disconnect, connecting, connected, signMessage } = useWallet();
   const { setVisible } = useWalletModal();
   const menuId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [social, setSocial] = useState<WalletSocialPublic | null>(null);
-  const [busy, setBusy] = useState<"discord" | "twitter" | null>(null);
+  const [linkedWallets, setLinkedWallets] = useState<string[]>([]);
+  const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const address = publicKey?.toBase58() ?? null;
 
   const refresh = useCallback(async () => {
     try {
-      const res = await fetch("/api/profile/me", { cache: "no-store" });
-      const json = (await res.json()) as ProfileMe;
-      setSocial(json.profile?.social ?? { discord: null, x: null });
+      const [meRes, clusterRes] = await Promise.all([
+        fetch("/api/profile/me", { cache: "no-store" }),
+        address
+          ? fetch(`/api/profile/wallet/cluster?wallet=${encodeURIComponent(address)}`, {
+              cache: "no-store",
+            })
+          : Promise.resolve(null),
+      ]);
+      const me = (await meRes.json()) as ProfileMe;
+      const cluster = clusterRes ? ((await clusterRes.json()) as Cluster) : null;
+      const walletSocial = cluster?.social;
+      const walletHasLink = !!(walletSocial?.discord || walletSocial?.x || (cluster?.wallets.length ?? 0) > 0);
+      if (walletHasLink && cluster) {
+        setSocial(walletSocial ?? { discord: null, x: null });
+        setLinkedWallets(cluster.wallets);
+        return;
+      }
+      setSocial(me.profile?.social ?? { discord: null, x: null });
+      setLinkedWallets(me.profile?.wallets ?? []);
     } catch {
       setSocial({ discord: null, x: null });
+      setLinkedWallets([]);
     }
-  }, []);
+  }, [address]);
 
   useEffect(() => {
     void refresh();
@@ -104,7 +122,6 @@ export function WalletConnectButton({
     };
   }, [open, refresh]);
 
-  const address = publicKey?.toBase58() ?? null;
   const face = social?.discord ?? social?.x ?? null;
 
   const label = useMemo(() => {
@@ -154,6 +171,48 @@ export function WalletConnectButton({
     }
   };
 
+  const unlinkLinkedWallet = async (target: string) => {
+    setError(null);
+    setBusy(target);
+    try {
+      const send = async (extra?: { signer: string; message: string; signature: string }) => {
+        const res = await fetch("/api/profile/wallet/unlink", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ wallet: target, ...extra }),
+        });
+        return { res, json: (await res.json()) as { ok?: boolean; reason?: string } };
+      };
+
+      const first = await send();
+      if (first.json.ok) {
+        await refresh();
+        return;
+      }
+      if (first.res.status === 401 && address && signMessage) {
+        const message = buildWalletUnlinkMessage(address, target);
+        const sig = await signMessage(new TextEncoder().encode(message));
+        const bs58 = (await import("bs58")).default;
+        const second = await send({
+          signer: address,
+          message,
+          signature: bs58.encode(sig),
+        });
+        if (!second.json.ok) {
+          setError(second.json.reason ?? "Could not unlink wallet");
+          return;
+        }
+        await refresh();
+        return;
+      }
+      setError(first.json.reason ?? "Could not unlink wallet");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not unlink wallet");
+    } finally {
+      setBusy(null);
+    }
+  };
+
   return (
     <div ref={rootRef} className="relative">
       <button
@@ -171,6 +230,17 @@ export function WalletConnectButton({
         <span className="flex shrink-0 items-center gap-1.5" aria-hidden>
           <DiscordLogo size={14} className={social?.discord ? undefined : "opacity-35"} />
           <XLogo size={13} className={social?.x ? "text-foreground" : "text-muted opacity-35"} />
+          <svg
+            viewBox="0 0 20 20"
+            className={`h-4 w-4 text-muted transition ${open ? "rotate-180" : ""}`}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M5 7.5 10 12.5 15 7.5" />
+          </svg>
         </span>
       </button>
 
@@ -178,26 +248,91 @@ export function WalletConnectButton({
         <div
           id={menuId}
           role="menu"
-          className="absolute right-0 z-[140] mt-2 w-[min(18rem,calc(100vw-2rem))] rounded-xl border border-border bg-bg-elevated p-3 text-left shadow-xl shadow-black/40"
+          className="absolute right-0 z-[140] mt-2 w-[min(20rem,calc(100vw-1.5rem))] rounded-xl border border-border bg-[#120e22] p-3 text-left shadow-xl shadow-black/50"
         >
-          <div className="border-b border-border/70 pb-3">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted">Wallet</p>
-            {connected && address ? (
-              <>
-                <p className="mt-1 truncate font-mono text-xs text-foreground" title={address}>
-                  {address}
+          {face ? (
+            <div className="mb-3 flex items-center gap-3">
+              <AccountAvatar profile={face} size={48} />
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-white">
+                  {social?.discord?.username ?? `@${social?.x?.username}`}
                 </p>
-                <div className="mt-2 flex flex-wrap gap-2">
+                {social?.discord && social.x ? (
+                  <p className="truncate text-xs text-muted">@{social.x.username}</p>
+                ) : (
+                  <p className="text-xs text-muted">Linked to this wallet</p>
+                )}
+              </div>
+            </div>
+          ) : null}
+
+          <div className="space-y-2">
+            <SocialAccountRow
+              name="Discord"
+              profile={social?.discord ?? null}
+              busy={busy === "discord"}
+              tone="discord"
+              onConnect={() => void connectSocial("discord")}
+              onDisconnect={() => void unlink("discord")}
+            />
+            <SocialAccountRow
+              name="X"
+              profile={social?.x ?? null}
+              busy={busy === "twitter"}
+              tone="x"
+              onConnect={() => void connectSocial("twitter")}
+              onDisconnect={() => void unlink("twitter")}
+            />
+          </div>
+
+          <div className="mt-3 border-t border-white/10 pt-3">
+            <p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-muted">
+              <WalletGlyph />
+              Wallets on this account
+            </p>
+            {linkedWallets.length > 0 ? (
+              <ul className="mt-2 space-y-1.5">
+                {linkedWallets.map((w) => (
+                  <li
+                    key={w}
+                    className="flex items-center gap-2 rounded-lg bg-white/5 px-2 py-1.5"
+                  >
+                    <WalletGlyph />
+                    <span className="min-w-0 flex-1 truncate font-mono text-xs text-white" title={w}>
+                      {shortenAddress(w)}
+                      {w === address ? (
+                        <span className="ml-2 font-sans text-[10px] font-semibold uppercase tracking-wide text-accent-gold">
+                          Connected
+                        </span>
+                      ) : null}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={busy === w}
+                      onClick={() => void unlinkLinkedWallet(w)}
+                      className="shrink-0 text-[11px] font-semibold text-red-300 hover:text-red-200 disabled:opacity-50"
+                    >
+                      Unlink
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-2 text-xs text-muted">No wallets linked yet.</p>
+            )}
+            <div className="mt-3 flex gap-2">
+              {connected && address ? (
+                <>
                   <button
                     type="button"
-                    className="rounded-lg border border-border px-2.5 py-1 text-xs font-semibold text-muted transition hover:text-foreground"
+                    className="flex-1 rounded-lg border border-white/15 px-2 py-1.5 text-xs font-semibold text-white/80 hover:bg-white/5"
                     onClick={connectWallet}
                   >
                     Change wallet
                   </button>
                   <button
                     type="button"
-                    className="rounded-lg border border-border px-2.5 py-1 text-xs font-semibold text-muted transition hover:text-foreground"
+                    className="flex-1 rounded-lg border border-white/15 px-2 py-1.5 text-xs font-semibold text-white/80 hover:bg-white/5"
                     onClick={() => {
                       disconnect().catch(() => undefined);
                       setOpen(false);
@@ -205,35 +340,18 @@ export function WalletConnectButton({
                   >
                     Disconnect
                   </button>
-                </div>
-              </>
-            ) : (
-              <button
-                type="button"
-                className="mt-2 w-full rounded-lg bg-gradient-to-r from-accent-purple to-accent-blue px-3 py-2 text-sm font-semibold text-white"
-                onClick={connectWallet}
-              >
-                {connecting ? "Connecting…" : "Connect wallet"}
-              </button>
-            )}
+                </>
+              ) : (
+                <button
+                  type="button"
+                  className="w-full rounded-lg bg-gradient-to-r from-accent-purple to-accent-blue px-3 py-2 text-sm font-semibold text-white"
+                  onClick={connectWallet}
+                >
+                  {connecting ? "Connecting…" : "Connect wallet"}
+                </button>
+              )}
+            </div>
           </div>
-
-          <SocialAccountRow
-            name="Discord"
-            profile={social?.discord ?? null}
-            busy={busy === "discord"}
-            icon={<DiscordLogo size={18} />}
-            onConnect={() => void connectSocial("discord")}
-            onDisconnect={() => void unlink("discord")}
-          />
-          <SocialAccountRow
-            name="X"
-            profile={social?.x ?? null}
-            busy={busy === "twitter"}
-            icon={<XLogo size={16} className="text-foreground" />}
-            onConnect={() => void connectSocial("twitter")}
-            onDisconnect={() => void unlink("twitter")}
-          />
 
           {error ? <p className="mt-2 text-xs text-red-400">{error}</p> : null}
         </div>
@@ -242,55 +360,71 @@ export function WalletConnectButton({
   );
 }
 
+function WalletGlyph() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0 text-accent-gold" fill="none" aria-hidden>
+      <rect x="3" y="6" width="18" height="13" rx="2" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M3 10h18" stroke="currentColor" strokeWidth="1.8" />
+      <circle cx="16.5" cy="14.5" r="1" fill="currentColor" />
+    </svg>
+  );
+}
+
 function SocialAccountRow({
   name,
   profile,
   busy,
-  icon,
+  tone,
   onConnect,
   onDisconnect,
 }: {
   name: string;
   profile: SocialProfile | null;
   busy: boolean;
-  icon: ReactNode;
+  tone: "discord" | "x";
   onConnect: () => void;
   onDisconnect: () => void;
 }) {
+  const label = profile ? (tone === "x" ? `@${profile.username}` : profile.username) : name;
   return (
-    <div className="border-b border-border/70 py-3 last:border-b-0 last:pb-0">
-      <div className="flex items-center justify-between gap-2">
-        <span className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
-          {icon}
-          {name}
+    <div className="flex items-center gap-3 rounded-lg bg-white/5 px-2.5 py-2">
+      <span
+        className={`grid h-10 w-10 shrink-0 place-items-center rounded-full ${
+          tone === "discord" ? "bg-[#5865F2]" : "bg-black ring-1 ring-white/20"
+        }`}
+      >
+        {tone === "discord" ? (
+          <DiscordLogo size={20} variant="white" />
+        ) : (
+          <XLogo size={16} variant="white" />
+        )}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center gap-2">
+          {profile ? <AccountAvatar profile={profile} size={22} /> : null}
+          <span className="truncate text-sm font-semibold text-white">{label}</span>
         </span>
-        <StatusMark on={!!profile} />
-      </div>
+        <span className={`mt-0.5 block text-[10px] font-semibold uppercase tracking-wide ${profile ? "text-accent-cyan" : "text-muted"}`}>
+          {profile ? "Connected" : "Not connected"}
+        </span>
+      </span>
       {profile ? (
-        <div className="mt-2 flex items-center justify-between gap-2">
-          <span className="inline-flex min-w-0 items-center gap-2">
-            <AccountAvatar profile={profile} size={32} />
-            <span className="truncate text-sm text-foreground">
-              {name === "X" ? `@${profile.username}` : profile.username}
-            </span>
-          </span>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={onDisconnect}
-            className="shrink-0 text-xs font-semibold text-muted hover:text-foreground disabled:opacity-50"
-          >
-            Disconnect
-          </button>
-        </div>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={onDisconnect}
+          className="shrink-0 text-[11px] font-semibold text-muted hover:text-white disabled:opacity-50"
+        >
+          Disconnect
+        </button>
       ) : (
         <button
           type="button"
           disabled={busy}
           onClick={onConnect}
-          className="mt-2 rounded-lg border border-border px-2.5 py-1 text-xs font-semibold text-foreground transition hover:border-accent-purple/40 disabled:opacity-50"
+          className="shrink-0 rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-bg-deep disabled:opacity-50"
         >
-          {busy ? "Connecting…" : `Connect ${name}`}
+          {busy ? "…" : "Connect"}
         </button>
       )}
     </div>

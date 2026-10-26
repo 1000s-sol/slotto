@@ -154,6 +154,35 @@ export async function getProfilePublic(
   };
 }
 
+export async function getProfileIdByWallet(wallet: string): Promise<string | null> {
+  const link = await prisma.linkedWallet.findUnique({
+    where: { wallet },
+    select: { userProfileId: true },
+  });
+  return link?.userProfileId ?? null;
+}
+
+/** Discord/X and every wallet on the same profile as this address. */
+export async function getAccountClusterByWallet(wallet: string): Promise<{
+  social: WalletSocialPublic;
+  wallets: string[];
+} | null> {
+  const link = await prisma.linkedWallet.findUnique({
+    where: { wallet },
+    include: {
+      userProfile: {
+        include: { linkedWallets: { orderBy: { verifiedAt: "desc" } } },
+      },
+    },
+  });
+  if (!link) return null;
+  const profile = await ensureDiscordProfileComplete(link.userProfile);
+  return {
+    social: socialFromUserProfile(profile),
+    wallets: link.userProfile.linkedWallets.map((w) => w.wallet),
+  };
+}
+
 export async function getSocialByWallets(
   wallets: string[],
 ): Promise<Record<string, WalletSocialPublic>> {
