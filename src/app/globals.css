@@ -205,12 +205,6 @@ img[src^="/brand/"] {
   background-attachment: fixed;
 }
 
-.preview-wordmark {
-  font-family: var(--font-preview-wordmark), sans-serif;
-  font-weight: 900;
-  letter-spacing: 0.08em;
-}
-
 .preview-shell h2,
 .preview-shell h3 {
   letter-spacing: -0.02em;

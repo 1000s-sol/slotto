@@ -70,8 +70,15 @@ export default function DesignPreviewPage() {
               </p>
               <h1 className="mt-3 text-white">
                 <span className="block text-base tracking-[0.18em] sm:text-lg">Welcome to</span>
-                <span className="preview-wordmark mt-2 block text-[clamp(2.35rem,4.4vw,4.5rem)] leading-none">
-                  SLOTTO.gg
+                <span className="relative mt-3 block w-full max-w-[36rem] overflow-hidden [aspect-ratio:1955/482]">
+                  <BrandPng
+                    src="/brand/slotto-logo.png"
+                    alt="Slotto"
+                    width={2000}
+                    height={1300}
+                    priority
+                    className="absolute left-[-1.84%] top-[-86.1%] h-[269.7%] w-[102.3%] max-w-none"
+                  />
                 </span>
               </h1>
               <p className="mt-4 text-lg leading-snug text-muted sm:text-xl">

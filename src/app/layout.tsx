@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import localFont from "next/font/local";
-import { Alfa_Slab_One, Geist, Geist_Mono, Orbitron, Rowdies } from "next/font/google";
+import { Alfa_Slab_One, Geist, Geist_Mono, Rowdies } from "next/font/google";
 import "./globals.css";
 import { AuthSessionProvider } from "@/components/auth-session-provider";
 import { MaintenanceGate } from "@/components/maintenance-gate";
@@ -37,12 +37,6 @@ const previewBody = Rowdies({
   weight: ["400", "700"],
 });
 
-const previewWordmark = Orbitron({
-  variable: "--font-preview-wordmark",
-  subsets: ["latin"],
-  weight: "900",
-});
-
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -74,7 +68,7 @@ export default async function RootLayout({
             <div
                 className={
                   isDesignPreview
-                    ? `${previewDisplay.variable} ${previewBody.variable} ${previewWordmark.variable} preview-shell min-h-dvh w-full overflow-x-hidden`
+                    ? `${previewDisplay.variable} ${previewBody.variable} preview-shell min-h-dvh w-full overflow-x-hidden`
                     : "min-h-dvh w-full max-w-full overflow-x-hidden"
                 }
               >
