@@ -17,7 +17,7 @@ export function DiscordTicketBotButton() {
         className="inline-flex items-center gap-2 rounded-xl border border-[#5865F2]/50 bg-[#5865F2]/15 px-5 py-2.5 text-sm font-medium text-foreground transition hover:bg-[#5865F2]/25"
       >
         <DiscordLogo className="h-5 w-5 text-[#5865F2]" />
-        Sales Bot
+        Invite sales bot
       </button>
       <DiscordTicketBotModal
         open={open}
