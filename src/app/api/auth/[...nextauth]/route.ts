@@ -6,6 +6,19 @@ import {
   parseProfileHandoffToken,
 } from "@/lib/profile-session";
 
+/**
+ * Discord appends iss= to the callback (RFC 9207). Auth.js compares that value
+ * to https://authjs.dev and aborts the login before a session exists.
+ */
+function dropDiscordIssuer(request: NextRequest): NextRequest {
+  const url = request.nextUrl.clone();
+  if (!url.pathname.endsWith("/callback/discord") || !url.searchParams.has("iss")) {
+    return request;
+  }
+  url.searchParams.delete("iss");
+  return new NextRequest(url, { headers: request.headers, method: request.method });
+}
+
 /** Set the profile session on the OAuth redirect itself, before any apex → www hop. */
 async function withHandoffSession(
   request: NextRequest,
@@ -35,9 +48,9 @@ async function withHandoffSession(
 }
 
 export function GET(request: NextRequest) {
-  return withHandoffSession(request, handlers.GET);
+  return withHandoffSession(dropDiscordIssuer(request), handlers.GET);
 }
 
 export function POST(request: NextRequest) {
-  return withHandoffSession(request, handlers.POST);
+  return withHandoffSession(dropDiscordIssuer(request), handlers.POST);
 }
