@@ -20,7 +20,7 @@ const links = [
 const navLinkClass =
   "rounded-xl px-2 py-2 text-sm font-semibold text-muted transition hover:bg-surface hover:text-foreground xl:px-4 xl:py-3";
 const navLinkClassMobile =
-  "flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left text-sm font-semibold text-white/90 transition hover:bg-white/5";
+  "flex w-full items-center gap-3.5 rounded-xl px-3 py-3 text-left text-base font-semibold text-white transition hover:bg-white/12";
 
 function MenuIcon({ open }: { open: boolean }) {
   if (open) {
@@ -39,7 +39,7 @@ function MenuIcon({ open }: { open: boolean }) {
 
 function NavGlyph({ name }: { name: "home" | "projects" | "buyback" | "faq" | "contact" | "profile" | "admin" | "wallet" | "x" }) {
   const className =
-    name === "x" ? "h-4 w-4 shrink-0 text-accent-cyan" : "h-4 w-4 shrink-0 text-accent-gold";
+    name === "x" ? "h-5 w-5 shrink-0 text-white" : "h-5 w-5 shrink-0 text-accent-gold";
   if (name === "x") {
     return (
       <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden>
@@ -169,14 +169,14 @@ export function SiteHeaderNav() {
         <div
           id="site-mobile-nav"
           role="menu"
-          className="absolute right-0 top-full z-[140] mt-2 w-[min(16.5rem,calc(100vw-1.5rem))] rounded-xl border border-border bg-[#120e22] p-2 text-left shadow-xl shadow-black/50 lg:hidden"
+          className="absolute right-0 top-full z-[140] mt-3 w-[min(22rem,calc(100vw-2.75rem))] rounded-xl border-2 border-[#c5ddff]/80 bg-gradient-to-b from-[#1d5ed4] to-[#14398f] p-3 text-left shadow-[0_16px_40px_rgba(6,20,56,0.55)] lg:hidden"
         >
           {links.map((l) => (
             <Link
               key={l.href}
               href={l.href}
               role="menuitem"
-              className={`${navLinkClassMobile} ${itemActive(pathname, l.href) ? "bg-white/10 text-white" : ""}`}
+              className={`${navLinkClassMobile} ${itemActive(pathname, l.href) ? "bg-white/15" : ""}`}
               onClick={close}
             >
               <NavGlyph name={l.icon} />
@@ -186,7 +186,7 @@ export function SiteHeaderNav() {
           <Link
             href="/profile"
             role="menuitem"
-            className={`${navLinkClassMobile} ${itemActive(pathname, "/profile") ? "bg-white/10 text-white" : ""}`}
+            className={`${navLinkClassMobile} ${itemActive(pathname, "/profile") ? "bg-white/15" : ""}`}
             onClick={close}
           >
             <NavGlyph name="profile" />
@@ -202,7 +202,7 @@ export function SiteHeaderNav() {
             target="_blank"
             rel="noopener noreferrer"
             role="menuitem"
-            className={`${navLinkClassMobile} text-accent-cyan`}
+            className={navLinkClassMobile}
             onClick={close}
           >
             <NavGlyph name="x" />
@@ -212,7 +212,7 @@ export function SiteHeaderNav() {
             <button
               type="button"
               role="menuitem"
-              className={`${navLinkClassMobile} mt-1 border-t border-white/10 pt-2 text-white/70`}
+              className={`${navLinkClassMobile} mt-2 border-t border-[#c5ddff]/45 pt-3`}
               onClick={() => {
                 disconnect().catch(() => undefined);
                 close();

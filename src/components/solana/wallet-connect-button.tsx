@@ -258,7 +258,7 @@ export function WalletConnectButton({
         <div
           id={menuId}
           role="menu"
-          className="absolute right-0 z-[140] mt-2 w-[min(20rem,calc(100vw-1.5rem))] rounded-xl border border-border bg-[#120e22] p-3 text-left shadow-xl shadow-black/50"
+          className="absolute right-0 z-[140] mt-3 w-[min(22rem,calc(100vw-2.75rem))] rounded-xl border-2 border-[#c5ddff]/80 bg-gradient-to-b from-[#1d5ed4] to-[#14398f] p-4 text-left shadow-[0_16px_40px_rgba(6,20,56,0.55)]"
         >
           {face ? (
             <div className="mb-3 flex items-center gap-3">
@@ -276,7 +276,7 @@ export function WalletConnectButton({
             </div>
           ) : null}
 
-          <div className="space-y-2">
+          <div className="space-y-3">
             <SocialAccountRow
               name="Discord"
               profile={social?.discord ?? null}
@@ -295,7 +295,7 @@ export function WalletConnectButton({
             />
           </div>
 
-          <div className="mt-3 border-t border-white/10 pt-3">
+          <div className="mt-4 border-t border-[#c5ddff]/45 pt-4">
             <p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-muted">
               <WalletGlyph />
               Wallets on this account
@@ -305,7 +305,7 @@ export function WalletConnectButton({
                 {linkedWallets.map((w) => (
                   <li
                     key={w}
-                    className="flex items-center gap-2 rounded-lg bg-white/5 px-2 py-1.5"
+                    className="flex items-center gap-3 rounded-xl border border-white/15 bg-white/10 px-3 py-2.5"
                   >
                     <WalletGlyph />
                     <span className="min-w-0 flex-1 truncate font-mono text-xs text-white" title={w}>
@@ -335,14 +335,14 @@ export function WalletConnectButton({
                 <>
                   <button
                     type="button"
-                    className="flex-1 rounded-lg border border-white/15 px-2 py-1.5 text-xs font-semibold text-white/80 hover:bg-white/5"
+                    className="flex-1 rounded-xl border border-white/25 px-3 py-2.5 text-sm font-semibold text-white hover:bg-white/10"
                     onClick={connectWallet}
                   >
                     Change wallet
                   </button>
                   <button
                     type="button"
-                    className="flex-1 rounded-lg border border-white/15 px-2 py-1.5 text-xs font-semibold text-white/80 hover:bg-white/5"
+                    className="flex-1 rounded-xl border border-white/25 px-3 py-2.5 text-sm font-semibold text-white hover:bg-white/10"
                     onClick={() => {
                       disconnect().catch(() => undefined);
                       setOpen(false);
@@ -354,7 +354,7 @@ export function WalletConnectButton({
               ) : (
                 <button
                   type="button"
-                  className="w-full rounded-lg bg-gradient-to-r from-accent-purple to-accent-blue px-3 py-2 text-sm font-semibold text-white"
+                  className="w-full rounded-xl bg-gradient-to-r from-accent-purple to-accent-blue px-3 py-3 text-sm font-semibold text-white"
                   onClick={connectWallet}
                 >
                   {connecting ? "Connecting…" : "Connect wallet"}
@@ -397,7 +397,7 @@ function SocialAccountRow({
 }) {
   const label = profile ? (tone === "x" ? `@${profile.username}` : profile.username) : name;
   return (
-    <div className="flex items-center gap-3 rounded-lg bg-white/5 px-2.5 py-2">
+    <div className="flex items-center gap-3 rounded-xl border border-white/15 bg-white/10 px-3 py-3">
       <span
         className={`grid h-10 w-10 shrink-0 place-items-center rounded-full ${
           tone === "discord" ? "bg-[#5865F2]" : "bg-black ring-1 ring-white/20"
