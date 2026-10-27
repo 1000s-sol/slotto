@@ -69,18 +69,6 @@ function thumb(p: Pick<ProjectRow, "listingImageUrl" | "bannerImageUrl">) {
   return p.listingImageUrl || p.bannerImageUrl;
 }
 
-function applySocialMaps(
-  list: ProjectRow[],
-  discordMap: Map<string, number | null>,
-  twitterMap: Map<string, number | null>,
-): ProjectRow[] {
-  return list.map((p) => ({
-    ...p,
-    discordMembers: discordMap.get(p.id) ?? p.discordMembers,
-    twitterFollowers: twitterMap.get(p.id) ?? p.twitterFollowers,
-  }));
-}
-
 export default async function ProjectsPage({ searchParams }: Props) {
   const { q, sort: sortRaw } = await searchParams;
   const query = q?.trim();
@@ -129,17 +117,11 @@ export default async function ProjectsPage({ searchParams }: Props) {
       statsPromise,
     ]);
     const rows = raw as ProjectRow[];
-    // Warm Discord + X caches for tile badges (and social sorts).
-    const [discordMap, twitterMap] = await Promise.all([
+    grid = sortProjects(rows, sort);
+    void Promise.all([
       refreshSocialCountsForSort(rows, "discord"),
       refreshSocialCountsForSort(rows, "twitter"),
-    ]);
-    const withSocial = applySocialMaps(rows, discordMap, twitterMap);
-    grid = sortProjects(
-      withSocial,
-      sort,
-      sort === "discord" ? discordMap : sort === "twitter" ? twitterMap : undefined,
-    );
+    ]).catch(() => undefined);
     stats = { projectCount: counts[0], tokenCount: counts[1] };
   } else {
     const [allRows, adminFeaturedSlug, counts] = await Promise.all([
@@ -152,16 +134,11 @@ export default async function ProjectsPage({ searchParams }: Props) {
     ]);
     const all = allRows as ProjectRow[];
     featured = pickFeaturedProject(all, adminFeaturedSlug);
-    const [discordMap, twitterMap] = await Promise.all([
+    grid = sortProjects(all, sort);
+    void Promise.all([
       refreshSocialCountsForSort(all, "discord"),
       refreshSocialCountsForSort(all, "twitter"),
-    ]);
-    const withSocial = applySocialMaps(all, discordMap, twitterMap);
-    grid = sortProjects(
-      withSocial,
-      sort,
-      sort === "discord" ? discordMap : sort === "twitter" ? twitterMap : undefined,
-    );
+    ]).catch(() => undefined);
     stats = { projectCount: counts[0], tokenCount: counts[1] };
   }
 

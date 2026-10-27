@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 
 import { ProjectCollectionsPanel } from "@/components/project/project-collections-panel";
 import { ProjectLikePill, ProjectSocialLinks } from "@/components/project/project-detail-actions";
@@ -12,6 +13,7 @@ import {
   magicEdenLink,
   orbisLink,
   parseProjectCollections,
+  type ProjectCollection,
 } from "@/lib/project-collections";
 import { ensureProjectSectionColumns } from "@/lib/ensure-project-section-columns";
 import {
@@ -100,24 +102,11 @@ export default async function ProjectPage({ params }: Props) {
     project.marketplaces,
   );
 
-  const [statsByIndex, socialCounts, tokenDisplay] = await Promise.all([
-    Promise.all(
-      collections.map((c) =>
-        fetchLiveCollectionStats(magicEdenLink(c), orbisLink(c), 120),
-      ),
-    ),
-    fetchAndStoreProjectSocialCounts(project.id, project.discordUrl, project.twitterUrl),
-    project.tokenMint?.trim()
-      ? fetchProjectTokenDisplay(project.tokenMint.trim(), {
-          liquid: project.tokenLiquid ?? true,
-          tokenImageUrl: project.tokenImageUrl,
-          tokenName: project.tokenName,
-        })
-      : Promise.resolve(null),
-  ]);
-
   const tokenMint = project.tokenMint?.trim() ?? "";
   const tokenLiquid = project.tokenLiquid ?? true;
+  void fetchAndStoreProjectSocialCounts(project.id, project.discordUrl, project.twitterUrl).catch(
+    () => undefined,
+  );
 
   return (
     <div className="min-w-0 max-w-full space-y-6">
@@ -159,32 +148,21 @@ export default async function ProjectPage({ params }: Props) {
               websiteUrl={project.websiteUrl}
               discordUrl={project.discordUrl}
               twitterUrl={project.twitterUrl}
-              discordMembers={socialCounts.discordMembers}
-              twitterFollowers={socialCounts.twitterFollowers}
+              discordMembers={project.discordMembers}
+              twitterFollowers={project.twitterFollowers}
             />
           </div>
 
-          {collections.some((c) => c.links.length > 0) ? (
-            <ProjectCollectionsPanel collections={collections} statsByIndex={statsByIndex} />
-          ) : null}
-
-          {tokenMint && tokenDisplay ? (
-            <ProjectTokenBlock
-              mint={tokenMint}
-              symbol={tokenDisplay.symbol}
-              logoUrl={tokenDisplay.logoUrl}
-              liquid={tokenLiquid}
-            />
-          ) : null}
-
-          {tokenMint && tokenDisplay ? (
-            <ProjectTicketBuyPanel
-              mint={tokenMint}
-              symbol={tokenDisplay.symbol}
-              logoUrl={tokenDisplay.logoUrl}
+          <Suspense fallback={<ProjectExtrasFallback />}>
+            <ProjectMarketExtras
               projectName={project.name}
+              collections={collections}
+              tokenMint={tokenMint}
+              tokenLiquid={tokenLiquid}
+              tokenImageUrl={project.tokenImageUrl}
+              tokenName={project.tokenName}
             />
-          ) : null}
+          </Suspense>
 
           {hasListingSections(project) ? (
             <ProjectListingSections sections={listingSectionsFromProject(project)} />
@@ -198,5 +176,67 @@ export default async function ProjectPage({ params }: Props) {
         </div>
       </div>
     </div>
+  );
+}
+
+function ProjectExtrasFallback() {
+  return (
+    <div className="space-y-4" aria-hidden>
+      <div className="h-28 animate-pulse rounded-xl border border-white/10 bg-[#14398f]/55" />
+      <div className="h-24 animate-pulse rounded-xl border border-white/10 bg-[#14398f]/40" />
+    </div>
+  );
+}
+
+async function ProjectMarketExtras({
+  projectName,
+  collections,
+  tokenMint,
+  tokenLiquid,
+  tokenImageUrl,
+  tokenName,
+}: {
+  projectName: string;
+  collections: ProjectCollection[];
+  tokenMint: string;
+  tokenLiquid: boolean;
+  tokenImageUrl: string | null;
+  tokenName: string | null;
+}) {
+  const [statsByIndex, tokenDisplay] = await Promise.all([
+    Promise.all(
+      collections.map((c) => fetchLiveCollectionStats(magicEdenLink(c), orbisLink(c), 120)),
+    ),
+    tokenMint
+      ? fetchProjectTokenDisplay(tokenMint, {
+          liquid: tokenLiquid,
+          tokenImageUrl,
+          tokenName,
+        })
+      : Promise.resolve(null),
+  ]);
+
+  return (
+    <>
+      {collections.some((c) => c.links.length > 0) ? (
+        <ProjectCollectionsPanel collections={collections} statsByIndex={statsByIndex} />
+      ) : null}
+      {tokenMint && tokenDisplay ? (
+        <ProjectTokenBlock
+          mint={tokenMint}
+          symbol={tokenDisplay.symbol}
+          logoUrl={tokenDisplay.logoUrl}
+          liquid={tokenLiquid}
+        />
+      ) : null}
+      {tokenMint && tokenDisplay ? (
+        <ProjectTicketBuyPanel
+          mint={tokenMint}
+          symbol={tokenDisplay.symbol}
+          logoUrl={tokenDisplay.logoUrl}
+          projectName={projectName}
+        />
+      ) : null}
+    </>
   );
 }

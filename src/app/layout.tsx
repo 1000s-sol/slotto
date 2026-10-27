@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import localFont from "next/font/local";
 import { Alfa_Slab_One, Geist, Geist_Mono, Rowdies } from "next/font/google";
 import "./globals.css";
@@ -6,6 +7,7 @@ import { AuthSessionProvider } from "@/components/auth-session-provider";
 import { MaintenanceGate } from "@/components/maintenance-gate";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
+import { NavigationProgress } from "@/components/navigation-progress";
 import { PriceTicker } from "@/components/price-ticker";
 import { SolanaWalletProvider } from "@/components/solana/solana-wallet-provider";
 import { rootSiteMetadata } from "@/lib/site-metadata";
@@ -59,6 +61,9 @@ export default function RootLayout({
         className={`${zenDots.variable} ${michroma.variable} ${geistSans.variable} ${geistMono.variable} font-sans antialiased overflow-x-clip`}
       >
         <div aria-hidden className="preview-fixed-bg" />
+        <Suspense fallback={null}>
+          <NavigationProgress />
+        </Suspense>
         <SolanaWalletProvider>
           <AuthSessionProvider>
           <MaintenanceGate>

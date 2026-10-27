@@ -243,6 +243,35 @@ img[src^="/brand/"] {
   letter-spacing: -0.02em;
 }
 
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.page-enter {
+  animation: page-enter 0.32s ease-out;
+}
+
+@keyframes nav-progress {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(320%);
+  }
+}
+
+.nav-progress-bar {
+  width: 38%;
+  animation: nav-progress 0.9s ease-in-out infinite;
+}
+
 .preview-shell .rounded-2xl {
   border: 3px solid transparent;
   background-color: transparent;

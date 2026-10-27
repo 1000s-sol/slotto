@@ -37,6 +37,7 @@ export function ProjectsToolbar({ defaultSort }: { defaultSort: ProjectsSortValu
       if (nextSort !== "likes") params.set("sort", nextSort);
       const qs = params.toString();
       startTransition(() => {
+        window.dispatchEvent(new Event("slotto:navigate"));
         router.push(qs ? `/projects?${qs}` : "/projects");
       });
     },
