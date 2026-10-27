@@ -6,6 +6,7 @@ import Twitter from "next-auth/providers/twitter";
 import {
   discordProfileFromApiUser,
   fetchDiscordUserMe,
+  type DiscordApiUser,
 } from "@/lib/discord-api";
 import { cookies } from "next/headers";
 
@@ -45,18 +46,41 @@ function sharedOAuthCookies() {
   };
 }
 
-async function handoffRedirect(profileId: string, provider: string): Promise<string> {
-  const token = buildProfileHandoffToken(profileId);
-  let next = "/profile";
+async function callbackPage(): Promise<string> {
   try {
     const jar = await cookies();
     const cb =
       jar.get("__Secure-authjs.callback-url")?.value ||
       jar.get("authjs.callback-url")?.value;
-    if (cb) next = cb;
+    if (!cb) return "/profile";
+    try {
+      return decodeURIComponent(cb);
+    } catch {
+      return cb;
+    }
   } catch {
-    /* Returning to the page that started OAuth is optional. */
+    /* The profile page can show the error instead. */
   }
+  return "/profile";
+}
+
+async function returnWithError(message: string): Promise<string> {
+  const next = await callbackPage();
+  try {
+    const dest = next.startsWith("/")
+      ? new URL(next, "https://slotto.gg")
+      : new URL(next);
+    dest.searchParams.set("error", message);
+    if (next.startsWith("/")) return `${dest.pathname}${dest.search}`;
+    return dest.toString();
+  } catch {
+    return `/profile?error=${encodeURIComponent(message)}`;
+  }
+}
+
+async function handoffRedirect(profileId: string, provider: string): Promise<string> {
+  const token = buildProfileHandoffToken(profileId);
+  const next = await callbackPage();
   const params = new URLSearchParams({ token, next, linked: provider });
   return `/api/profile/session/establish?${params.toString()}`;
 }
@@ -147,23 +171,38 @@ export const { handlers, signIn } = NextAuth({
     },
     async signIn({ account, profile }) {
       if (!account?.provider || !profile) {
-        return "/profile?error=oauth_failed";
+        return await returnWithError("oauth_failed");
       }
       try {
-        const sessionProfileId = await readProfileSessionCookie();
+        let sessionProfileId: string | null = null;
+        try {
+          sessionProfileId = await readProfileSessionCookie();
+        } catch {
+          sessionProfileId = null;
+        }
 
         if (account.provider === "discord") {
+          const raw = profile as Partial<DiscordApiUser>;
+          let discordUser: DiscordApiUser | null =
+            raw.id && raw.username
+              ? {
+                  id: String(raw.id),
+                  username: raw.username,
+                  global_name: raw.global_name ?? null,
+                  avatar: raw.avatar ?? null,
+                }
+              : null;
           const token = account.access_token?.trim();
-          if (!token) {
-            return "/profile?error=discord_token_missing";
+          if (token) {
+            const fetched = await fetchDiscordUserMe(token);
+            if (fetched?.id) discordUser = fetched;
           }
-          const user = await fetchDiscordUserMe(token);
-          if (!user?.id) {
-            return "/profile?error=discord_profile_failed";
+          if (!discordUser?.id) {
+            return await returnWithError("discord_profile_failed");
           }
           const row = await linkDiscordToProfile(
             sessionProfileId,
-            discordProfileFromApiUser(user),
+            discordProfileFromApiUser(discordUser),
           );
           return await handoffRedirect(row.id, account.provider);
         } else if (account.provider === "twitter") {
@@ -179,11 +218,11 @@ export const { handlers, signIn } = NextAuth({
           );
           return await handoffRedirect(row.id, account.provider);
         } else {
-          return "/profile?error=unknown_provider";
+          return await returnWithError("unknown_provider");
         }
       } catch (e) {
         const msg = e instanceof Error ? e.message : "link_failed";
-        return `/profile?error=${encodeURIComponent(msg)}`;
+        return await returnWithError(msg);
       }
     },
   },

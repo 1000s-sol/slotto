@@ -56,9 +56,12 @@ export function parseProfileSessionToken(
 }
 
 export async function readProfileSessionCookie(): Promise<string | null> {
-  const token = (await cookies()).get(PROFILE_SESSION_COOKIE)?.value;
-  const parsed = parseProfileSessionToken(token);
-  return parsed?.userProfileId ?? null;
+  const all = (await cookies()).getAll(PROFILE_SESSION_COOKIE);
+  for (const cookie of all) {
+    const parsed = parseProfileSessionToken(cookie.value);
+    if (parsed) return parsed.userProfileId;
+  }
+  return null;
 }
 
 /** Short-lived token so the OAuth callback can hand the profile id to a route that sets the cookie. */

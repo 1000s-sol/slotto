@@ -106,6 +106,14 @@ export function WalletConnectButton({
   }, [refresh]);
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const oauthError = params.get("error");
+    if (!oauthError) return;
+    setError(decodeURIComponent(oauthError).replace(/_/g, " "));
+    setOpen(true);
+  }, []);
+
+  useEffect(() => {
     if (!open) return;
     void refresh();
     const onKey = (e: KeyboardEvent) => {
