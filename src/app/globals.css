@@ -190,7 +190,7 @@ img[src^="/brand/"] {
   animation-delay: 1.4s;
 }
 
-/* Public site shell. Admin keeps the plain body. */
+/* Site shell, including admin. */
 .preview-shell {
   --font-zen-dots: var(--font-preview-display);
   --font-michroma: var(--font-preview-body);

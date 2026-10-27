@@ -6,6 +6,7 @@ import type {
   BuybackSnapshot,
   BuybackTokenRow,
 } from "@/lib/lottery/buyback-data";
+import { BUYBACK_PERCENT } from "@/lib/lottery/buyback-rate";
 
 type Currency = "SOL" | "USDC";
 
@@ -258,8 +259,8 @@ export function BuybackPageClient() {
           Profit from SPL token ticket sales is passed on to the associated
           projects through token buybacks. Slotto holds project tokens received
           from ticket purchases and offers founders a buyback at{" "}
-          <span className="text-foreground">90% of current market value</span>
-          — a 10% saving versus buying the same tokens on the open market.
+          <span className="text-foreground">{BUYBACK_PERCENT}% of current market value</span>
+          — a {100 - BUYBACK_PERCENT}% saving versus buying the same tokens on the open market.
         </p>
       </header>
 
@@ -330,7 +331,7 @@ export function BuybackPageClient() {
                   Current value
                 </th>
                 <th className="px-4 py-3 font-medium text-right">
-                  Buyback (90%)
+                  Buyback ({BUYBACK_PERCENT}%)
                 </th>
                 <th className="px-4 py-3 font-medium text-right">
                   Project saving

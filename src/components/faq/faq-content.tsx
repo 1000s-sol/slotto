@@ -242,7 +242,7 @@ function SplPoolFlow() {
               <p className="mt-2 text-sm font-semibold text-foreground">Founder buyback</p>
               <p className="mt-1 text-xs leading-relaxed text-muted">
                 Projects are offered a buyback at{" "}
-                <strong className="text-accent-cyan">90% of market value</strong>.
+                <strong className="text-accent-cyan">80% of market value</strong>.
               </p>
             </div>
             <div className="rounded-lg border border-accent-purple/30 bg-accent-purple/5 p-3 text-center">
@@ -531,7 +531,7 @@ export function FaqContent() {
       <FaqSection id="founders" title="For project founders">
         <FaqItem question="What is the founder buyback option?">
           <p>
-            After a draw, pooled tokens from your project may be offered for buyback at 90%
+            After a draw, pooled tokens from your project may be offered for buyback at 80%
             of market value before open-market sale.
           </p>
         </FaqItem>

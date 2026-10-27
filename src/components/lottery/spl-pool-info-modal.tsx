@@ -155,7 +155,7 @@ export function SplPoolInfoModal({
                 </p>
                 <p className="mt-1 text-xs leading-relaxed text-muted">
                   Projects are offered a buyback at{" "}
-                  <strong className="text-accent-cyan">90% of market value</strong>.
+                  <strong className="text-accent-cyan">80% of market value</strong>.
                 </p>
               </div>
               <div className="rounded-lg border border-accent-purple/30 bg-accent-purple/5 p-3 text-center">

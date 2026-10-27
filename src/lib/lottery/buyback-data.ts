@@ -26,7 +26,9 @@ import { isFreeEntryMint } from "./free-entry";
 import { LOTTERY_TEAM_VAULT } from "./recipients";
 import { withLotteryServerRpc } from "./server-rpc";
 
-export const BUYBACK_RATE = 0.9;
+import { BUYBACK_RATE } from "./buyback-rate";
+
+export { BUYBACK_RATE };
 
 export type BuybackDrawBreakdown = {
   onChainDrawId: number;
