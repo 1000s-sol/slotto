@@ -201,13 +201,13 @@ img[src^="/brand/"] {
 /* A fixed layer stays put on mobile. background-attachment:fixed does not. */
 .preview-fixed-bg,
 .preview-scroll-fade-bg {
-  background-color: #05070c;
+  background-color: #07111c;
   background-image:
-    linear-gradient(180deg, rgba(5, 8, 14, 0.05) 0%, rgba(5, 7, 12, 0.45) 38%, rgba(4, 5, 8, 0.92) 100%),
-    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='760' height='520' viewBox='0 0 760 520'><g stroke='%238eb4ff' stroke-width='1.4' fill='none' opacity='0.55'><path d='M70 80 L190 150 L320 70 L470 160 L640 60 L700 140'/><path d='M190 150 L250 280 L390 230 L470 160'/><path d='M250 280 L160 400 L330 430 L390 230'/><path d='M390 230 L540 340 L680 250 L640 60'/><path d='M70 80 L40 210 L160 400'/><path d='M320 70 L340 190 L390 230'/><path d='M700 140 L720 260 L680 250'/><path d='M540 340 L500 450 L330 430'/></g><g fill='%23e7f0ff'><circle cx='70' cy='80' r='4.5'/><circle cx='190' cy='150' r='5'/><circle cx='320' cy='70' r='4'/><circle cx='470' cy='160' r='5.5'/><circle cx='640' cy='60' r='4'/><circle cx='700' cy='140' r='3.5'/><circle cx='250' cy='280' r='4.5'/><circle cx='390' cy='230' r='5'/><circle cx='160' cy='400' r='4'/><circle cx='330' cy='430' r='4.5'/><circle cx='540' cy='340' r='5'/><circle cx='680' cy='250' r='4'/><circle cx='500' cy='450' r='3.5'/><circle cx='40' cy='210' r='3'/><circle cx='340' cy='190' r='3.5'/><circle cx='720' cy='260' r='3'/></g><g fill='%238eb4ff' opacity='0.35'><circle cx='70' cy='80' r='12'/><circle cx='470' cy='160' r='14'/><circle cx='390' cy='230' r='13'/><circle cx='540' cy='340' r='12'/></g></svg>"),
-    radial-gradient(1000px 520px at 50% -8%, rgba(150, 190, 255, 0.28), transparent 58%),
-    linear-gradient(180deg, #2a3548 0%, #141b2a 24%, #0a0e16 58%, #05070c 100%);
-  background-size: auto, 980px 670px, auto, auto;
+    linear-gradient(180deg, rgba(7, 17, 28, 0.35) 0%, rgba(6, 12, 20, 0.72) 100%),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='480' height='480' viewBox='0 0 480 480'><defs><pattern id='a' width='24' height='24' patternUnits='userSpaceOnUse'><path d='M24 0H0V24' fill='none' stroke='%237eb6ff' stroke-width='0.6'/></pattern><pattern id='b' width='120' height='120' patternUnits='userSpaceOnUse'><path d='M120 0H0V120' fill='none' stroke='%2399c8ff' stroke-width='1.1'/></pattern></defs><rect width='480' height='480' fill='url(%23a)' opacity='0.22'/><rect width='480' height='480' fill='url(%23b)' opacity='0.28'/><g fill='none' stroke='%23c5e2ff' stroke-width='1.2' opacity='0.28'><circle cx='92' cy='108' r='40'/><circle cx='92' cy='108' r='5'/><path d='M52 108H132M92 68V148'/><rect x='230' y='58' width='168' height='104'/><path d='M230 110H398M314 58V162'/><circle cx='330' cy='330' r='52'/><path d='M278 330H382M330 278V382'/><path d='M48 312H168M48 348H128M48 312V348'/></g></svg>"),
+    linear-gradient(180deg, #10283f 0%, #0b1c2e 42%, #071018 100%);
+  background-size: auto, 480px 480px, auto;
+  background-position: center, top left, center;
 }
 
 .preview-fixed-bg {
