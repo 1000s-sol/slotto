@@ -18,7 +18,7 @@ const links = [
 ];
 
 const navLinkClass =
-  "rounded-xl px-4 py-3 text-sm font-semibold text-muted transition hover:bg-surface hover:text-foreground";
+  "rounded-xl px-2 py-2 text-sm font-semibold text-muted transition hover:bg-surface hover:text-foreground xl:px-4 xl:py-3";
 const navLinkClassMobile =
   "block w-full rounded-xl px-4 py-3 text-left text-base font-semibold text-foreground transition hover:bg-surface/80";
 
@@ -67,8 +67,8 @@ export function SiteHeaderNav() {
   }, [open]);
 
   return (
-    <div className="relative flex shrink-0 items-center md:block">
-      <div className="flex items-center justify-end gap-2 md:hidden">
+    <div className="relative flex shrink-0 items-center lg:block">
+      <div className="flex items-center justify-end gap-2 lg:hidden">
         <div className="min-w-0 max-w-[min(100%,14rem)] sm:max-w-[18rem] [&>div]:min-w-0 [&>div]:justify-end">
           <WalletConnectButton variant="toolbar" />
         </div>
@@ -85,7 +85,7 @@ export function SiteHeaderNav() {
       </div>
 
       <nav
-        className="hidden flex-wrap items-center justify-end gap-2 md:flex"
+        className="hidden flex-wrap items-center justify-end gap-1 lg:flex xl:gap-2"
         aria-label="Main"
       >
         {links.map((l) => (
@@ -105,13 +105,13 @@ export function SiteHeaderNav() {
         <>
           <button
             type="button"
-            className="fixed inset-0 z-40 bg-bg-deep/70 backdrop-blur-sm md:hidden"
+            className="fixed inset-0 z-40 bg-bg-deep/70 backdrop-blur-sm lg:hidden"
             aria-label="Close menu"
             onClick={close}
           />
           <div
             id="site-mobile-nav"
-            className="fixed left-3 right-3 top-[4.5rem] z-50 rounded-2xl border border-border bg-bg-elevated/98 p-2 shadow-xl shadow-black/40 md:hidden"
+            className="fixed left-3 right-3 top-[4.5rem] z-50 rounded-2xl border border-border bg-bg-elevated/98 p-2 shadow-xl shadow-black/40 lg:hidden"
           >
             <div className="flex flex-col gap-0.5 py-1" role="navigation" aria-label="Mobile">
               {links.map((l) => (

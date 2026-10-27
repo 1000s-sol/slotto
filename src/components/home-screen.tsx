@@ -57,8 +57,8 @@ export function HomeScreen() {
     <SlottoRadioProvider>
       <div className="min-w-0 max-w-full space-y-20">
         <section>
-          <div className="xl:grid xl:grid-cols-[minmax(0,1fr)_560px] xl:items-stretch xl:gap-x-10">
-            <div className="relative z-10 min-w-0 xl:col-start-1 xl:row-start-1">
+          <div className="md:grid md:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] md:items-stretch md:gap-x-4 lg:gap-x-8 xl:grid-cols-[minmax(0,1fr)_560px] xl:gap-x-10">
+            <div className="relative z-10 min-w-0 md:col-start-1 md:row-start-1">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent-gold">
                 Monthly lotto game on Solana
               </p>
@@ -82,8 +82,8 @@ export function HomeScreen() {
               </p>
             </div>
 
-            <div className="mt-6 grid grid-cols-[minmax(0,1fr)_7.75rem] items-center gap-3 sm:grid-cols-[minmax(0,1fr)_11rem] xl:contents">
-              <ul className="min-w-0 space-y-3 xl:col-start-1 xl:row-start-2 xl:mt-7">
+            <div className="mt-6 grid grid-cols-[minmax(0,1fr)_7.75rem] items-center gap-3 sm:grid-cols-[minmax(0,1fr)_11rem] md:contents">
+              <ul className="min-w-0 space-y-3 md:col-start-1 md:row-start-2 md:mt-7">
                 {POINTS.map(({ text, icon: Icon }) => (
                   <li key={text} className="flex items-start gap-2 text-sm font-bold leading-snug text-white sm:gap-3 sm:text-base xl:items-center xl:gap-4 xl:text-2xl">
                     <Icon />
@@ -92,7 +92,7 @@ export function HomeScreen() {
                 ))}
               </ul>
 
-              <div className="relative w-full xl:col-start-2 xl:row-span-3 xl:row-start-1 xl:mt-0 xl:h-full xl:w-[560px] xl:max-w-none">
+              <div className="relative w-full md:col-start-2 md:row-span-3 md:row-start-1 md:mt-0 md:h-full md:w-full md:overflow-hidden xl:w-[560px] xl:overflow-visible">
                 <div
                   aria-hidden
                   className="pointer-events-none absolute inset-x-[8%] bottom-[8%] top-[14%] rounded-full bg-[radial-gradient(circle_at_50%_42%,rgba(245,197,66,0.28),rgba(124,58,237,0.16)_46%,transparent_72%)] blur-2xl"
@@ -103,12 +103,12 @@ export function HomeScreen() {
                   width={640}
                   height={640}
                   priority
-                  className="relative h-auto w-full object-contain xl:absolute xl:bottom-[-7%] xl:right-0 xl:h-[134%] xl:w-auto xl:max-w-none"
+                  className="relative h-auto w-full object-contain md:absolute md:inset-0 md:h-full md:w-full md:origin-bottom md:scale-[1.45] md:object-contain md:object-bottom xl:inset-auto xl:bottom-[-7%] xl:right-0 xl:h-[134%] xl:w-auto xl:max-w-none xl:origin-bottom-right xl:scale-100"
                 />
               </div>
             </div>
 
-            <div className="relative z-10 mt-6 flex flex-wrap items-center gap-3 xl:col-start-1 xl:row-start-3 xl:mt-8">
+            <div className="relative z-10 mt-6 flex flex-wrap items-center gap-3 md:col-start-1 md:row-start-3 md:mt-8">
               <Link
                 href="/projects"
                 className="inline-flex h-11 items-center rounded-full bg-gradient-to-r from-accent-purple to-accent-blue px-6 text-sm font-semibold text-white shadow-md shadow-accent-purple/30 transition hover:brightness-110"
