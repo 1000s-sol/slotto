@@ -111,7 +111,7 @@ export function HomeScreen() {
             <div className="relative z-10 mt-6 flex flex-wrap items-center gap-3 xl:col-start-1 xl:row-start-3 xl:mt-8">
               <Link
                 href="/projects"
-                className="inline-flex rounded-full bg-accent-gold px-6 py-3 text-sm font-semibold text-bg-deep transition hover:brightness-110"
+                className="inline-flex h-11 items-center rounded-full bg-gradient-to-r from-accent-purple to-accent-blue px-6 text-sm font-semibold text-white shadow-md shadow-accent-purple/30 transition hover:brightness-110"
               >
                 Browse projects
               </Link>
