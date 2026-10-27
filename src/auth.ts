@@ -101,6 +101,9 @@ function providers(): Provider[] {
       Discord({
         clientId: discordId,
         clientSecret: discordSecret,
+        // Discord adds iss=https://discord.com/api on the callback (RFC 9207).
+        // Auth.js otherwise expects https://authjs.dev and rejects the login.
+        issuer: "https://discord.com/api",
         profile(profile) {
           const p = profile as {
             id: string;
