@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 
 import { handlers } from "@/auth";
 import {
@@ -8,8 +8,8 @@ import {
 
 /** Set the profile session on the OAuth redirect itself, before any apex → www hop. */
 async function withHandoffSession(
-  request: Request,
-  handler: (request: Request) => Promise<Response>,
+  request: NextRequest,
+  handler: (request: NextRequest) => Promise<Response>,
 ) {
   const response = await handler(request);
   const location = response.headers.get("location");
@@ -34,10 +34,10 @@ async function withHandoffSession(
   return next;
 }
 
-export function GET(request: Request) {
+export function GET(request: NextRequest) {
   return withHandoffSession(request, handlers.GET);
 }
 
-export function POST(request: Request) {
+export function POST(request: NextRequest) {
   return withHandoffSession(request, handlers.POST);
 }
