@@ -55,32 +55,32 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const pathname = (await headers()).get("x-pathname") ?? "";
-  const isDesignPreview = pathname === "/preview";
+  const useSiteShell = !pathname.startsWith("/admin");
 
   return (
     <html lang="en" className="dark">
       <body
         className={`${zenDots.variable} ${michroma.variable} ${geistSans.variable} ${geistMono.variable} font-sans antialiased overflow-x-clip`}
       >
-        {isDesignPreview ? <div aria-hidden className="preview-fixed-bg" /> : null}
+        {useSiteShell ? <div aria-hidden className="preview-fixed-bg" /> : null}
         <SolanaWalletProvider>
           <AuthSessionProvider>
           <MaintenanceGate>
             <div
                 className={
-                  isDesignPreview
+                  useSiteShell
                     ? `${previewDisplay.variable} ${previewBody.variable} preview-shell relative z-[1] min-h-dvh w-full`
                     : "min-h-dvh w-full max-w-full overflow-x-hidden"
                 }
               >
               <div
                 className={
-                  isDesignPreview
+                  useSiteShell
                     ? "mx-auto flex min-h-dvh w-full min-w-0 max-w-[1440px] flex-col px-5 pb-10 sm:px-8"
                     : "mx-auto flex min-h-dvh w-full min-w-0 max-w-6xl flex-col px-4 pb-8 pt-4 sm:px-6"
                 }
               >
-                {isDesignPreview ? (
+                {useSiteShell ? (
                   <div className="sticky top-0 z-[120] -mx-5 bg-transparent px-5 pb-2 pt-3 sm:-mx-8 sm:px-8">
                     <div
                       aria-hidden
