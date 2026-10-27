@@ -107,7 +107,7 @@ export function ProfileSocialSection() {
     }
     setPhase({ kind: "loading" });
     try {
-      await signIn(provider, { callbackUrl: "/profile" });
+      await signIn(provider, { callbackUrl: window.location.href });
     } catch (e) {
       setPhase({
         kind: "error",

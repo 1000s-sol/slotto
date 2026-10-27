@@ -466,10 +466,11 @@ export async function linkDiscordToProfile(
     }
   }
 
-  if (!avatarHash || !avatar) {
-    throw new Error(
-      "Could not load your Discord profile picture. Add DISCORD_BOT_TOKEN on the server and try again.",
-    );
+  if (!avatar) {
+    avatar = profile.image?.trim() || null;
+  }
+  if (!avatar) {
+    throw new Error("Discord profile missing avatar");
   }
 
   return prisma.userProfile.update({

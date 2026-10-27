@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 
 import {
+  attachProfileSessionCookie,
   parseProfileHandoffToken,
-  setProfileSessionCookie,
 } from "@/lib/profile-session";
 
 export const dynamic = "force-dynamic";
@@ -36,12 +36,12 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL("/profile?error=oauth_failed", url));
   }
 
-  await setProfileSessionCookie(profileId);
-
   const dest = safeNext(url.searchParams.get("next"), request.url);
   const linked = url.searchParams.get("linked");
   if (linked === "discord" || linked === "twitter") {
     dest.searchParams.set("linked", linked);
   }
-  return NextResponse.redirect(dest);
+  const response = NextResponse.redirect(dest);
+  attachProfileSessionCookie(response, profileId, url.hostname);
+  return response;
 }

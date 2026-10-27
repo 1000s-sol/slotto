@@ -21,6 +21,30 @@ import {
 
 ensureAuthUrlEnv();
 
+/** PKCE, state, and callback URL must be readable on both www and apex. */
+function oauthCookieDomain(): string | undefined {
+  if (process.env.NODE_ENV !== "production") return undefined;
+  try {
+    const host = new URL(process.env.AUTH_URL || "").hostname.toLowerCase();
+    if (host === "slotto.gg" || host === "www.slotto.gg") return ".slotto.gg";
+  } catch {
+    /* Leave cookies host-only. */
+  }
+  return undefined;
+}
+
+function sharedOAuthCookies() {
+  const domain = oauthCookieDomain();
+  if (!domain) return undefined;
+  const shared = { options: { domain } };
+  return {
+    callbackUrl: shared,
+    pkceCodeVerifier: shared,
+    state: shared,
+    nonce: shared,
+  };
+}
+
 async function handoffRedirect(profileId: string, provider: string): Promise<string> {
   const token = buildProfileHandoffToken(profileId);
   let next = "/profile";
@@ -101,7 +125,26 @@ export const { handlers, signIn } = NextAuth({
   trustHost: true,
   secret: authSecret(),
   providers: providers(),
+  cookies: sharedOAuthCookies(),
   callbacks: {
+    async redirect({ url, baseUrl }) {
+      if (url.startsWith("/")) return `${baseUrl}${url}`;
+      try {
+        const dest = new URL(url);
+        const host = dest.hostname.toLowerCase();
+        if (
+          host === "slotto.gg" ||
+          host === "www.slotto.gg" ||
+          host === "localhost" ||
+          host.endsWith(".vercel.app")
+        ) {
+          return url;
+        }
+      } catch {
+        /* Fall through to the auth origin. */
+      }
+      return baseUrl;
+    },
     async signIn({ account, profile }) {
       if (!account?.provider || !profile) {
         return "/profile?error=oauth_failed";

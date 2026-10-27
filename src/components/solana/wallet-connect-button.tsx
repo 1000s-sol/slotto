@@ -141,7 +141,7 @@ export function WalletConnectButton({
     setError(null);
     setBusy(provider);
     try {
-      const callbackUrl = `${window.location.pathname}${window.location.search}`;
+      const callbackUrl = window.location.href;
       await signIn(provider, { callbackUrl });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Sign-in failed");

@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
+import type { NextResponse } from "next/server";
 
 export const PROFILE_SESSION_COOKIE = "slotto_user_profile";
 
@@ -81,30 +82,72 @@ export function parseProfileHandoffToken(raw: string | undefined): string | null
   return markedId.slice(2);
 }
 
-function sessionCookieDomain(): string | undefined {
+function hostnameOf(value: string | null | undefined): string {
+  const raw = (value ?? "").trim().toLowerCase();
+  if (!raw) return "";
+  try {
+    if (raw.includes("://")) return new URL(raw).hostname;
+  } catch {
+    /* Host header, not a URL. */
+  }
+  return raw.split("/")[0]?.split(":")[0] ?? "";
+}
+
+/** Share the session across apex and www. Other hosts stay host-only. */
+export function sessionCookieDomain(host?: string | null): string | undefined {
   if (process.env.NODE_ENV !== "production") return undefined;
-  const host = (
-    process.env.AUTH_URL ||
-    process.env.NEXTAUTH_URL ||
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    ""
-  ).toLowerCase();
-  if (host.includes("slotto.gg")) return ".slotto.gg";
+  const hostname = hostnameOf(host);
+  if (hostname === "slotto.gg" || hostname.endsWith(".slotto.gg")) return ".slotto.gg";
   return undefined;
+}
+
+function cookieOptions(host?: string | null) {
+  const domain = sessionCookieDomain(host);
+  return {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax" as const,
+    path: "/",
+    maxAge: SESSION_MAX_AGE_SEC,
+    ...(domain ? { domain } : {}),
+  };
+}
+
+async function requestHost(): Promise<string | undefined> {
+  try {
+    const h = await headers();
+    return h.get("x-forwarded-host") || h.get("host") || undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 export async function setProfileSessionCookie(userProfileId: string) {
   const token = buildProfileSessionToken(userProfileId);
-  (await cookies()).set(PROFILE_SESSION_COOKIE, token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: SESSION_MAX_AGE_SEC,
-    domain: sessionCookieDomain(),
-  });
+  const host = await requestHost();
+  (await cookies()).set(PROFILE_SESSION_COOKIE, token, cookieOptions(host));
+}
+
+/** Attach the session to a redirect. cookies().set() is dropped on NextResponse.redirect(). */
+export function attachProfileSessionCookie(
+  response: NextResponse,
+  userProfileId: string,
+  host?: string | null,
+) {
+  response.cookies.set(
+    PROFILE_SESSION_COOKIE,
+    buildProfileSessionToken(userProfileId),
+    cookieOptions(host),
+  );
+  return response;
 }
 
 export async function clearProfileSessionCookie() {
-  (await cookies()).delete(PROFILE_SESSION_COOKIE);
+  const host = await requestHost();
+  const domain = sessionCookieDomain(host);
+  const jar = await cookies();
+  jar.delete(PROFILE_SESSION_COOKIE);
+  if (domain) {
+    jar.delete({ name: PROFILE_SESSION_COOKIE, path: "/", domain });
+  }
 }
