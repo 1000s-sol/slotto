@@ -92,19 +92,23 @@ export function HomeScreen() {
                 ))}
               </ul>
 
-              <div className="relative w-full md:col-start-2 md:row-span-3 md:row-start-1 md:mt-0 md:h-full md:w-full md:overflow-hidden xl:w-[560px] xl:overflow-visible">
+              <div className="relative w-full md:col-start-2 md:row-span-3 md:row-start-1 md:mt-0 md:h-full md:min-h-0 md:w-full md:overflow-hidden xl:w-[560px] xl:overflow-visible">
                 <div
                   aria-hidden
                   className="pointer-events-none absolute inset-x-[8%] bottom-[8%] top-[14%] rounded-full bg-[radial-gradient(circle_at_50%_42%,rgba(245,197,66,0.28),rgba(124,58,237,0.16)_46%,transparent_72%)] blur-2xl"
                 />
-                <BrandPng
-                  src="/brand/slotto-guy.png"
-                  alt="Slotto mascot"
-                  width={640}
-                  height={640}
-                  priority
-                  className="relative h-auto w-full object-contain md:absolute md:inset-0 md:h-full md:w-full md:origin-bottom md:scale-[1.45] md:object-contain md:object-bottom xl:inset-auto xl:bottom-[-7%] xl:right-0 xl:h-[134%] xl:w-auto xl:max-w-none xl:origin-bottom-right xl:scale-100"
-                />
+                <div className="contents md:absolute md:inset-0 md:flex md:items-end md:justify-center md:p-2 md:@container-size xl:contents">
+                  <div className="contents md:relative md:block md:h-[min(100cqh,calc(100cqw*2592/3076))] md:w-[min(100cqw,calc(100cqh*3076/2592))] xl:contents">
+                    <BrandPng
+                      src="/brand/slotto-guy.png"
+                      alt="Slotto mascot"
+                      width={640}
+                      height={640}
+                      priority
+                      className="relative h-auto w-full object-contain md:absolute md:left-[-6.014%] md:top-[-27.122%] md:h-[133.642%] md:w-[112.614%] md:max-w-none xl:inset-auto xl:bottom-[-7%] xl:right-0 xl:h-[134%] xl:w-auto"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
 
