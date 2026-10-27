@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 function isInternalNavigation(anchor: HTMLAnchorElement, event: MouseEvent) {
   if (event.defaultPrevented || event.button !== 0) return false;
@@ -24,17 +24,37 @@ function isInternalNavigation(anchor: HTMLAnchorElement, event: MouseEvent) {
 export function NavigationProgress() {
   const pathname = usePathname();
   const search = useSearchParams().toString();
+  const route = `${pathname}?${search}`;
+  const routeRef = useRef(route);
   const [active, setActive] = useState(false);
 
   useEffect(() => {
-    setActive(false);
-  }, [pathname, search]);
-
-  useEffect(() => {
     if (!active) return;
-    const id = window.setTimeout(() => setActive(false), 12000);
+    const id = window.setTimeout(() => setActive(false), 15000);
     return () => window.clearTimeout(id);
   }, [active]);
+
+  useEffect(() => {
+    if (routeRef.current === route) return;
+    routeRef.current = route;
+    if (!active) return;
+    let cancelled = false;
+    const started = performance.now();
+    const tick = () => {
+      if (cancelled) return;
+      const busy = !!document.querySelector("[aria-busy='true']");
+      if (busy || performance.now() - started < 280) {
+        requestAnimationFrame(tick);
+        return;
+      }
+      setActive(false);
+    };
+    const frame = requestAnimationFrame(tick);
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(frame);
+    };
+  }, [route, active]);
 
   useEffect(() => {
     const onClick = (event: MouseEvent) => {
