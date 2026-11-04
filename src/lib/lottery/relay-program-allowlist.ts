@@ -1,11 +1,11 @@
-import {
-  ASSOCIATED_TOKEN_PROGRAM_ID,
-} from "@solana/spl-token";
+import { ASSOCIATED_TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import {
   PublicKey,
   Transaction,
   VersionedTransaction,
 } from "@solana/web3.js";
+
+import idl from "../../../idl/slotto_lottery.json";
 
 import { lotteryProgramId } from "./config";
 
@@ -15,16 +15,30 @@ const COMPUTE_BUDGET_PROGRAM_ID = new PublicKey(
 );
 
 /**
+ * Lottery program ids we accept. Always include the checked-in IDL address so a
+ * wrong/stale NEXT_PUBLIC_SLOTTO_LOTTERY_PROGRAM_ID on the server cannot reject
+ * legitimate buys built from the IDL.
+ */
+function lotteryProgramIds(): Set<string> {
+  const ids = new Set<string>([idl.address]);
+  try {
+    ids.add(lotteryProgramId().toBase58());
+  } catch {
+    /* keep IDL address */
+  }
+  return ids;
+}
+
+/**
  * Top-level programs allowed on public simulate / send-transaction relays.
  *
- * Ticket buys only expose lottery (+ optional ATA create + compute budget) as
+ * Ticket buys expose lottery (+ optional ATA create + compute budget) as
  * top-level instructions. Token / System transfers happen via CPI from the
- * lottery program, so they must not be allowlisted at the top level (that
- * would turn the relay into a generic fee-payer-anonymous broadcaster).
+ * lottery program, so they are not allowlisted at the top level.
  */
 export function lotteryRelayAllowedProgramIds(): Set<string> {
   return new Set([
-    lotteryProgramId().toBase58(),
+    ...lotteryProgramIds(),
     ASSOCIATED_TOKEN_PROGRAM_ID.toBase58(),
     COMPUTE_BUDGET_PROGRAM_ID.toBase58(),
   ]);
@@ -37,6 +51,7 @@ export type RelayTxValidation =
 function programIdsFromLegacy(raw: Buffer): PublicKey[] | null {
   try {
     const tx = Transaction.from(raw);
+    if (!tx.instructions.length) return null;
     return tx.instructions.map((ix) => ix.programId);
   } catch {
     return null;
@@ -47,13 +62,14 @@ function programIdsFromVersioned(raw: Buffer): PublicKey[] | null {
   try {
     const tx = VersionedTransaction.deserialize(raw);
     const keys = tx.message.getAccountKeys();
-    return tx.message.compiledInstructions.map((ix) => {
+    const ids = tx.message.compiledInstructions.map((ix) => {
       const pk = keys.get(ix.programIdIndex);
       if (!pk) {
         throw new Error("missing program id");
       }
       return pk;
     });
+    return ids.length ? ids : null;
   } catch {
     return null;
   }
@@ -78,18 +94,19 @@ export function validateLotteryRelayTransaction(raw: Buffer): RelayTxValidation 
   }
 
   const allowed = lotteryRelayAllowedProgramIds();
-  const lottery = lotteryProgramId().toBase58();
+  const lotteryIds = lotteryProgramIds();
   let hasLotteryIx = false;
 
   for (const programId of programIds) {
     const id = programId.toBase58();
     if (!allowed.has(id)) {
+      console.error("[lottery relay] rejected program", id);
       return {
         ok: false,
-        error: "Transaction targets a program that is not allowed",
+        error: `Transaction targets a program that is not allowed (${id})`,
       };
     }
-    if (id === lottery) hasLotteryIx = true;
+    if (lotteryIds.has(id)) hasLotteryIx = true;
   }
 
   if (!hasLotteryIx) {
