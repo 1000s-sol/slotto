@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 
+import { validateLotteryRelayTransaction } from "@/lib/lottery/relay-program-allowlist";
 import { lotteryRpcErrorText } from "@/lib/lottery/user-facing-error";
 import { withLotteryServerRpc } from "@/lib/lottery/server-rpc";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
-/** Broadcast a wallet-signed legacy transaction via server RPC (Helius + fallback). */
+/** Broadcast a wallet-signed lottery buy tx via server RPC (Helius + fallback). */
 export async function POST(request: Request) {
   const ip = clientIp(request);
   const limited = rateLimit(`lottery-send:${ip}`, 30, 60_000);
@@ -36,8 +37,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid base64" }, { status: 400 });
   }
 
-  if (raw.length < 64 || raw.length > 1644) {
-    return NextResponse.json({ error: "Invalid transaction size" }, { status: 400 });
+  const validated = validateLotteryRelayTransaction(raw);
+  if (!validated.ok) {
+    return NextResponse.json({ error: validated.error }, { status: 400 });
   }
 
   try {

@@ -1,13 +1,14 @@
 import { Transaction } from "@solana/web3.js";
 import { NextResponse } from "next/server";
 
+import { validateLotteryRelayTransaction } from "@/lib/lottery/relay-program-allowlist";
 import { lotteryRpcErrorText } from "@/lib/lottery/user-facing-error";
 import { withLotteryServerRpc } from "@/lib/lottery/server-rpc";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
-/** Simulate an unsigned legacy tx on server RPC before Phantom opens (sigVerify: false). */
+/** Simulate an unsigned lottery buy tx on server RPC before Phantom opens (sigVerify: false). */
 export async function POST(request: Request) {
   const ip = clientIp(request);
   const limited = rateLimit(`lottery-sim:${ip}`, 60, 60_000);
@@ -37,6 +38,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid base64" }, { status: 400 });
   }
 
+  const validated = validateLotteryRelayTransaction(raw);
+  if (!validated.ok) {
+    return NextResponse.json(
+      { ok: false, error: validated.error },
+      { status: 400 },
+    );
+  }
+
   try {
     const tx = Transaction.from(raw);
     const result = await withLotteryServerRpc((connection) =>
@@ -45,18 +54,21 @@ export async function POST(request: Request) {
       connection.simulateTransaction(tx),
     );
     const err = result.value.err;
-    const logs = result.value.logs ?? [];
+    // Strip source paths (e.g. programs/.../lib.rs:N) — keep Anchor error names.
+    const logs = (result.value.logs ?? [])
+      .map((line) => line.replace(/\s+Left:\s*.+$/i, "").replace(/\/[^\s:]+\.(rs|ts):\d+/g, ""))
+      .slice(-8);
     if (err) {
       return NextResponse.json(
         {
           ok: false,
           error: JSON.stringify(err),
-          logs: logs.slice(-12),
+          logs,
         },
         { status: 400 },
       );
     }
-    return NextResponse.json({ ok: true, logs: logs.slice(-8) });
+    return NextResponse.json({ ok: true, logs });
   } catch (e) {
     const message = lotteryRpcErrorText(e).slice(0, 500) || "simulate failed";
     return NextResponse.json({ ok: false, error: message }, { status: 500 });

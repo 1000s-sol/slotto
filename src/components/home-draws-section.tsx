@@ -162,6 +162,7 @@ export function HomeDrawsSection({ preview = false }: { preview?: boolean }) {
       const holders = await fetchDrawEntrantsClient(draw.drawId);
       const socials = await fetchWalletSocialsClient(
         holders.map((h) => h.wallet),
+        draw.drawId,
       );
       setEntrants(
         holders.map((h) => {
@@ -206,7 +207,10 @@ export function HomeDrawsSection({ preview = false }: { preview?: boolean }) {
         } catch {
           // Entrants are optional for past winners; winner wallet is on-chain.
         }
-        const socials = await fetchWalletSocialsClient([draw.winner]);
+        const socials = await fetchWalletSocialsClient(
+          [draw.winner],
+          draw.drawId,
+        );
         const winnerSocial = socials[draw.winner];
         rows.push({
           displayLabel: draw.displayLabel,

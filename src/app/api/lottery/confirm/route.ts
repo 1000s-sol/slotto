@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { pollSignatureConfirmation } from "@/lib/lottery/confirm-signature-poll";
 import { withLotteryServerRpc } from "@/lib/lottery/server-rpc";
 import { lotteryRpcErrorText } from "@/lib/lottery/user-facing-error";
+import { clientIp, rateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 /** Per-request poll budget; client retries until its own deadline. */
@@ -10,6 +11,14 @@ export const maxDuration = 60;
 
 /** Poll signature status via server RPC (Helius, with public fallback). */
 export async function POST(request: Request) {
+  const limited = rateLimit(`lottery-confirm:${clientIp(request)}`, 60, 60_000);
+  if (!limited.ok) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      { status: 429, headers: { "Retry-After": String(limited.retryAfter) } },
+    );
+  }
+
   let signature: string;
   let maxWaitMs = 8_000;
   try {

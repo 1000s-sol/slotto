@@ -237,7 +237,10 @@ export function HomeLotterySection({ preview = false }: { preview?: boolean }) {
             state.settledDrawPrizeLamports ??
               estimatePotFromTicketsLamports(settled.totalTickets),
           );
-          const socials = await fetchWalletSocialsClient([settled.winner]);
+          const socials = await fetchWalletSocialsClient(
+            [settled.winner],
+            settled.drawId,
+          );
           setWinnerSocial(socials[settled.winner] ?? null);
         } else {
           setWinnerPrizeLamports(null);
