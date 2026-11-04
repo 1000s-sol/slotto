@@ -4,6 +4,8 @@ import { isRpcAuthError } from "./rpc-url";
 type BuyErrorContext = {
   /** "SOL" or SPL mint address */
   payWith?: "SOL" | string;
+  /** Display symbol for SPL (e.g. DEADS, EMPIRE). */
+  tokenLabel?: string;
 };
 
 function errorStrings(error: unknown): string[] {
@@ -126,11 +128,20 @@ function isInsufficientSol(text: string): boolean {
   ) {
     return false;
   }
+  if (
+    /\binsufficient\s+sol\b/i.test(lower) ||
+    lower.includes("not enough sol") ||
+    lower.includes("needs a little sol")
+  ) {
+    return true;
+  }
   return (
     lower.includes("insufficient lamports") ||
     lower.includes("insufficient funds for fee") ||
     lower.includes("insufficientfundsforfee") ||
-    (lower.includes("insufficient funds") && !lower.includes("buyer_token")) ||
+    (lower.includes("insufficient funds") &&
+      !lower.includes("buyer_token") &&
+      !lower.includes("token")) ||
     (lower.includes("simulation failed") &&
       lower.includes("transfer") &&
       lower.includes("lamports"))
@@ -139,6 +150,12 @@ function isInsufficientSol(text: string): boolean {
 
 function isInsufficientSplToken(text: string): boolean {
   const lower = text.toLowerCase();
+  if (
+    /\byou need\b.+\bbut this wallet holds\b/i.test(lower) ||
+    (lower.includes("add ") && lower.includes(" to your wallet"))
+  ) {
+    return !isInsufficientSol(text);
+  }
   if (
     lower.includes("accountnotinitialized") &&
     (lower.includes("buyer_token") || lower.includes("buyer token"))
@@ -161,25 +178,63 @@ function isInsufficientSplToken(text: string): boolean {
     return true;
   }
   if (
-    lower.includes("error code: insufficientfunds") &&
-    lower.includes("token")
+    lower.includes("error code: insufficientfunds") ||
+    lower.includes("insufficientfunds")
+  ) {
+    return true;
+  }
+  if (
+    lower.includes("custom program error") &&
+    (lower.includes("0x1") || lower.includes(" insufficient"))
+  ) {
+    // SPL Token error 1 = InsufficientFunds
+    return true;
+  }
+  if (
+    /\byou need\b.+\bticket/i.test(lower) &&
+    /\bholds\b/i.test(lower)
   ) {
     return true;
   }
   return false;
 }
 
+function looksLikeRpcJargon(text: string): boolean {
+  const lower = text.toLowerCase();
+  return (
+    lower.includes("program log") ||
+    lower.includes("program error") ||
+    lower.includes("error code") ||
+    lower.includes("error number") ||
+    lower.includes("instruction error") ||
+    lower.includes("simulation failed") ||
+    lower.includes("failed to send") ||
+    lower.includes("blockhash") ||
+    lower.includes("0x") ||
+    lower.includes("custom program") ||
+    lower.includes("would fail on-chain") ||
+    lower.includes("rpc") ||
+    lower.includes("helius") ||
+    /"instruction"\s*:/i.test(text) ||
+    text.length > 160
+  );
+}
+
+function splTokenLabel(context: BuyErrorContext): string {
+  const raw = context.tokenLabel?.trim();
+  if (raw) return raw;
+  return "token";
+}
+
+const RETRY_GENERIC = "Unable to complete. Please try again.";
+
 /** Map raw wallet / RPC / Anchor errors to short copy for the buy-tickets UI. */
 export function formatLotteryBuyError(
   error: unknown,
   context: BuyErrorContext = {},
 ): string {
-  if (error instanceof BuyPreflightError) {
-    return error.message;
-  }
-
   const text = combinedErrorText(error);
-  if (!text.trim()) return "Purchase failed. Please try again.";
+  if (!text.trim()) return RETRY_GENERIC;
 
   if (isWalletRejected(text)) {
     return "Transaction cancelled in your wallet.";
@@ -189,10 +244,7 @@ export function formatLotteryBuyError(
     text.toLowerCase().includes("no signers") ||
     text.toLowerCase().includes("no signer")
   ) {
-    const detail = text.trim().slice(0, 120);
-    return detail.length > 20
-      ? `Wallet signing failed (${detail}). Hard refresh, reconnect Phantom on mainnet, then try again.`
-      : "Wallet signing failed. Hard refresh, reconnect Phantom on mainnet, then try again.";
+    return "Wallet signing failed. Hard refresh, reconnect Phantom on mainnet, then try again.";
   }
 
   if (isRateLimited(text)) {
@@ -202,46 +254,40 @@ export function formatLotteryBuyError(
   }
 
   if (isRpcAuthError(text)) {
-    return "RPC configuration error on the server. Hard refresh and try again in a minute.";
+    return RETRY_GENERIC;
   }
 
-  const payingSpl = context.payWith && context.payWith !== "SOL";
+  const payingSpl = Boolean(context.payWith && context.payWith !== "SOL");
+  const token = splTokenLabel(context);
 
   if (isWalletClusterMismatch(text)) {
-    return "Wallet network mismatch: switch Phantom to the same network Slotto uses (Mainnet Beta for production), then try again.";
+    return "Switch Phantom to Mainnet Beta, then try again.";
+  }
+
+  if (
+    text.toLowerCase().includes("team_token") ||
+    text.toLowerCase().includes("team token")
+  ) {
+    return `${token} ticket sales are not ready yet. Please try again shortly.`;
   }
 
   if (payingSpl && isInsufficientSplToken(text)) {
-    if (
-      text.toLowerCase().includes("team_token") ||
-      text.toLowerCase().includes("team token")
-    ) {
-      return (
-        "This token is not ready for ticket sales yet. " +
-        "An admin must run “Ensure team ATA” for this mint in Admin → Lotteries."
-      );
-    }
-    if (
-      text.toLowerCase().includes("accountnotinitialized") ||
-      text.toLowerCase().includes("3012")
-    ) {
-      return "Your wallet does not have a token account ready for this mint yet. Open your wallet, view this token, then try again (a small transfer can create the account).";
-    }
-    return "Insufficient token balance. Connect a wallet that holds this token, or buy the token first.";
+    return `Insufficient ${token}.`;
   }
 
-  if (isInsufficientSol(text) || (!payingSpl && isInsufficientSplToken(text))) {
-    return (
-      "Not enough SOL in your wallet for this purchase (ticket price + network fee). " +
-      "Confirm Phantom is on Mainnet Beta, refresh, and try again."
-    );
+  if (isInsufficientSol(text)) {
+    return "Insufficient SOL.";
+  }
+
+  if (!payingSpl && isInsufficientSplToken(text)) {
+    return "Insufficient SOL.";
   }
 
   if (
     text.includes("OutsideSalesWindow") ||
     text.toLowerCase().includes("outside sales window")
   ) {
-    return "Ticket sales are not open yet (or have closed). Check the countdown on this page.";
+    return "Ticket sales are not open right now. Check the countdown on this page.";
   }
 
   if (
@@ -250,7 +296,7 @@ export function formatLotteryBuyError(
     text.toLowerCase().includes("price is below the minimum band") ||
     text.toLowerCase().includes("price exceeds on-chain max")
   ) {
-    return "Token price moved — refresh the page to get the latest ticket price, then try again.";
+    return "Token price moved — refresh the page and try again.";
   }
 
   if (
@@ -260,26 +306,41 @@ export function formatLotteryBuyError(
     return "Ticket sales are not ready yet for this draw. Please try again shortly.";
   }
 
-  if (isInsufficientSplToken(text)) {
-    return "Insufficient token balance for this purchase.";
-  }
-
   if (
     text.includes("Transaction not confirmed") ||
     text.toLowerCase().includes("confirmation timed out")
   ) {
     return (
-      "Your transaction was sent but confirmation is taking longer than usual. " +
-      "Refresh the page — if your ticket count increased, the purchase succeeded. " +
-      "Otherwise wait a minute and try again (do not double-buy unless your balance was not charged)."
+      "Transaction sent but not confirmed yet. Refresh the page — " +
+      "if your tickets increased it succeeded. Otherwise wait a minute and try again."
     );
   }
 
-  if (text.length > 180) {
-    return "Purchase failed. Please check your balance and try again.";
+  // Keep short, already-friendly preflight lines; never leak RPC jargon.
+  if (
+    error instanceof BuyPreflightError &&
+    !looksLikeRpcJargon(text) &&
+    text.length <= 160
+  ) {
+    return text;
+  }
+
+  if (looksLikeRpcJargon(text) || text.length > 120) {
+    return RETRY_GENERIC;
   }
 
   return text;
+}
+
+/** Load failures on /buyback — never show raw RPC to visitors. */
+export function formatBuybackLoadError(error: unknown): string {
+  const text = combinedErrorText(error);
+  if (isRateLimited(text)) {
+    const seconds =
+      parseRetrySeconds(text) ?? RATE_LIMIT_DEFAULT_WAIT_SECONDS;
+    return `Temporarily unavailable. Please wait ${seconds}s and try again.`;
+  }
+  return "Unable to load buyback data. Please try again.";
 }
 
 /** Admin on-chain actions (create draw, init, team ATA). */

@@ -20,7 +20,6 @@ import { globalConfigPda, ticketChunkPda } from "./pdas";
 import { BuyPreflightError, type LotteryVaultPubkeys } from "./preflight-buy-sol";
 import { createLotteryProgram } from "./program";
 import { isRpcRateLimitError } from "./rpc-url";
-import { splBaseUnitsToUi } from "./spl-price";
 import { ticketChunkIndicesForRange } from "./ticket-chunks";
 import {
   sendTransactionViaWallet,
@@ -97,7 +96,6 @@ export async function buySplTickets(
   // fee) gets flagged as "malicious / request blocked". Catch it here with a
   // plain message so Phantom never sees a failing simulation.
   const chainRow = draw.splMints.find((r) => r.mint === mint.toBase58());
-  const decimals = chainRow?.decimals ?? 0;
   const required = quotedPricePerTicket * BigInt(count);
 
   if (chainRow && chainRow.sold + count > chainRow.cap) {
@@ -120,19 +118,16 @@ export async function buySplTickets(
   }
 
   const heldForTx = ataHeld;
-  const heldDisplay = totalHeld > ataHeld ? totalHeld : ataHeld;
 
   if (heldForTx < required) {
     if (heldForTx === BigInt(0) && totalHeld === BigInt(0)) {
       // Server balance read often returns empty under Helius 429 — let the wallet verify.
     } else if (totalHeld >= required) {
       throw new BuyPreflightError(
-        `Your wallet holds ${splBaseUnitsToUi(totalHeld.toString(), decimals)} ${label}, but the token account used for ticket buys only has ${splBaseUnitsToUi(ataHeld.toString(), decimals)} ${label}. Open your wallet, select ${label}, and consolidate or receive tokens into your main account, then try again.`,
+        `Insufficient ${label}. Move ${label} into your main token account, then try again.`,
       );
     } else {
-      throw new BuyPreflightError(
-        `You need ${splBaseUnitsToUi(required.toString(), decimals)} ${label} for ${count} ticket(s), but this wallet holds ${splBaseUnitsToUi(heldDisplay.toString(), decimals)} ${label}. Add ${label} to your wallet and try again.`,
-      );
+      throw new BuyPreflightError(`Insufficient ${label}.`);
     }
   }
 
@@ -141,9 +136,7 @@ export async function buySplTickets(
       ? await sendOpts.fetchSolBalance(wallet.publicKey)
       : await connection.getBalance(wallet.publicKey, "confirmed");
     if (solBalance < LAMPORTS_SOL_BUY_FEE_BUFFER) {
-      throw new BuyPreflightError(
-        `This wallet needs a little SOL for the network fee (about ${(LAMPORTS_SOL_BUY_FEE_BUFFER / 1e9).toFixed(4)} SOL). Add some SOL and try again.`,
-      );
+      throw new BuyPreflightError("Insufficient SOL.");
     }
   } catch (e) {
     if (e instanceof BuyPreflightError) throw e;

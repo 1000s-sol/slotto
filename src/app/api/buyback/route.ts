@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 
 import { fetchBuybackSnapshot } from "@/lib/lottery/buyback-data";
-import { lotteryRpcErrorText } from "@/lib/lottery/user-facing-error";
+import {
+  formatBuybackLoadError,
+  lotteryRpcErrorText,
+} from "@/lib/lottery/user-facing-error";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,9 +19,9 @@ export async function GET() {
       },
     });
   } catch (e) {
-    console.error("[buyback]", e);
+    console.error("[buyback]", lotteryRpcErrorText(e));
     return NextResponse.json(
-      { error: lotteryRpcErrorText(e) },
+      { error: formatBuybackLoadError(e) },
       { status: 500 },
     );
   }

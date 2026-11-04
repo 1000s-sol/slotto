@@ -668,9 +668,15 @@ export function HomeLotterySection({ preview = false }: { preview?: boolean }) {
           return;
         }
       }
+      const tokenLabel =
+        payWith === "SOL"
+          ? "SOL"
+          : (tokenMeta[payWith]?.symbol ??
+            splUiRows.find((o) => o.mint === payWith)?.symbol ??
+            "token");
       setPhase({
         kind: "error",
-        message: formatLotteryBuyError(e, { payWith }),
+        message: formatLotteryBuyError(e, { payWith, tokenLabel }),
       });
     }
   }, [

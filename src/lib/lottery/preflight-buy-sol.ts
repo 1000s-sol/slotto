@@ -147,9 +147,7 @@ export async function preflightBuySolTickets(
       ? await fetchSolBalance(wallet.publicKey)
       : await connection.getBalance(wallet.publicKey, "confirmed");
     if (balance < required) {
-      throw new BuyPreflightError(
-        `Need ~${(required / 1e9).toFixed(4)} SOL for ${count} ticket(s) + network fee (wallet has ${(balance / 1e9).toFixed(4)} SOL).`,
-      );
+      throw new BuyPreflightError("Insufficient SOL.");
     }
   } catch (e) {
     if (e instanceof BuyPreflightError) throw e;

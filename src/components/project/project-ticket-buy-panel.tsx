@@ -361,7 +361,10 @@ export function ProjectTicketBuyPanel({
       }
       setPhase({
         kind: "error",
-        message: formatLotteryBuyError(e, { payWith: mintKey }),
+        message: formatLotteryBuyError(e, {
+          payWith: mintKey,
+          tokenLabel: symbol || "token",
+        }),
       });
     }
   }, [

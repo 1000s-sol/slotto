@@ -7,6 +7,7 @@ import type {
   BuybackTokenRow,
 } from "@/lib/lottery/buyback-data";
 import { BUYBACK_PERCENT } from "@/lib/lottery/buyback-rate";
+import { formatBuybackLoadError } from "@/lib/lottery/user-facing-error";
 
 type Currency = "SOL" | "USDC";
 
@@ -240,7 +241,7 @@ export function BuybackPageClient() {
       }
       setData(json);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load buyback data");
+      setError(formatBuybackLoadError(e));
       setData(null);
     } finally {
       setLoading(false);
