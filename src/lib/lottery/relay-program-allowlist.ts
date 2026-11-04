@@ -15,6 +15,15 @@ const COMPUTE_BUDGET_PROGRAM_ID = new PublicKey(
 );
 
 /**
+ * Lighthouse assertion program — Phantom (and some other wallets) append
+ * simulation-guard ixs at sign time. Still require a lottery instruction so
+ * this cannot become a generic open relay.
+ */
+const LIGHTHOUSE_PROGRAM_ID = new PublicKey(
+  "L2TExMFKdjpN9kozasaurPirfHy9P8sbXoAN1qA3S95",
+);
+
+/**
  * Lottery program ids we accept. Always include the checked-in IDL address so a
  * wrong/stale NEXT_PUBLIC_SLOTTO_LOTTERY_PROGRAM_ID on the server cannot reject
  * legitimate buys built from the IDL.
@@ -41,6 +50,7 @@ export function lotteryRelayAllowedProgramIds(): Set<string> {
     ...lotteryProgramIds(),
     ASSOCIATED_TOKEN_PROGRAM_ID.toBase58(),
     COMPUTE_BUDGET_PROGRAM_ID.toBase58(),
+    LIGHTHOUSE_PROGRAM_ID.toBase58(),
   ]);
 }
 
