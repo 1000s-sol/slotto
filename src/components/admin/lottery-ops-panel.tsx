@@ -342,10 +342,15 @@ export function LotteryOpsPanel({
 
       step = "build SPL rows";
       setPhase({ kind: "busy", label: "Building SPL ticket rows…" });
-      const activeSpl = await adminBuildSplMintDraftsForCreateDrawAction(
+      const built = await adminBuildSplMintDraftsForCreateDrawAction(
         tokenEnabled,
         tokenSettings,
       );
+      if (!built.ok) {
+        setPhase({ kind: "error", message: built.error });
+        return;
+      }
+      const activeSpl = built.drafts;
       step = "check mints";
       setPhase({ kind: "busy", label: "Checking mints on cluster…" });
       const mintsOnCluster = await adminMintsExistOnClusterAction(

@@ -226,13 +226,18 @@ export function LotteryCurrentDrawSpl({
         })
         .filter((p): p is NonNullable<typeof p> => p !== null);
 
-      await adminBatchUpdateDrawSplSettingsAction(drawId, patches);
+      const saved = await adminBatchUpdateDrawSplSettingsAction(drawId, patches);
+      if (!saved.ok) {
+        setMsgTone("error");
+        setMsg(saved.error);
+        return;
+      }
       await refresh();
       setMsgTone("ok");
       setMsg("Saved SPL settings for this draw.");
     } catch (e) {
       setMsgTone("error");
-      setMsg(e instanceof Error ? e.message : "Save failed");
+      setMsg(formatLotteryAdminError(e));
     } finally {
       setBusy(false);
     }
@@ -357,12 +362,17 @@ export function LotteryCurrentDrawSpl({
         return;
       }
 
-      const drafts = (
-        await adminBuildSplMintDraftsForCreateDrawAction(
-          tokenEnabled,
-          tokenSettings,
-        )
-      ).filter((d) => !onDraw.has(d.mint));
+      const built = await adminBuildSplMintDraftsForCreateDrawAction(
+        tokenEnabled,
+        tokenSettings,
+        { includeFreeEntry: false },
+      );
+      if (!built.ok) {
+        setMsgTone("error");
+        setMsg(built.error);
+        return;
+      }
+      const drafts = built.drafts.filter((d) => !onDraw.has(d.mint));
       if (drafts.length === 0) {
         setMsgTone("error");
         setMsg("Select at least one token to add.");
@@ -393,7 +403,10 @@ export function LotteryCurrentDrawSpl({
           const onChain = await adminDrawHasSplMintAction(drawId, draft.mint);
           if (!onChain) throw e;
         }
-        await adminAppendDrawSplMintDbAction(drawId, draft);
+        const appended = await adminAppendDrawSplMintDbAction(drawId, draft);
+        if (!appended.ok) {
+          throw new Error(appended.error);
+        }
         if (mintsOnCluster[draft.mint] && teamVaultPk) {
           setMsg(`Ensuring team ATA for ${label}…`);
           try {

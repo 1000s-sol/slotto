@@ -152,17 +152,24 @@ export async function appendDrawSplMintRow(
   onChainDrawId: number,
   row: SplMintDraft,
 ) {
-  return prisma.lotteryDrawSplMint.create({
-    data: {
+  const data = {
+    onChainCap: row.onChainCap,
+    displayCap: normalizeSplDisplayCap(row.displayCap, row.onChainCap),
+    published: row.published,
+    purchasesLocked: row.purchasesLocked,
+    symbol: row.symbol || null,
+    pricePerTicket: row.pricePerTicket,
+    mintDecimals: row.mintDecimals,
+  };
+  // Upsert so mid-draw add retries (chain succeeded, DB already wrote) do not
+  // throw unique-constraint errors that production scrubbing turns into digests.
+  return prisma.lotteryDrawSplMint.upsert({
+    where: { onChainDrawId_mint: { onChainDrawId, mint: row.mint } },
+    create: {
       onChainDrawId,
       mint: row.mint,
-      onChainCap: row.onChainCap,
-      displayCap: normalizeSplDisplayCap(row.displayCap, row.onChainCap),
-      published: row.published,
-      purchasesLocked: row.purchasesLocked,
-      symbol: row.symbol || null,
-      pricePerTicket: row.pricePerTicket,
-      mintDecimals: row.mintDecimals,
+      ...data,
     },
+    update: data,
   });
 }

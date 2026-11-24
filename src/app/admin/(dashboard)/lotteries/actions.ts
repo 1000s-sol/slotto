@@ -279,22 +279,51 @@ export async function adminFetchProjectTokensForDrawAction() {
   return fetchPublishedProjectTokens();
 }
 
+function adminActionErrorMessage(e: unknown, fallback: string): string {
+  if (e instanceof Error && e.message.trim()) return e.message;
+  return fallback;
+}
+
 export async function adminPreviewLiquidTicketPricesAction(mints: string[]) {
-  await requireAdmin();
-  const unique = [...new Set(mints.map((m) => m.trim()).filter(Boolean))];
-  const { previewLiquidTicketPrices } = await import(
-    "@/lib/lottery/preview-liquid-ticket-prices"
-  );
-  return previewLiquidTicketPrices(unique);
+  try {
+    await requireAdmin();
+    const unique = [...new Set(mints.map((m) => m.trim()).filter(Boolean))];
+    const { previewLiquidTicketPrices } = await import(
+      "@/lib/lottery/preview-liquid-ticket-prices"
+    );
+    const rows = await previewLiquidTicketPrices(unique);
+    return { ok: true as const, rows };
+  } catch (e) {
+    return {
+      ok: false as const,
+      error: adminActionErrorMessage(e, "Could not load live ticket prices."),
+    };
+  }
 }
 
 export async function adminBuildSplMintDraftsForCreateDrawAction(
   enabled: Record<string, boolean>,
   settings: Record<string, ProjectTokenDrawSettings>,
-): Promise<SplMintDraft[]> {
-  await requireAdmin();
-  const tokens = await fetchPublishedProjectTokens();
-  return buildSplMintDraftsForCreateDraw(tokens, enabled, settings);
+  opts?: { includeFreeEntry?: boolean },
+): Promise<
+  { ok: true; drafts: SplMintDraft[] } | { ok: false; error: string }
+> {
+  try {
+    await requireAdmin();
+    const tokens = await fetchPublishedProjectTokens();
+    const drafts = await buildSplMintDraftsForCreateDraw(
+      tokens,
+      enabled,
+      settings,
+      opts,
+    );
+    return { ok: true, drafts };
+  } catch (e) {
+    return {
+      ok: false,
+      error: adminActionErrorMessage(e, "Failed to build SPL mint rows."),
+    };
+  }
 }
 
 export async function adminMintsExistOnClusterAction(
@@ -415,19 +444,37 @@ export async function adminUpdateDrawSplMintAction(
 export async function adminBatchUpdateDrawSplSettingsAction(
   onChainDrawId: number,
   patches: DrawSplMintSettingsPatch[],
-): Promise<{ ok: true }> {
-  await requireAdmin();
-  if (!Number.isFinite(onChainDrawId) || onChainDrawId < 0) {
-    throw new Error("Invalid draw id");
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    await requireAdmin();
+    if (!Number.isFinite(onChainDrawId) || onChainDrawId < 0) {
+      return { ok: false, error: "Invalid draw id" };
+    }
+    await batchUpdateDrawSplMintRows(onChainDrawId, patches);
+    return { ok: true };
+  } catch (e) {
+    return {
+      ok: false,
+      error: adminActionErrorMessage(e, "Failed to save SPL settings."),
+    };
   }
-  await batchUpdateDrawSplMintRows(onChainDrawId, patches);
-  return { ok: true };
 }
 
 export async function adminAppendDrawSplMintDbAction(
   onChainDrawId: number,
   row: SplMintDraft,
-) {
-  await requireAdmin();
-  return appendDrawSplMintRow(onChainDrawId, row);
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    await requireAdmin();
+    if (!Number.isFinite(onChainDrawId) || onChainDrawId < 0) {
+      return { ok: false, error: "Invalid draw id" };
+    }
+    await appendDrawSplMintRow(onChainDrawId, row);
+    return { ok: true };
+  } catch (e) {
+    return {
+      ok: false,
+      error: adminActionErrorMessage(e, "Failed to save SPL mint row."),
+    };
+  }
 }

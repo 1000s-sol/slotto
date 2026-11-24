@@ -114,10 +114,15 @@ export function ProjectTokenDrawAllocator({
     setPreviewError(null);
     const mints = enabledLiquidMints.split(",");
     void adminPreviewLiquidTicketPricesAction(mints)
-      .then((rows) => {
+      .then((res) => {
         if (cancelled) return;
+        if (!res.ok) {
+          setLiquidPreviews({});
+          setPreviewError(res.error);
+          return;
+        }
         const map: Record<string, LiquidTicketPricePreview> = {};
-        for (const r of rows) map[r.mint] = r;
+        for (const r of res.rows) map[r.mint] = r;
         setLiquidPreviews(map);
       })
       .catch((e) => {

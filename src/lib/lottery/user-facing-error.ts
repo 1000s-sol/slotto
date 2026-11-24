@@ -347,6 +347,17 @@ export function formatBuybackLoadError(error: unknown): string {
 export function formatLotteryAdminError(error: unknown): string {
   const text = combinedErrorText(error);
   if (
+    text.includes("Server Components render") ||
+    text.includes("digest property") ||
+    /\bdigest\b/i.test(text)
+  ) {
+    return (
+      "Server action failed (production hides the real message). Common causes when " +
+      "enabling a token: missing USD price for a liquid mint, mint already on the draw, " +
+      "or a DB conflict. Retry after a refresh; if it persists, check Vercel function logs."
+    );
+  }
+  if (
     text.includes("403") ||
     text.toLowerCase().includes("access forbidden")
   ) {

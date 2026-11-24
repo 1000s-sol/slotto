@@ -69,11 +69,21 @@ export type ProjectTokenDrawSettings = {
   priceUi: string;
 };
 
+export type BuildSplMintDraftsOpts = {
+  /**
+   * Auto-inject SLOTTO FREE ENTRY (create_draw default).
+   * Mid-draw add must pass false so enabling one project token does not also
+   * attempt to onboard FREE ENTRY.
+   */
+  includeFreeEntry?: boolean;
+};
+
 /** Build SPL rows for create_draw (server RPC — avoids browser Helius 403). */
 export async function buildSplMintDraftsForCreateDraw(
   tokens: ProjectTokenForDraw[],
   enabled: Record<string, boolean>,
   settings: Record<string, ProjectTokenDrawSettings>,
+  opts?: BuildSplMintDraftsOpts,
 ): Promise<SplMintDraft[]> {
   const enabledTokens = tokens.filter((t) => enabled[t.mint]);
   const mints = [
@@ -99,10 +109,21 @@ export async function buildSplMintDraftsForCreateDraw(
     let priceUi: string;
 
     if (t.liquid) {
-      const max = liquidSplMaxPriceFromTickerItems(tickerItems, t.mint, decimals);
-      pricePerTicket = max.toString();
-      const spot = (max * BigInt(100)) / BigInt(110);
-      priceUi = splBaseUnitsToUi(spot.toString(), decimals);
+      try {
+        const max = liquidSplMaxPriceFromTickerItems(
+          tickerItems,
+          t.mint,
+          decimals,
+        );
+        pricePerTicket = max.toString();
+        const spot = (max * BigInt(100)) / BigInt(110);
+        priceUi = splBaseUnitsToUi(spot.toString(), decimals);
+      } catch (e) {
+        const detail = e instanceof Error ? e.message : "price unavailable";
+        throw new Error(
+          `Could not price liquid token ${t.tokenName ?? t.projectName} (${t.mint.slice(0, 8)}…): ${detail}`,
+        );
+      }
     } else {
       pricePerTicket = splUiAmountToBaseUnits(s.priceUi || "1", decimals).toString();
       priceUi = s.priceUi || "1";
@@ -130,7 +151,12 @@ export async function buildSplMintDraftsForCreateDraw(
   // SLOTTO FREE ENTRY is a permanent payment option on every draw (like SOL),
   // so giveaway winners can always redeem a free ticket. No-op until the mint
   // is configured via NEXT_PUBLIC_FREE_ENTRY_MINT.
-  if (freeEntryConfigured() && !drafts.some((d) => d.mint === FREE_ENTRY_MINT)) {
+  const includeFreeEntry = opts?.includeFreeEntry !== false;
+  if (
+    includeFreeEntry &&
+    freeEntryConfigured() &&
+    !drafts.some((d) => d.mint === FREE_ENTRY_MINT)
+  ) {
     drafts.push(freeEntryDraft());
   }
 
