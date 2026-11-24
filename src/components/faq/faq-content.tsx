@@ -26,6 +26,7 @@ const sections = [
   { id: "projects", label: "Projects" },
   { id: "fees", label: "Fees" },
   { id: "founders", label: "For founders" },
+  { id: "community", label: "Community" },
   { id: "trust", label: "Trust" },
   { id: "support", label: "Support" },
 ] as const;
@@ -159,7 +160,7 @@ function SolVsSplDiagram() {
             <span className="text-accent-gold" aria-hidden>
               →
             </span>
-            <span>Win this month&apos;s SOL prize</span>
+            <span>Win this draw&apos;s SOL prize</span>
           </li>
           <li className="flex gap-2">
             <span className="text-accent-gold" aria-hidden>
@@ -195,7 +196,7 @@ function SolVsSplDiagram() {
             <span className="text-accent-purple" aria-hidden>
               →
             </span>
-            <span>Seeds next month&apos;s jackpot — not this month&apos;s live pot</span>
+            <span>Seeds the next draw&apos;s jackpot — not this draw&apos;s live pot</span>
           </li>
         </ul>
       </div>
@@ -210,8 +211,8 @@ function SplPoolFlow() {
         What happens to SPL ticket payments?
       </h3>
       <p className="mt-1 text-sm text-muted">
-        SPL buys don&apos;t add to this month&apos;s live SOL jackpot — they fuel next
-        month&apos;s seed instead.
+        SPL buys don&apos;t add to this draw&apos;s live SOL jackpot — they fuel the next
+        draw&apos;s seed instead.
       </p>
       <div className="mt-5 space-y-2">
         <StepCard icon="🎟️" title="During this draw" accent="purple">
@@ -225,8 +226,8 @@ function SplPoolFlow() {
         <StepCard icon="🔄" title="After the draw ends" accent="gold">
           <p>
             All pooled project tokens are converted to SOL. That SOL becomes the{" "}
-            <strong className="text-foreground">seed jackpot</strong> for the next
-            month&apos;s draw — not the current live pot.
+            <strong className="text-foreground">seed jackpot</strong> for the next draw —
+            not the current live pot.
           </p>
         </StepCard>
         <FlowArrow />
@@ -258,11 +259,11 @@ function SplPoolFlow() {
           </div>
         </div>
         <FlowArrow />
-        <StepCard icon="🌱" title="Next month's draw" accent="cyan">
+        <StepCard icon="🌱" title="Next draw" accent="cyan">
           <p>
             Converted SOL seeds the new prize pool so every SPL community contributes to
             growing the next jackpot — while SOL tickets grow{" "}
-            <strong className="text-foreground">this month&apos;s</strong> live pot in
+            <strong className="text-foreground">this draw&apos;s</strong> live pot in
             real time.
           </p>
         </StepCard>
@@ -282,8 +283,8 @@ export function FaqContent() {
           Frequently asked questions
         </h1>
         <p className="max-w-2xl text-base leading-relaxed text-muted sm:text-lg">
-          Everything you need to know about Slotto, our monthly on-chain lotto, and how
-          SOL and SPL tickets work.
+          Everything you need to know about Slotto, our twice-monthly on-chain lotto, and
+          how SOL and SPL tickets work.
         </p>
       </header>
 
@@ -306,16 +307,17 @@ export function FaqContent() {
         <FaqItem question="What is Slotto?">
           <p>
             Slotto is a comprehensive listing site focusing on trusted and transparent
-            Solana based NFT and token projects. We host a fully on-chain monthly lotto
-            game on Solana. You can buy tickets with SOL or featured project tokens. One
-            winner takes the SOL jackpot each draw.
+            Solana based NFT and token projects. We host a fully on-chain twice-monthly
+            lotto game on Solana. You can buy tickets with SOL or featured project tokens.
+            One winner takes the SOL jackpot each draw.
           </p>
         </FaqItem>
         <FaqItem question="How often does the draw run?">
           <p>
-            Monthly. Each draw has a fixed sales window shown on the homepage countdown
-            — from sales open through sales close, then the winner is drawn shortly after
-            close.
+            Twice a month. Ticket sales stay open for about two weeks, then we take about
+            a week for updates before the next draw opens — two draws per month. Each
+            draw&apos;s sales window is shown on the homepage countdown. Draws open and
+            close during our weekly Wednesday X Space (8:30pm EST).
           </p>
         </FaqItem>
         <FaqItem question="Is it really on-chain?">
@@ -346,7 +348,7 @@ export function FaqContent() {
           </p>
         </FaqItem>
         <FaqItem question="Do SOL tickets increase the live jackpot?">
-          <p>Yes. Only SOL ticket sales increase the current month&apos;s live jackpot.</p>
+          <p>Yes. Only SOL ticket sales increase the current draw&apos;s live jackpot.</p>
         </FaqItem>
         <FaqItem question="Can I buy multiple tickets at once?">
           <p>
@@ -396,17 +398,17 @@ export function FaqContent() {
         </div>
         <FaqItem question="What is the live jackpot?">
           <p>
-            The SOL prize pool for this month&apos;s draw: seed SOL at draw start plus SOL
+            The SOL prize pool for the current draw: seed SOL at draw start plus SOL
             ticket sales during the draw.
           </p>
         </FaqItem>
         <FaqItem question="Do SPL purchases add to the live jackpot?">
-          <p>No. SPL payments do not increase this month&apos;s live SOL pot.</p>
+          <p>No. SPL payments do not increase this draw&apos;s live SOL pot.</p>
         </FaqItem>
         <FaqItem question="What happens to SPL tokens I pay with?">
           <p>
             They are pooled in our SPL pool wallet during the draw, then converted to SOL
-            after the draw ends to seed next month&apos;s jackpot. See the{" "}
+            after the draw ends to seed the next draw&apos;s jackpot. See the{" "}
             <a href="#spl-pool" className="font-medium text-accent-cyan hover:underline">
               SPL pool
             </a>{" "}
@@ -423,15 +425,16 @@ export function FaqContent() {
         <FaqItem question="When does ticket sales open and close?">
           <p>
             Shown on the homepage countdown. Purchases only work between sales open and
-            sales close times.
+            sales close times. Sales windows run about two weeks, and draws open and close
+            during our live Wednesday X Space at 8:30pm EST.
           </p>
         </FaqItem>
         <FaqItem question="When is the winner picked?">
           <p>
-            Shortly after sales close. Slotto&apos;s automated keeper completes the
-            on-chain steps — close sales, request Switchboard verifiable randomness, then
-            settle — and pays the winner in SOL. This usually finishes within a few
-            minutes of close.
+            Shortly after sales close during the Space. Slotto&apos;s automated keeper
+            completes the on-chain steps — close sales, request Switchboard verifiable
+            randomness, then settle — and pays the winner in SOL. This usually finishes
+            within a few minutes of close.
           </p>
         </FaqItem>
         <FaqItem question="How is the winner chosen?">
@@ -547,7 +550,39 @@ export function FaqContent() {
             <Link href="/contact" className="font-medium text-accent-cyan hover:underline">
               Contact
             </Link>{" "}
-            page and open a ticket for listing applications or Jackpot Sunday guest spots.
+            page and open a ticket for listing applications or Wednesday Space guest spots.
+          </p>
+        </FaqItem>
+      </FaqSection>
+
+      <FaqSection id="community" title="Community events">
+        <FaqItem question="When is the weekly X Space?">
+          <p>
+            Wednesdays at <strong className="text-foreground">8:30pm EST</strong>, hosted
+            by Josh Hodlin and BUXDAO. Guest founders, project updates, and crypto chat —
+            and draw open/close moments happen live on the Space. Details are on our{" "}
+            <Link href="/contact" className="font-medium text-accent-cyan hover:underline">
+              Contact
+            </Link>{" "}
+            page.
+          </p>
+        </FaqItem>
+        <FaqItem question="What is weekly BUX Poker?">
+          <p>
+            A Wednesday night poker game starting at{" "}
+            <strong className="text-foreground">9:00pm EST</strong> with a{" "}
+            <strong className="text-foreground">$35 prize pool</strong> paid in a
+            different project token each week. Registration is enabled through bot posts
+            in selected project Discords. Play at{" "}
+            <a
+              href="https://bux-poker.xyz"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-accent-cyan hover:underline"
+            >
+              bux-poker.xyz
+            </a>
+            .
           </p>
         </FaqItem>
       </FaqSection>
@@ -586,7 +621,7 @@ export function FaqContent() {
               Contact
             </Link>{" "}
             page and open a support ticket. You can also follow Slotto on X for draw
-            updates and our weekly Jackpot Sunday Space (Sundays @ 2pm EST).
+            updates and our weekly Wednesday Space (8:30pm EST).
           </p>
         </FaqItem>
       </FaqSection>

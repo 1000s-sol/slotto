@@ -8,10 +8,10 @@ export const SITE_SHARE_IMAGE_VERSION = "20260531";
 
 export const SITE_NAME = "Slotto";
 
-export const SITE_TITLE = "Slotto — monthly lottery on Solana";
+export const SITE_TITLE = "Slotto — twice-monthly lottery on Solana";
 
 export const SITE_DESCRIPTION =
-  "Monthly on-chain lottery on Solana. Buy tickets with SOL or featured project tokens. Transparent draws, verified winners, and curated project listings.";
+  "Twice-monthly on-chain lottery on Solana — two-week draws with a week between them. Buy tickets with SOL or featured project tokens. Transparent draws, verified winners, and curated project listings.";
 
 /** Canonical origin for absolute OG image URLs (defaults to production domain). */
 export function getSiteUrl(): string {
@@ -38,7 +38,7 @@ export function siteOpenGraphImages(siteUrl = getSiteUrl()) {
       url: siteShareImageUrl(siteUrl),
       width: 1254,
       height: 1254,
-      alt: "Slotto — monthly lottery on Solana",
+      alt: "Slotto — twice-monthly lottery on Solana",
     },
   ];
 }

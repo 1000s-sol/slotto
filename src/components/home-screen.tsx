@@ -47,7 +47,7 @@ function CompassIcon() {
 }
 
 const POINTS = [
-  { text: "Play our monthly lotto", icon: TicketIcon },
+  { text: "Play our twice-monthly lotto", icon: TicketIcon },
   { text: "Enter with SOL or featured project tokens", icon: CoinIcon },
   { text: "Find projects worth a closer look", icon: CompassIcon },
 ];
@@ -60,7 +60,7 @@ export function HomeScreen() {
           <div className="md:grid md:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] md:items-stretch md:gap-x-4 lg:gap-x-8 xl:grid-cols-[minmax(0,1fr)_560px] xl:gap-x-10">
             <div className="relative z-10 min-w-0 md:col-start-1 md:row-start-1">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent-gold">
-                Monthly lotto game on Solana
+                Twice-monthly lotto on Solana
               </p>
               <h1 className="mt-3 text-white">
                 <span className="block text-base tracking-[0.18em] sm:text-lg">Welcome to</span>

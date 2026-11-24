@@ -786,15 +786,22 @@ export function HomeLotterySection({ preview = false }: { preview?: boolean }) {
 
   return (
     <section className="space-y-8">
-      <h2 className="text-balance text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-        Play our fully onchain monthly lotto game
-      </h2>
+      <div className="space-y-2">
+        <h2 className="text-balance text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+          Play our fully onchain twice-monthly lotto game
+        </h2>
+        <p className="max-w-3xl text-sm leading-relaxed text-muted sm:text-base">
+          Two-week ticket sales, then about a week for updates — two draws each month.
+          Draws open and close live on our Wednesday X Space at 8:30pm EST.
+        </p>
+      </div>
 
       {loading ? (
         <p className="text-sm text-muted">Loading on-chain draw…</p>
       ) : !draw ? (
         <p className="rounded-2xl border border-border bg-bg-elevated/70 p-6 text-sm text-muted">
-          No active draw. The next round will be announced on{" "}
+          No active draw. The next round opens during our Wednesday X Space (8:30pm EST)
+          — follow us on{" "}
           <a
             href={X_URL}
             target="_blank"
@@ -802,8 +809,8 @@ export function HomeLotterySection({ preview = false }: { preview?: boolean }) {
             className="font-semibold text-accent-cyan hover:underline"
           >
             X
-          </a>
-          .
+          </a>{" "}
+          for the announcement.
         </p>
       ) : (
         <>

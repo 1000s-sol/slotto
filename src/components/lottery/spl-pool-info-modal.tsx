@@ -109,8 +109,8 @@ export function SplPoolInfoModal({
               What happens to SPL ticket payments?
             </h3>
             <p className="mt-1 text-sm text-muted">
-              SPL buys don&apos;t add to this month&apos;s live SOL jackpot — they
-              fuel next month&apos;s seed instead.
+              SPL buys don&apos;t add to this draw&apos;s live SOL jackpot — they
+              fuel the next draw&apos;s seed instead.
             </p>
           </div>
           <button
@@ -136,7 +136,7 @@ export function SplPoolInfoModal({
           <StepCard icon="🔄" title="After the draw ends" accent="gold">
             All pooled project tokens are converted to SOL. That SOL becomes the{" "}
             <strong className="text-foreground">seed jackpot</strong> for the next
-            month&apos;s draw — not the current live pot.
+            draw — not the current live pot.
           </StepCard>
 
           <FlowArrow />
@@ -175,10 +175,10 @@ export function SplPoolInfoModal({
 
           <FlowArrow />
 
-          <StepCard icon="🌱" title="Next month's draw" accent="cyan">
+          <StepCard icon="🌱" title="Next draw" accent="cyan">
             Converted SOL seeds the new prize pool so every SPL community contributes
             to growing the next jackpot — while SOL tickets grow{" "}
-            <strong className="text-foreground">this month&apos;s</strong> live pot in
+            <strong className="text-foreground">this draw&apos;s</strong> live pot in
             real time.
           </StepCard>
         </div>
