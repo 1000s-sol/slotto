@@ -559,8 +559,9 @@ export function FaqContent() {
         <FaqItem question="When is the weekly X Space?">
           <p>
             Wednesdays at <strong className="text-foreground">8:30pm EST</strong>, hosted
-            by Josh Hodlin and BUXDAO. Guest founders, project updates, and crypto chat —
-            and draw open/close moments happen live on the Space. Details are on our{" "}
+            by Josh Hodlin with regular guests BUXDAO, Ugly Ape Squad, and Knuckle Bunny
+            DS. Guest founders, project updates, and crypto chat — and draw open/close
+            moments happen live on the Space. Details are on our{" "}
             <Link href="/contact" className="font-medium text-accent-cyan hover:underline">
               Contact
             </Link>{" "}

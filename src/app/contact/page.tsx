@@ -44,8 +44,8 @@ export default function ContactPage() {
               className="font-medium text-accent-cyan hover:underline"
             >
               Josh Hodlin
-            </Link>{" "}
-            and{" "}
+            </Link>
+            . Regular guests:{" "}
             <Link
               href="https://x.com/BUXDAO"
               target="_blank"
@@ -53,6 +53,24 @@ export default function ContactPage() {
               className="font-medium text-accent-cyan hover:underline"
             >
               BUXDAO
+            </Link>
+            ,{" "}
+            <Link
+              href="https://x.com/uglyapesquad"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-accent-cyan hover:underline"
+            >
+              Ugly Ape Squad
+            </Link>
+            , and{" "}
+            <Link
+              href="https://x.com/knucklebunnyds"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-accent-cyan hover:underline"
+            >
+              Knuckle Bunny DS
             </Link>
             .
           </p>
