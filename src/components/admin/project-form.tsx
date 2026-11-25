@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   createProjectAction,
@@ -98,9 +98,14 @@ function ImageFieldBlock({
   defaultUrl: string;
   previewUrl: string;
 }) {
-  const [pickedName, setPickedName] = useState<string | null>(null);
+  const [urlValue, setUrlValue] = useState(defaultUrl);
   const [localPreview, setLocalPreview] = useState<string | null>(null);
-  const [inputKey, setInputKey] = useState(0);
+  const [dragOver, setDragOver] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setUrlValue(defaultUrl);
+  }, [defaultUrl]);
 
   useEffect(() => {
     return () => {
@@ -108,15 +113,18 @@ function ImageFieldBlock({
     };
   }, [localPreview]);
 
-  function onPick(file: File | null) {
+  function previewFromFile(file: File | null) {
     if (localPreview) URL.revokeObjectURL(localPreview);
-    if (!file) {
-      setPickedName(null);
-      setLocalPreview(null);
-      return;
-    }
-    setPickedName(file.name);
-    setLocalPreview(URL.createObjectURL(file));
+    setLocalPreview(file ? URL.createObjectURL(file) : null);
+  }
+
+  function applyDroppedFile(file: File) {
+    const input = fileRef.current;
+    if (!input) return;
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    input.files = dt.files;
+    previewFromFile(file);
   }
 
   const shownPreview = localPreview || previewUrl || null;
@@ -132,40 +140,42 @@ function ImageFieldBlock({
           type="text"
           inputMode="url"
           placeholder="https://… or /project-images/… or /uploads/projects/…"
-          defaultValue={defaultUrl}
+          value={urlValue}
+          onChange={(e) => setUrlValue(e.target.value)}
           className="rounded-xl border border-border bg-surface/60 px-3 py-2 font-mono text-xs text-foreground outline-none focus:border-accent-purple/40 focus:ring-4 focus:ring-accent-purple/15 sm:text-sm"
         />
       </label>
       <div className="mt-3 space-y-2">
         <p className="text-xs text-muted">Upload file (PNG, JPEG, WebP, GIF — max 4 MB)</p>
-        {/* File input sits on top of Browse so the OS dialog opens from a real input click. */}
-        <div className="flex flex-wrap items-center gap-2">
-          <label className="relative inline-flex cursor-pointer items-center overflow-hidden rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-medium text-foreground transition hover:border-accent-purple/40 hover:bg-surface/80">
-            Browse…
-            <input
-              key={inputKey}
-              name={fileName}
-              type="file"
-              accept="image/png,image/jpeg,image/jpg,image/webp,image/gif"
-              className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-              onChange={(e) => onPick(e.target.files?.[0] ?? null)}
-            />
-          </label>
-          {pickedName ? (
-            <button
-              type="button"
-              onClick={() => {
-                setInputKey((k) => k + 1);
-                onPick(null);
-              }}
-              className="rounded-lg border border-border/80 px-2.5 py-1.5 text-xs text-muted transition hover:text-foreground"
-            >
-              Clear
-            </button>
-          ) : null}
-          <span className="min-w-0 truncate text-xs text-muted">
-            {pickedName ?? "No file selected"}
-          </span>
+        {/* Visible native control — hidden/opacity-0 file inputs are blocked in Firefox & some wallet browsers. */}
+        <input
+          ref={fileRef}
+          name={fileName}
+          type="file"
+          accept="image/png,image/jpeg,image/jpg,image/webp,image/gif"
+          className="block w-full max-w-md cursor-pointer text-sm text-foreground"
+          onChange={(e) => previewFromFile(e.target.files?.[0] ?? null)}
+        />
+        <div
+          onDragOver={(e) => {
+            e.preventDefault();
+            setDragOver(true);
+          }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setDragOver(false);
+            const file = e.dataTransfer.files?.[0] ?? null;
+            if (!file || !file.type.startsWith("image/")) return;
+            applyDroppedFile(file);
+          }}
+          className={`rounded-xl border border-dashed px-3 py-4 text-center text-xs transition ${
+            dragOver
+              ? "border-accent-purple bg-accent-purple/10 text-foreground"
+              : "border-border bg-surface/30 text-muted"
+          }`}
+        >
+          Or drop an image here
         </div>
       </div>
       <p className="mt-2 text-[11px] text-muted/80">
