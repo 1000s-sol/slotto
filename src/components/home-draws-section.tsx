@@ -6,6 +6,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { solscanAccountUrl } from "@/lib/lottery/config";
 import { drawNeedsSettlement } from "@/lib/lottery/draw-settlement";
 import {
+  DEMO_ENTRANTS,
+  buildDemoLotteryState,
+} from "@/lib/lottery/demo-live-draw";
+import {
   formatDrawDateLabel,
   lotteryDrawPublicLabel,
   lotteryDrawViewFromJson,
@@ -19,6 +23,12 @@ import { DiscordLogo } from "@/components/discord-logo";
 import { SocialProfileCell } from "@/components/social-profile-cell";
 import { fetchWalletSocialsClient } from "@/lib/fetch-wallet-social-client";
 import type { SocialProfile } from "@/lib/social-profile-url";
+import {
+  formatPredictedSeedSol,
+  predictedNextSeedSol,
+  sumSplTicketsSold,
+} from "@/lib/lottery/predicted-next-seed";
+import { isFreeEntryMint } from "@/lib/lottery/free-entry";
 
 type TokenMeta = {
   mint: string;
@@ -115,7 +125,13 @@ function SocialProfileReminder() {
 
 type Tab = "current" | "past";
 
-export function HomeDrawsSection({ preview = false }: { preview?: boolean }) {
+export function HomeDrawsSection({
+  preview = false,
+  demo = false,
+}: {
+  preview?: boolean;
+  demo?: boolean;
+}) {
   const [tab, setTab] = useState<Tab>("current");
   const [tokens, setTokens] = useState<Record<string, TokenMeta>>({});
   const [paidWith, setPaidWith] = useState<Record<string, string[]>>({});
@@ -136,7 +152,9 @@ export function HomeDrawsSection({ preview = false }: { preview?: boolean }) {
 
   const refreshDraw = useCallback(async () => {
     try {
-      const state = await fetchLotteryStateClient({ preview });
+      const state = demo
+        ? buildDemoLotteryState()
+        : await fetchLotteryStateClient({ preview });
       setNowSec(state.nowSec);
       const drawJson = state.activeDraw;
       const draw = drawJson ? lotteryDrawViewFromJson(drawJson) : null;
@@ -156,9 +174,20 @@ export function HomeDrawsSection({ preview = false }: { preview?: boolean }) {
           ? lotteryDrawPublicLabel(drawJson)
           : `TEST-${draw.drawId}`,
       );
-      setDrawAddress(draw.draw.toBase58());
+      setDrawAddress(demo ? null : draw.draw.toBase58());
       setTotalTickets(draw.totalTickets);
       setDrawState(draw.state);
+      if (demo) {
+        setEntrants(
+          DEMO_ENTRANTS.map((h) => ({
+            wallet: h.wallet,
+            discord: null,
+            x: null,
+            tickets: h.tickets,
+          })),
+        );
+        return;
+      }
       const holders = await fetchDrawEntrantsClient(draw.drawId);
       const socials = await fetchWalletSocialsClient(
         holders.map((h) => h.wallet),
@@ -179,13 +208,17 @@ export function HomeDrawsSection({ preview = false }: { preview?: boolean }) {
       setInProgressDraw(null);
       setEntrants([]);
     }
-  }, [preview]);
+  }, [preview, demo]);
 
   const needsSettlement = Boolean(
     inProgressDraw && drawNeedsSettlement(inProgressDraw, nowSec),
   );
 
-  useAutoSettleDraw(inProgressDraw, nowSec, refreshDraw);
+  useAutoSettleDraw(demo ? null : inProgressDraw, nowSec, refreshDraw);
+
+  const splTicketsSold = inProgressDraw
+    ? sumSplTicketsSold(inProgressDraw.splMints, { excludeMint: isFreeEntryMint })
+    : 0;
 
   useEffect(() => {
     const tick = setInterval(() => {
@@ -195,6 +228,10 @@ export function HomeDrawsSection({ preview = false }: { preview?: boolean }) {
   }, []);
 
   const refreshPast = useCallback(async () => {
+    if (demo) {
+      setPastDraws([]);
+      return;
+    }
     try {
       const settled = await fetchPastWinnersClient();
       const rows: PastDraw[] = [];
@@ -227,7 +264,7 @@ export function HomeDrawsSection({ preview = false }: { preview?: boolean }) {
     } catch {
       setPastDraws([]);
     }
-  }, []);
+  }, [demo]);
 
   useEffect(() => {
     let cancelled = false;
@@ -384,6 +421,7 @@ export function HomeDrawsSection({ preview = false }: { preview?: boolean }) {
             drawState={drawState}
             settling={needsSettlement}
             totalTickets={totalTickets}
+            splTicketsSold={splTicketsSold}
             entrants={sortedEntrants}
             tokens={tokens}
             paidWith={paidWith}
@@ -410,6 +448,7 @@ function CurrentDrawTable({
   drawState,
   settling,
   totalTickets,
+  splTicketsSold,
   entrants,
   tokens,
   paidWith,
@@ -421,6 +460,7 @@ function CurrentDrawTable({
   drawState: number | null;
   settling: boolean;
   totalTickets: number;
+  splTicketsSold: number;
   entrants: Entrant[];
   tokens: Record<string, TokenMeta>;
   paidWith: Record<string, string[]>;
@@ -430,6 +470,7 @@ function CurrentDrawTable({
     totalTickets === 0
       ? "Closing empty draw and refunding seed SOL…"
       : "Drawing winner and sending prize…";
+  const nextSeed = formatPredictedSeedSol(predictedNextSeedSol(splTicketsSold));
 
   return (
     <div className="overflow-hidden rounded-2xl border border-border bg-bg-elevated/70">
@@ -459,6 +500,14 @@ function CurrentDrawTable({
             {totalTickets.toLocaleString()}
           </span>{" "}
           tickets sold
+          {" · "}
+          <span className="text-foreground">
+            {splTicketsSold.toLocaleString()}
+          </span>{" "}
+          SPL
+          {" · "}
+          next seed ~{" "}
+          <span className="font-semibold text-accent-gold">{nextSeed} SOL</span>
         </span>
         <span className="font-mono">{entrants.length} entrants</span>
       </div>

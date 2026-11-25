@@ -52,7 +52,7 @@ const POINTS = [
   { text: "Find projects worth a closer look", icon: CompassIcon },
 ];
 
-export function HomeScreen() {
+export function HomeScreen({ demo = false }: { demo?: boolean }) {
   return (
     <SlottoRadioProvider>
       <div className="min-w-0 max-w-full space-y-20">
@@ -128,8 +128,8 @@ export function HomeScreen() {
           </div>
         </section>
 
-        <HomeLotterySection />
-        <HomeDrawsSection />
+        <HomeLotterySection demo={demo} />
+        <HomeDrawsSection demo={demo} />
       </div>
     </SlottoRadioProvider>
   );

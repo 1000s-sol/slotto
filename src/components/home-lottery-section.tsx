@@ -55,9 +55,15 @@ import {
   formatSolFromLamports,
   lotteryDrawViewFromJson,
 } from "@/lib/lottery/draws";
+import { buildDemoLotteryState } from "@/lib/lottery/demo-live-draw";
 import { fetchLotteryStateClient } from "@/lib/lottery/fetch-lottery-state-client";
 import { fetchTokenBalanceClient } from "@/lib/lottery/fetch-token-balance-client";
 import { fetchWalletSolBalanceClient } from "@/lib/lottery/fetch-wallet-sol-balance-client";
+import {
+  formatPredictedSeedSol,
+  predictedNextSeedSol,
+  sumSplTicketsSold,
+} from "@/lib/lottery/predicted-next-seed";
 import {
   clampTicketCountForPayWith,
   maxBuyableTicketsForPayWith,
@@ -131,7 +137,14 @@ function buyDisabledReason(
   return null;
 }
 
-export function HomeLotterySection({ preview = false }: { preview?: boolean }) {
+export function HomeLotterySection({
+  preview = false,
+  demo = false,
+}: {
+  preview?: boolean;
+  /** UI-only fake live draw (no chain). Used by /preview/next-seed. */
+  demo?: boolean;
+}) {
   const { connection } = useConnection();
   const wallet = useLotteryWallet();
   const { connected, sendTransaction } = useWallet();
@@ -204,7 +217,9 @@ export function HomeLotterySection({ preview = false }: { preview?: boolean }) {
 
   const refresh = useCallback(async () => {
     try {
-      const state = await fetchLotteryStateClient({ preview });
+      const state = demo
+        ? buildDemoLotteryState()
+        : await fetchLotteryStateClient({ preview });
       setNowSec(state.nowSec);
       setVaultPubkeys({
         teamVault: new PublicKey(state.teamVault),
@@ -255,9 +270,9 @@ export function HomeLotterySection({ preview = false }: { preview?: boolean }) {
         e instanceof Error ? e.message : e,
       );
     }
-  }, [preview]);
+  }, [preview, demo]);
 
-  useAutoSettleDraw(activeDraw, nowSec, refresh, (result) => {
+  useAutoSettleDraw(demo ? null : activeDraw, nowSec, refresh, (result) => {
     if (result.ok) {
       setSettlementError(null);
       return;
@@ -270,7 +285,7 @@ export function HomeLotterySection({ preview = false }: { preview?: boolean }) {
     }
   });
 
-  useAutoAnnounceDrawOpen(activeDraw, nowSec);
+  useAutoAnnounceDrawOpen(demo ? null : activeDraw, nowSec);
 
   useEffect(() => {
     let cancelled = false;
@@ -334,7 +349,10 @@ export function HomeLotterySection({ preview = false }: { preview?: boolean }) {
   }, [activeDraw, nowSec, showWinner, needsSettlement]);
 
   const buyable = Boolean(
-    activeDraw && nowSec !== null && isDrawBuyable(activeDraw, nowSec),
+    !demo &&
+      activeDraw &&
+      nowSec !== null &&
+      isDrawBuyable(activeDraw, nowSec),
   );
 
   useEffect(() => {
@@ -386,7 +404,7 @@ export function HomeLotterySection({ preview = false }: { preview?: boolean }) {
   }, [connected, wallet?.publicKey, phase.kind]);
 
   useEffect(() => {
-    if (!activeDraw) {
+    if (!activeDraw || demo) {
       setSplDbRows([]);
       return;
     }
@@ -408,7 +426,7 @@ export function HomeLotterySection({ preview = false }: { preview?: boolean }) {
     return () => {
       cancelled = true;
     };
-  }, [activeDraw?.drawId]);
+  }, [activeDraw?.drawId, demo]);
 
   const splUiRows = useMemo((): SplMintUiRow[] => {
     if (!activeDraw) return [];
@@ -893,6 +911,29 @@ export function HomeLotterySection({ preview = false }: { preview?: boolean }) {
                 <p className="mt-4 text-center text-xs text-muted">
                   90% of SOL ticket purchases are added to the prize pot.
                 </p>
+                {activeDraw ? (
+                  <p className="mt-3 text-center text-[11px] leading-relaxed text-muted">
+                    Next seed ~{" "}
+                    <span className="font-semibold text-accent-gold/90">
+                      {formatPredictedSeedSol(
+                        predictedNextSeedSol(
+                          sumSplTicketsSold(activeDraw.splMints, {
+                            excludeMint: isFreeEntryMint,
+                          }),
+                        ),
+                      )}{" "}
+                      SOL
+                    </span>
+                    <span className="text-muted/80">
+                      {" "}
+                      ·{" "}
+                      {sumSplTicketsSold(activeDraw.splMints, {
+                        excludeMint: isFreeEntryMint,
+                      }).toLocaleString()}{" "}
+                      SPL tickets
+                    </span>
+                  </p>
+                ) : null}
               </div>
             )}
           </div>
