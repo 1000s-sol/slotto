@@ -913,7 +913,7 @@ export function HomeLotterySection({
                 </p>
                 {activeDraw ? (
                   <p className="mt-3 text-center text-[11px] leading-relaxed text-muted">
-                    Next seed ~{" "}
+                    Next month&apos;s predicted seed jackpot ~{" "}
                     <span className="font-semibold text-accent-gold/90">
                       {formatPredictedSeedSol(
                         predictedNextSeedSol(
@@ -926,7 +926,7 @@ export function HomeLotterySection({
                     </span>
                     <span className="text-muted/80">
                       {" "}
-                      ·{" "}
+                      (increases when SPL ticket sales pass 395) ·{" "}
                       {sumSplTicketsSold(activeDraw.splMints, {
                         excludeMint: isFreeEntryMint,
                       }).toLocaleString()}{" "}

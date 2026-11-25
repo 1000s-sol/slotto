@@ -506,8 +506,10 @@ function CurrentDrawTable({
           </span>{" "}
           SPL
           {" · "}
-          next seed ~{" "}
+          next month&apos;s predicted seed jackpot ~{" "}
           <span className="font-semibold text-accent-gold">{nextSeed} SOL</span>
+          {" "}
+          (increases when SPL ticket sales pass 395)
         </span>
         <span className="font-mono">{entrants.length} entrants</span>
       </div>
