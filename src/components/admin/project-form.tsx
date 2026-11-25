@@ -98,6 +98,29 @@ function ImageFieldBlock({
   defaultUrl: string;
   previewUrl: string;
 }) {
+  const [pickedName, setPickedName] = useState<string | null>(null);
+  const [localPreview, setLocalPreview] = useState<string | null>(null);
+  const [inputKey, setInputKey] = useState(0);
+
+  useEffect(() => {
+    return () => {
+      if (localPreview) URL.revokeObjectURL(localPreview);
+    };
+  }, [localPreview]);
+
+  function onPick(file: File | null) {
+    if (localPreview) URL.revokeObjectURL(localPreview);
+    if (!file) {
+      setPickedName(null);
+      setLocalPreview(null);
+      return;
+    }
+    setPickedName(file.name);
+    setLocalPreview(URL.createObjectURL(file));
+  }
+
+  const shownPreview = localPreview || previewUrl || null;
+
   return (
     <div className="rounded-2xl border border-border bg-surface/25 p-4">
       <h3 className="text-sm font-semibold text-foreground">{title}</h3>
@@ -108,28 +131,54 @@ function ImageFieldBlock({
           name={urlName}
           type="text"
           inputMode="url"
-          placeholder="https://… or /uploads/projects/…"
+          placeholder="https://… or /project-images/… or /uploads/projects/…"
           defaultValue={defaultUrl}
           className="rounded-xl border border-border bg-surface/60 px-3 py-2 font-mono text-xs text-foreground outline-none focus:border-accent-purple/40 focus:ring-4 focus:ring-accent-purple/15 sm:text-sm"
         />
       </label>
-      <label className="mt-3 flex flex-col gap-2 text-xs text-muted">
-        Upload file (PNG, JPEG, WebP, GIF — max 4 MB)
-        <input
-          name={fileName}
-          type="file"
-          accept="image/png,image/jpeg,image/jpg,image/webp,image/gif"
-          className="text-xs text-foreground file:mr-3 file:rounded-lg file:border-0 file:bg-surface file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-foreground"
-        />
-      </label>
+      <div className="mt-3 space-y-2">
+        <p className="text-xs text-muted">Upload file (PNG, JPEG, WebP, GIF — max 4 MB)</p>
+        {/* File input sits on top of Browse so the OS dialog opens from a real input click. */}
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="relative inline-flex cursor-pointer items-center overflow-hidden rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-medium text-foreground transition hover:border-accent-purple/40 hover:bg-surface/80">
+            Browse…
+            <input
+              key={inputKey}
+              name={fileName}
+              type="file"
+              accept="image/png,image/jpeg,image/jpg,image/webp,image/gif"
+              className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+              onChange={(e) => onPick(e.target.files?.[0] ?? null)}
+            />
+          </label>
+          {pickedName ? (
+            <button
+              type="button"
+              onClick={() => {
+                setInputKey((k) => k + 1);
+                onPick(null);
+              }}
+              className="rounded-lg border border-border/80 px-2.5 py-1.5 text-xs text-muted transition hover:text-foreground"
+            >
+              Clear
+            </button>
+          ) : null}
+          <span className="min-w-0 truncate text-xs text-muted">
+            {pickedName ?? "No file selected"}
+          </span>
+        </div>
+      </div>
       <p className="mt-2 text-[11px] text-muted/80">
         If both are set, the <strong className="text-muted">upload</strong> wins. Leave both empty for no image.
+        Site paths like <code className="text-muted">/project-images/…</code> work in the URL field.
       </p>
-      {previewUrl ? (
+      {shownPreview ? (
         <div className="mt-3">
-          <p className="text-[11px] font-medium uppercase tracking-wide text-muted">Current</p>
+          <p className="text-[11px] font-medium uppercase tracking-wide text-muted">
+            {localPreview ? "Selected" : "Current"}
+          </p>
           <img
-            src={previewUrl}
+            src={shownPreview}
             alt=""
             className="mt-1 max-h-28 max-w-full rounded-lg border border-border object-contain object-left"
             loading="lazy"

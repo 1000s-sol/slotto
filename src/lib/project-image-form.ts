@@ -21,7 +21,10 @@ export async function resolveProjectImageFromForm(
   }
   const urlStr = String(formData.get(urlFieldName) ?? "").trim();
   if (urlStr && !isSafeHttpsOrRelativeUrl(urlStr)) {
-    return { url: null, error: "Image URL must be an https:// link." };
+    return {
+      url: null,
+      error: "Image URL must be an https:// link or a site path like /project-images/….",
+    };
   }
   return { url: urlStr || null };
 }

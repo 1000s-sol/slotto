@@ -37,6 +37,12 @@ const SECURITY_HEADERS = [
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ["@vercel/blob"],
+  /** Project image uploads allow up to 4 MB; default server-action body limit is 1 MB. */
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "5mb",
+    },
+  },
   /** ESLint plugin resolution can differ on Vercel; `next build` still runs TypeScript. */
   eslint: {
     ignoreDuringBuilds: true,
