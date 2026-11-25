@@ -8,6 +8,9 @@ const SALE_BANNERS: Record<string, string> = {
   LDZ: "sale-ldz.JPG",
   EMPIRE: "sale-empire.JPG",
   RYC: "sale-ryc.JPG",
+  FRENS: "sale-frens.PNG",
+  BUX: "sale-bux.PNG",
+  CSZ420: "sale-csz420.PNG",
 };
 
 function socialBannerUrl(filename: string): string {
