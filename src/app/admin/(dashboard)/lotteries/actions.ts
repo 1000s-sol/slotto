@@ -15,7 +15,7 @@ import {
   resolveLotteryRpcUrl,
   resolvePublicSolanaRpcUrl,
 } from "@/lib/lottery/rpc-url";
-import { withLotteryHeliusRpc, withLotteryServerRpc } from "@/lib/lottery/server-rpc";
+import { withLotteryServerRpc } from "@/lib/lottery/server-rpc";
 import {
   appendDrawSplMintRow,
   batchUpdateDrawSplMintRows,
@@ -138,43 +138,63 @@ export async function adminFetchWalletRpcEndpointAction(): Promise<string> {
 }
 
 /** Recent blockhash via server RPC (avoids browser public-RPC 403). */
-export async function adminFetchRecentBlockhashAction(): Promise<{
-  blockhash: string;
-  lastValidBlockHeight: number;
-}> {
-  await requireAdmin();
-  return withLotteryServerRpc(async (connection) => {
-    const latest = await connection.getLatestBlockhash("confirmed");
+export async function adminFetchRecentBlockhashAction(): Promise<
+  | { ok: true; blockhash: string; lastValidBlockHeight: number }
+  | { ok: false; error: string }
+> {
+  try {
+    await requireAdmin();
+    return await withLotteryServerRpc(async (connection) => {
+      const latest = await connection.getLatestBlockhash("confirmed");
+      return {
+        ok: true as const,
+        blockhash: latest.blockhash,
+        lastValidBlockHeight: latest.lastValidBlockHeight,
+      };
+    });
+  } catch (e) {
     return {
-      blockhash: latest.blockhash,
-      lastValidBlockHeight: latest.lastValidBlockHeight,
+      ok: false,
+      error: lotteryRpcErrorText(e).slice(0, 400) || "Could not fetch blockhash",
     };
-  });
+  }
 }
 
 /** Broadcast a Phantom-signed transaction via server RPC (Helius + public fallback). */
 export async function adminBroadcastSignedTransactionAction(
   transactionBase64: string,
-): Promise<{ signature: string }> {
-  await requireAdmin();
-  const b64 = transactionBase64.trim();
-  if (!b64) throw new Error("Missing transaction");
-  let raw: Buffer;
+): Promise<{ ok: true; signature: string } | { ok: false; error: string }> {
   try {
-    raw = Buffer.from(b64, "base64");
-  } catch {
-    throw new Error("Invalid transaction encoding");
+    await requireAdmin();
+    const b64 = transactionBase64.trim();
+    if (!b64) return { ok: false, error: "Missing transaction" };
+    let raw: Buffer;
+    try {
+      raw = Buffer.from(b64, "base64");
+    } catch {
+      return { ok: false, error: "Invalid transaction encoding" };
+    }
+    // Legacy Solana tx max is 1232; leave headroom only for wallet-injected ixs under that cap.
+    if (raw.length < 64 || raw.length > 1232) {
+      return {
+        ok: false,
+        error: `Transaction too large to broadcast (${raw.length} bytes; max 1232). Uncheck SPL tokens and create SOL-only, then add mints after.`,
+      };
+    }
+    // Prefer full server RPC rotation (Helius → public) — Helius-only was hiding failures as digests.
+    const signature = await withLotteryServerRpc((connection) =>
+      connection.sendRawTransaction(raw, {
+        skipPreflight: true,
+        maxRetries: 3,
+      }),
+    );
+    return { ok: true, signature };
+  } catch (e) {
+    return {
+      ok: false,
+      error: lotteryRpcErrorText(e).slice(0, 500) || "Broadcast failed",
+    };
   }
-  if (raw.length < 64 || raw.length > 1644) {
-    throw new Error("Invalid transaction size");
-  }
-  const signature = await withLotteryHeliusRpc((connection) =>
-    connection.sendRawTransaction(raw, {
-      skipPreflight: true,
-      maxRetries: 3,
-    }),
-  );
-  return { signature };
 }
 
 /**

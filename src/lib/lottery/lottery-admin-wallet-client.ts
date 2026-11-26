@@ -17,14 +17,30 @@ export function lotteryWalletSendOptsForAdmin(
 ): LotteryWalletSendOpts {
   void wallet;
   return {
-    fetchBlockhash: adminFetchRecentBlockhashAction,
+    fetchBlockhash: async () => {
+      const res = await adminFetchRecentBlockhashAction();
+      if (!res.ok) {
+        throw new Error(res.error || "Could not fetch blockhash from server");
+      }
+      return {
+        blockhash: res.blockhash,
+        lastValidBlockHeight: res.lastValidBlockHeight,
+      };
+    },
     confirmSignature: (signature) =>
       confirmSignatureViaApi(signature, 30_000),
     signAndSendRaw: true,
     broadcastRawTransaction: async (raw) => {
-      const { signature } = await adminBroadcastSignedTransactionAction(
+      const { signature, error } = await adminBroadcastSignedTransactionAction(
         Buffer.from(raw).toString("base64"),
+      ).then((res) =>
+        res.ok
+          ? { signature: res.signature, error: null as string | null }
+          : { signature: null as string | null, error: res.error },
       );
+      if (!signature) {
+        throw new Error(error || "Could not broadcast transaction");
+      }
       return signature;
     },
     resolveTokenProgram: fetchMintTokenProgramClient,
