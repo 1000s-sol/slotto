@@ -329,7 +329,12 @@ export function LotteryOpsPanel({
 
       step = "load project tokens";
       setPhase({ kind: "busy", label: "Loading project tokens…" });
-      const tokens = await adminFetchProjectTokensForDrawAction();
+      const loadedTokens = await adminFetchProjectTokensForDrawAction();
+      if (!loadedTokens.ok) {
+        setPhase({ kind: "error", message: loadedTokens.error });
+        return;
+      }
+      const tokens = loadedTokens.tokens;
       const splErr = validateProjectTokenDrawSettings(
         tokens,
         tokenEnabled,

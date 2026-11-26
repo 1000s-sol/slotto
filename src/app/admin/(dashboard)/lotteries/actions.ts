@@ -258,34 +258,50 @@ export async function adminDrawHasSplMintAction(
   drawId: number,
   mint: string,
 ): Promise<boolean> {
-  await requireAdmin();
-  if (!Number.isFinite(drawId) || drawId < 0 || !mint.trim()) return false;
-  return withLotteryServerRpc(async (connection) => {
-    const draw = await fetchDrawById(connection, lotteryProgramId(), drawId);
-    return draw?.splMints.some((m) => m.mint === mint) ?? false;
-  });
+  try {
+    await requireAdmin();
+    if (!Number.isFinite(drawId) || drawId < 0 || !mint.trim()) return false;
+    return await withLotteryServerRpc(async (connection) => {
+      const draw = await fetchDrawById(connection, lotteryProgramId(), drawId);
+      return draw?.splMints.some((m) => m.mint === mint) ?? false;
+    });
+  } catch (e) {
+    console.warn(
+      "[adminDrawHasSplMintAction]",
+      e instanceof Error ? e.message : e,
+    );
+    return false;
+  }
 }
 
 /** Read global config via server RPC (matches `LOTTERY_CLUSTER` / Helius). */
 export async function adminFetchGlobalConfigAction(): Promise<AdminGlobalConfigView | null> {
-  await requireAdmin();
-  const programId = lotteryProgramId();
-  const globalConfig = globalConfigPda(programId);
-  return withLotteryServerRpc(async (connection) => {
-    const info = await connection.getAccountInfo(globalConfig);
-    if (!info) return null;
+  try {
+    await requireAdmin();
+    const programId = lotteryProgramId();
+    const globalConfig = globalConfigPda(programId);
+    return await withLotteryServerRpc(async (connection) => {
+      const info = await connection.getAccountInfo(globalConfig);
+      if (!info) return null;
 
-    const program = createLotteryReadOnlyProgram(connection);
-    const cfg = await program.account.globalConfig.fetch(globalConfig);
-    return {
-      globalConfigPda: globalConfig.toBase58(),
-      authority: cfg.authority.toBase58(),
-      teamVault: cfg.teamVault.toBase58(),
-      buxVault: cfg.buxVault.toBase58(),
-      setupVault: cfg.setupVault.toBase58(),
-      nextDrawId: cfg.nextDrawId.toString(),
-    };
-  });
+      const program = createLotteryReadOnlyProgram(connection);
+      const cfg = await program.account.globalConfig.fetch(globalConfig);
+      return {
+        globalConfigPda: globalConfig.toBase58(),
+        authority: cfg.authority.toBase58(),
+        teamVault: cfg.teamVault.toBase58(),
+        buxVault: cfg.buxVault.toBase58(),
+        setupVault: cfg.setupVault.toBase58(),
+        nextDrawId: cfg.nextDrawId.toString(),
+      };
+    });
+  } catch (e) {
+    console.warn(
+      "[adminFetchGlobalConfigAction]",
+      e instanceof Error ? e.message : e,
+    );
+    return null;
+  }
 }
 
 /** Active draw using server RPC (matches `LOTTERY_CLUSTER`, not browser wallet RPC). */
@@ -302,9 +318,20 @@ export async function adminLoadSplCatalogAction(): Promise<SplMintDraft[]> {
   return loadSplCatalogForNewDraw();
 }
 
-export async function adminFetchProjectTokensForDrawAction() {
-  await requireAdmin();
-  return fetchPublishedProjectTokens();
+export async function adminFetchProjectTokensForDrawAction(): Promise<
+  | { ok: true; tokens: Awaited<ReturnType<typeof fetchPublishedProjectTokens>> }
+  | { ok: false; error: string }
+> {
+  try {
+    await requireAdmin();
+    const tokens = await fetchPublishedProjectTokens();
+    return { ok: true, tokens };
+  } catch (e) {
+    return {
+      ok: false,
+      error: adminActionErrorMessage(e, "Could not load project tokens."),
+    };
+  }
 }
 
 function adminActionErrorMessage(e: unknown, fallback: string): string {
@@ -357,8 +384,18 @@ export async function adminBuildSplMintDraftsForCreateDrawAction(
 export async function adminMintsExistOnClusterAction(
   mints: string[],
 ): Promise<Record<string, boolean>> {
-  await requireAdmin();
-  return mintsExistOnCluster(mints);
+  try {
+    await requireAdmin();
+    return await mintsExistOnCluster(mints);
+  } catch (e) {
+    console.warn(
+      "[adminMintsExistOnClusterAction]",
+      e instanceof Error ? e.message : e,
+    );
+    const out: Record<string, boolean> = {};
+    for (const m of mints) out[m] = true; // optimistic — ATA step will surface real mint issues
+    return out;
+  }
 }
 
 export async function adminSaveSplRowsForDrawAction(

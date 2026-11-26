@@ -349,8 +349,13 @@ export function LotteryCurrentDrawSpl({
     setMsg(null);
     try {
       const onDraw = new Set(mintsOnDraw);
-      const tokens = await adminFetchProjectTokensForDrawAction();
-      const candidates = tokens.filter((t) => !onDraw.has(t.mint));
+      const loadedTokens = await adminFetchProjectTokensForDrawAction();
+      if (!loadedTokens.ok) {
+        setMsgTone("error");
+        setMsg(loadedTokens.error);
+        return;
+      }
+      const candidates = loadedTokens.tokens.filter((t) => !onDraw.has(t.mint));
       const err = validateProjectTokenDrawSettings(
         candidates,
         tokenEnabled,
@@ -369,7 +374,11 @@ export function LotteryCurrentDrawSpl({
       );
       if (!built.ok) {
         setMsgTone("error");
-        setMsg(built.error);
+        setMsg(
+          built.error.includes("USD price") || built.error.includes("Price not available")
+            ? `${built.error} Tip: edit the project, uncheck Liquid, set a fixed ticket price, then add it.`
+            : built.error,
+        );
         return;
       }
       const drafts = built.drafts.filter((d) => !onDraw.has(d.mint));

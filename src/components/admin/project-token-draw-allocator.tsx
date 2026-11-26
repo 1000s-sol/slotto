@@ -68,9 +68,12 @@ export function ProjectTokenDrawAllocator({
     setError(null);
     try {
       const exclude = new Set(excludeKey ? excludeKey.split(",") : []);
-      const list = (await adminFetchProjectTokensForDrawAction()).filter(
-        (t) => !exclude.has(t.mint),
-      );
+      const loaded = await adminFetchProjectTokensForDrawAction();
+      if (!loaded.ok) {
+        setError(loaded.error);
+        return;
+      }
+      const list = loaded.tokens.filter((t) => !exclude.has(t.mint));
       setTokens(list);
       onEnabledChange((prev) => {
         const next = { ...prev };

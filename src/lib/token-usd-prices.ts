@@ -88,7 +88,38 @@ export async function fetchDexTokenRows(
   return byMint;
 }
 
-/** Server-side USD prices for mints (Dex + Jupiter, ticker banner logic). */
+/** GeckoTerminal fallback when Dex + Jupiter miss a mint (thin / new pools). */
+async function fetchGeckoUsd(
+  mints: string[],
+): Promise<Record<string, number | null>> {
+  const out: Record<string, number | null> = {};
+  for (const m of mints) out[m] = null;
+  await Promise.all(
+    mints.map(async (mint) => {
+      try {
+        const res = await fetch(
+          `https://api.geckoterminal.com/api/v2/networks/solana/tokens/${encodeURIComponent(mint)}`,
+          {
+            headers: { Accept: "application/json" },
+            next: { revalidate: 30 },
+          },
+        );
+        if (!res.ok) return;
+        const json = (await res.json()) as {
+          data?: { attributes?: { price_usd?: string | null } };
+        };
+        const raw = json.data?.attributes?.price_usd;
+        const n = raw != null && raw !== "" ? Number(raw) : NaN;
+        if (Number.isFinite(n) && n > 0) out[mint] = n;
+      } catch {
+        /* keep null */
+      }
+    }),
+  );
+  return out;
+}
+
+/** Server-side USD prices for mints (Dex + Jupiter + Gecko fallback). */
 export async function fetchTokenUsdPrices(
   mints: string[],
 ): Promise<Map<string, number | null>> {
@@ -107,6 +138,16 @@ export async function fetchTokenUsdPrices(
       resolveTokenUsdPrice(mint, byMint.get(mint), jupUsd[mint] ?? null),
     );
   }
+
+  const missing = unique.filter((m) => out.get(m) == null);
+  if (missing.length > 0) {
+    const gecko = await fetchGeckoUsd(missing);
+    for (const mint of missing) {
+      const p = gecko[mint];
+      if (p != null) out.set(mint, p);
+    }
+  }
+
   return out;
 }
 
