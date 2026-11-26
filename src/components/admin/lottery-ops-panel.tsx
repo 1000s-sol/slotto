@@ -403,22 +403,35 @@ export function LotteryOpsPanel({
       const createDrawSendOpts = walletSendOpts
         ? {
             ...walletSendOpts,
-            /** Poll draw account — not signature status (avoids Helius confirm spam). */
+            /** Confirm via HTTP API first (no server-action digests), then soft-check draw PDA. */
             confirmSignature: async (signature: string) => {
-              void signature;
-              for (let attempt = 0; attempt < 40; attempt += 1) {
+              setPhase({
+                kind: "busy",
+                label: `Confirming create_draw #${drawId}…`,
+              });
+              const api = walletSendOpts.confirmSignature
+                ? await walletSendOpts.confirmSignature(signature)
+                : { confirmed: false, error: "No confirm helper" };
+              if (api.confirmed) return api;
+              for (let attempt = 0; attempt < 20; attempt += 1) {
                 setPhase({
                   kind: "busy",
-                  label: `Waiting for draw #${drawId} on-chain (${attempt + 1}/40)…`,
+                  label: `Waiting for draw #${drawId} on-chain (${attempt + 1}/20)…`,
                 });
-                if (await adminDrawExistsOnServerAction(drawId)) {
-                  return { confirmed: true, error: null };
+                try {
+                  if (await adminDrawExistsOnServerAction(drawId)) {
+                    return { confirmed: true, error: null };
+                  }
+                } catch {
+                  /* production digests — keep polling */
                 }
                 await new Promise((r) => setTimeout(r, 1_500));
               }
               return {
                 confirmed: false,
-                error: "Draw account not found on-chain yet",
+                error:
+                  api.error ||
+                  "Draw account not found on-chain yet — check Solscan for the signature",
               };
             },
           }
@@ -453,9 +466,13 @@ export function LotteryOpsPanel({
         let existsOnChain = false;
         if (partialSig) {
           for (let attempt = 0; attempt < 5; attempt += 1) {
-            if (await adminDrawExistsOnServerAction(drawId)) {
-              existsOnChain = true;
-              break;
+            try {
+              if (await adminDrawExistsOnServerAction(drawId)) {
+                existsOnChain = true;
+                break;
+              }
+            } catch {
+              /* ignore */
             }
             await new Promise((r) => setTimeout(r, 2_000));
           }

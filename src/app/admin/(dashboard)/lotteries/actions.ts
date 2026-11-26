@@ -237,12 +237,20 @@ export async function adminFetchServerLotteryClusterAction(): Promise<{
 export async function adminDrawExistsOnServerAction(
   drawId: number,
 ): Promise<boolean> {
-  await requireAdmin();
-  if (!Number.isFinite(drawId) || drawId < 0) return false;
-  return withLotteryServerRpc(async (connection) => {
-    const draw = await fetchDrawById(connection, lotteryProgramId(), drawId);
-    return draw != null;
-  });
+  try {
+    await requireAdmin();
+    if (!Number.isFinite(drawId) || drawId < 0) return false;
+    return await withLotteryServerRpc(async (connection) => {
+      const draw = await fetchDrawById(connection, lotteryProgramId(), drawId);
+      return draw != null;
+    });
+  } catch (e) {
+    console.warn(
+      "[adminDrawExistsOnServerAction]",
+      e instanceof Error ? e.message : e,
+    );
+    return false;
+  }
 }
 
 /** True if an SPL mint row exists on the draw (post addSplMint verification). */

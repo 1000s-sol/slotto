@@ -352,9 +352,8 @@ export function formatLotteryAdminError(error: unknown): string {
     /\bdigest\b/i.test(text)
   ) {
     return (
-      "Server action failed (production hides the real message). Common causes when " +
-      "enabling a token: missing USD price for a liquid mint, mint already on the draw, " +
-      "or a DB conflict. Retry after a refresh; if it persists, check Vercel function logs."
+      "Admin server call failed (production hid the detail). Hard-refresh, reconnect Phantom on Mainnet, " +
+      "create SOL-only (no SPL tokens), and retry. If it still fails, check Vercel function logs for this request."
     );
   }
   if (
