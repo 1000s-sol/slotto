@@ -14,7 +14,15 @@ const SALE_BANNERS: Record<string, string> = {
 };
 
 function socialBannerUrl(filename: string): string {
-  const base = getSiteUrl().replace(/\/$/, "") || "https://slotto.gg";
+  // Discord embed crawlers often fail on apex→www 308 redirects.
+  let base = getSiteUrl().replace(/\/$/, "") || "https://www.slotto.gg";
+  try {
+    const u = new URL(base.includes("://") ? base : `https://${base}`);
+    if (u.hostname === "slotto.gg") u.hostname = "www.slotto.gg";
+    base = u.origin;
+  } catch {
+    base = "https://www.slotto.gg";
+  }
   return `${base}/socials/${filename}`;
 }
 

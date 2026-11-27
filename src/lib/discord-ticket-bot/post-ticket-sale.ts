@@ -36,20 +36,61 @@ function paidWithLabel(tokenSymbol: string, tokenName: string): string {
   return sym;
 }
 
-function buildTicketSaleEmbed(opts: {
-  buyerLabel: string;
-  count: number;
-  tokenSymbol: string;
-  tokenName: string;
-  tokenImageUrl: string | null;
-  jackpotSol: string | null;
-  drawLabel: string;
-  signature: string;
-}) {
+/** Prefer www — Discord embed crawlers often fail on apex→www 308s. */
+function discordSiteBase(siteUrl?: string): string {
+  const raw = (siteUrl ?? getSiteUrl()).replace(/\/$/, "") || "https://www.slotto.gg";
+  try {
+    const u = new URL(raw.includes("://") ? raw : `https://${raw}`);
+    if (u.hostname === "slotto.gg") u.hostname = "www.slotto.gg";
+    return u.origin;
+  } catch {
+    return "https://www.slotto.gg";
+  }
+}
+
+/** Discord rejects relative image URLs; prefer https absolute (www host). */
+function discordImageUrl(raw: string | null | undefined, siteUrl: string): string | null {
+  const v = raw?.trim();
+  if (!v) return null;
+  if (v.startsWith("https://") || v.startsWith("http://")) {
+    try {
+      const u = new URL(v);
+      if (u.hostname === "slotto.gg") u.hostname = "www.slotto.gg";
+      return u.toString();
+    } catch {
+      return null;
+    }
+  }
+  if (v.startsWith("/") && !v.startsWith("//")) {
+    return `${discordSiteBase(siteUrl)}${v}`;
+  }
+  return null;
+}
+
+function buildTicketSaleEmbed(
+  opts: {
+    buyerLabel: string;
+    count: number;
+    tokenSymbol: string;
+    tokenName: string;
+    tokenImageUrl: string | null;
+    jackpotSol: string | null;
+    drawLabel: string;
+    signature: string;
+  },
+  siteUrl: string,
+  media: "full" | "none" = "full",
+) {
   const ticketWord = opts.count === 1 ? "ticket" : "tickets";
   const paidWith = paidWithLabel(opts.tokenSymbol, opts.tokenName);
+  const tokenIcon = discordImageUrl(opts.tokenImageUrl, siteUrl);
   const bannerUrl =
-    ticketSaleBannerUrl(opts.tokenSymbol) ?? opts.tokenImageUrl;
+    media === "full"
+      ? discordImageUrl(
+          ticketSaleBannerUrl(opts.tokenSymbol) ?? opts.tokenImageUrl,
+          siteUrl,
+        )
+      : null;
   const embed: Record<string, unknown> = {
     title: "🎟️ New Slotto ticket purchase",
     description: `Someone just bought **${opts.count}** ${ticketWord} in draw **${opts.drawLabel}**.`,
@@ -58,7 +99,7 @@ function buildTicketSaleEmbed(opts: {
     ...(bannerUrl ? { image: { url: bannerUrl } } : {}),
     author: {
       name: paidWith,
-      ...(opts.tokenImageUrl ? { icon_url: opts.tokenImageUrl } : {}),
+      ...(media === "full" && tokenIcon ? { icon_url: tokenIcon } : {}),
     },
     fields: [
       { name: "Buyer", value: opts.buyerLabel, inline: true },
@@ -146,9 +187,9 @@ export async function notifyDiscordTicketSale(
   }
 
   const buyerLabel = await buyerLabelForWallet(wallet);
-  const siteUrl = getSiteUrl().replace(/\/$/, "") || "https://slotto.gg";
+  const siteUrl = discordSiteBase();
   const drawLabel = await formatDrawLabelForId(input.drawId);
-  const embed = buildTicketSaleEmbed({
+  const embedOpts = {
     buyerLabel,
     count: input.count,
     tokenSymbol:
@@ -158,14 +199,26 @@ export async function notifyDiscordTicketSale(
     jackpotSol,
     drawLabel,
     signature,
-  });
+  };
+  const embed = buildTicketSaleEmbed(embedOpts, siteUrl, "full");
+  const embedPlain = buildTicketSaleEmbed(embedOpts, siteUrl, "none");
 
   let posted = 0;
   const failures: string[] = [];
 
   for (const channelId of channelIds) {
     try {
-      await postEmbedToChannel(channelId, embed, siteUrl);
+      try {
+        await postEmbedToChannel(channelId, embed, siteUrl);
+      } catch (first) {
+        // Relative/broken image URLs (common for non-liquid project logos) make
+        // Discord reject the whole message — retry text-only so the sale still posts.
+        console.warn(
+          "[discord ticket bot] embed media failed, retrying plain:",
+          first instanceof Error ? first.message : first,
+        );
+        await postEmbedToChannel(channelId, embedPlain, siteUrl);
+      }
       posted += 1;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -173,12 +226,20 @@ export async function notifyDiscordTicketSale(
     }
   }
 
-  await prisma.discordTicketSaleNotify.create({
-    data: { signature, drawId: input.drawId },
-  });
+  // Only mark notified when at least one channel got the message (or none configured).
+  // Failed posts must remain retryable for the same signature.
+  if (posted > 0) {
+    await prisma.discordTicketSaleNotify.create({
+      data: { signature, drawId: input.drawId },
+    });
+  }
 
   if (failures.length > 0) {
     console.warn("[discord ticket bot] partial post failures:", failures.join("; "));
+  }
+
+  if (posted === 0 && failures.length > 0) {
+    throw new Error(`Discord post failed: ${failures.join("; ")}`);
   }
 
   return { posted, skipped: false };

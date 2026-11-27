@@ -28,7 +28,15 @@ export async function discordApi(
 }
 
 export function mascotThumbnailUrl(): string {
-  return `${getSiteUrl().replace(/\/$/, "")}/brand/slotto-guy.png`;
+  let base = getSiteUrl().replace(/\/$/, "") || "https://www.slotto.gg";
+  try {
+    const u = new URL(base.includes("://") ? base : `https://${base}`);
+    if (u.hostname === "slotto.gg") u.hostname = "www.slotto.gg";
+    base = u.origin;
+  } catch {
+    base = "https://www.slotto.gg";
+  }
+  return `${base}/brand/slotto-guy.png`;
 }
 
 function playButtonRow(siteUrl: string) {
