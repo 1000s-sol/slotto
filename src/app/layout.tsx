@@ -68,10 +68,10 @@ export default function RootLayout({
           <AuthSessionProvider>
           <MaintenanceGate>
             <div
-              className={`${previewDisplay.variable} ${previewBody.variable} preview-shell relative z-[1] min-h-dvh w-full`}
+              className={`${previewDisplay.variable} ${previewBody.variable} preview-shell relative z-[1] min-h-dvh w-full max-w-[100%] overflow-x-clip`}
             >
-              <div className="mx-auto flex min-h-dvh w-full min-w-0 max-w-[1440px] flex-col px-5 pb-10 sm:px-8">
-                <div className="sticky top-0 z-[120] -mx-5 bg-transparent px-5 pb-2 pt-3 sm:-mx-8 sm:px-8">
+              <div className="mx-auto flex min-h-dvh w-full min-w-0 max-w-[1440px] flex-col overflow-x-clip px-5 pb-10 sm:px-8">
+                <div className="sticky top-0 z-[120] -mx-5 overflow-x-clip bg-transparent px-5 pb-2 pt-3 sm:-mx-8 sm:px-8">
                   <div
                     aria-hidden
                     className="preview-scroll-fade pointer-events-none absolute inset-x-0 top-0 -bottom-18 -z-10"

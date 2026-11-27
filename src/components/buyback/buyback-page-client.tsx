@@ -146,7 +146,7 @@ function DrawBreakdownModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+      className="fixed inset-0 z-[200] flex items-end justify-center bg-black/70 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] sm:items-center sm:p-4"
       role="presentation"
       onClick={onClose}
     >
@@ -154,7 +154,7 @@ function DrawBreakdownModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="max-h-[min(90vh,640px)] w-full max-w-lg overflow-hidden rounded-2xl border border-border bg-bg-elevated shadow-2xl"
+        className="max-h-[min(85dvh,640px)] w-full max-w-lg overflow-x-hidden overflow-hidden rounded-2xl border border-border bg-bg-elevated shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3 border-b border-border px-5 py-4">

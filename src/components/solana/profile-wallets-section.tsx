@@ -5,7 +5,7 @@ import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { useCallback, useEffect, useState } from "react";
 
 import { WalletConnectButton } from "@/components/solana/wallet-connect-button";
-import { buildProfileWalletVerifyMessage } from "@/lib/wallet-verify-message";
+import { linkProfileWalletClient } from "@/lib/link-profile-wallet-client";
 
 type Phase =
   | { kind: "idle" }
@@ -48,43 +48,27 @@ export function ProfileWalletsSection() {
       });
       return;
     }
-    if (!signMessage) return;
-    setPhase({ kind: "loading" });
-    try {
-      const message = buildProfileWalletVerifyMessage(wallet);
-      const sig = await signMessage(new TextEncoder().encode(message));
-      const bs58 = (await import("bs58")).default;
-      const res = await fetch("/api/profile/wallet/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          address: wallet,
-          message,
-          signature: bs58.encode(sig),
-        }),
-      });
-      const json = (await res.json()) as {
-        ok: boolean;
-        reason?: string;
-        merged?: boolean;
-      };
-      if (!json.ok) {
-        setPhase({ kind: "error", message: json.reason ?? "Link failed" });
-        return;
-      }
-      setPhase({
-        kind: "ok",
-        message: json.merged
-          ? "Wallet linked — profiles merged."
-          : "Wallet linked to your profile.",
-      });
-      await refresh();
-    } catch (e) {
+    if (!signMessage) {
       setPhase({
         kind: "error",
-        message: e instanceof Error ? e.message : "Link failed",
+        message:
+          "This wallet app can’t sign messages here. Open Slotto in Phantom/Solflare’s browser, or link from desktop.",
       });
+      return;
     }
+    setPhase({ kind: "loading" });
+    const result = await linkProfileWalletClient(wallet, signMessage);
+    if (!result.ok) {
+      setPhase({ kind: "error", message: result.reason });
+      return;
+    }
+    setPhase({
+      kind: "ok",
+      message: result.merged
+        ? "Wallet linked — profiles merged."
+        : "Wallet linked to your profile.",
+    });
+    await refresh();
   };
 
   const unlinkWallet = async (wallet: string) => {

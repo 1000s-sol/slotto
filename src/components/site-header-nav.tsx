@@ -104,11 +104,19 @@ function itemActive(pathname: string, href: string) {
 
 export function SiteHeaderNav() {
   const [open, setOpen] = useState(false);
+  const [menuTop, setMenuTop] = useState(0);
   const pathname = usePathname();
   const { connected, disconnect } = useWallet();
   const rootRef = useRef<HTMLDivElement>(null);
 
   const close = useCallback(() => setOpen(false), []);
+
+  const updateMenuPos = useCallback(() => {
+    const el = rootRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    setMenuTop(Math.min(r.bottom + 10, Math.max(8, window.innerHeight - 120)));
+  }, []);
 
   useEffect(() => {
     close();
@@ -116,6 +124,7 @@ export function SiteHeaderNav() {
 
   useEffect(() => {
     if (!open) return;
+    updateMenuPos();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") close();
     };
@@ -124,15 +133,19 @@ export function SiteHeaderNav() {
     };
     window.addEventListener("keydown", onKey);
     window.addEventListener("pointerdown", onPointer);
+    window.addEventListener("resize", updateMenuPos);
+    window.addEventListener("scroll", updateMenuPos, true);
     return () => {
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("pointerdown", onPointer);
+      window.removeEventListener("resize", updateMenuPos);
+      window.removeEventListener("scroll", updateMenuPos, true);
     };
-  }, [open, close]);
+  }, [open, close, updateMenuPos]);
 
   return (
     <div ref={rootRef} className="relative flex shrink-0 items-center lg:block">
-      <div className="flex items-center justify-end gap-2 lg:hidden">
+      <div className="flex min-w-0 items-center justify-end gap-2 lg:hidden">
         <div className="min-w-0 max-w-[min(100%,14rem)] sm:max-w-[18rem] [&>div]:min-w-0 [&>div]:justify-end">
           <WalletConnectButton variant="toolbar" />
         </div>
@@ -169,7 +182,11 @@ export function SiteHeaderNav() {
         <div
           id="site-mobile-nav"
           role="menu"
-          className="absolute right-0 top-full z-[140] mt-3 w-[min(22rem,calc(100vw-2.75rem))] rounded-xl border-2 border-[#c5ddff]/80 bg-gradient-to-b from-[#1d5ed4] to-[#14398f] p-3 text-left shadow-[0_16px_40px_rgba(6,20,56,0.55)] lg:hidden"
+          className="fixed left-3 right-3 z-[200] overflow-x-hidden overflow-y-auto overscroll-contain rounded-xl border-2 border-[#c5ddff]/80 bg-gradient-to-b from-[#1d5ed4] to-[#14398f] p-3 text-left shadow-[0_16px_40px_rgba(6,20,56,0.55)] lg:hidden"
+          style={{
+            top: menuTop,
+            maxHeight: `min(75dvh, calc(100dvh - ${Math.max(menuTop, 8)}px - 0.75rem - env(safe-area-inset-bottom, 0px)))`,
+          }}
         >
           {links.map((l) => (
             <Link

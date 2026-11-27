@@ -7,6 +7,11 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react"
 
 import { DiscordLogo } from "@/components/discord-logo";
 import { XLogo } from "@/components/x-logo";
+import {
+  consumePendingWalletLink,
+  linkProfileWalletClient,
+  markPendingWalletLink,
+} from "@/lib/link-profile-wallet-client";
 import type { SocialProfile, WalletSocialPublic } from "@/lib/social-profile-url";
 import { buildWalletUnlinkMessage } from "@/lib/wallet-verify-message";
 
@@ -56,6 +61,9 @@ function AccountAvatar({ profile, size = 28 }: { profile: SocialProfile; size?: 
   );
 }
 
+const menuPanelClass =
+  "z-[200] w-full max-w-[min(22rem,calc(100dvw-1.5rem))] overflow-x-hidden overflow-y-auto overscroll-contain rounded-xl border-2 border-[#c5ddff]/80 bg-gradient-to-b from-[#1d5ed4] to-[#14398f] p-4 text-left shadow-[0_16px_40px_rgba(6,20,56,0.55)]";
+
 export function WalletConnectButton({
   variant = "default",
 }: {
@@ -68,11 +76,29 @@ export function WalletConnectButton({
   const menuId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
+  const [menuTop, setMenuTop] = useState(0);
   const [social, setSocial] = useState<WalletSocialPublic | null>(null);
+  const [sessionSocial, setSessionSocial] = useState<WalletSocialPublic | null>(null);
   const [linkedWallets, setLinkedWallets] = useState<string[]>([]);
+  const [sessionLoggedIn, setSessionLoggedIn] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [linkHint, setLinkHint] = useState<string | null>(null);
   const address = publicKey?.toBase58() ?? null;
+
+  const walletLinked = !!(address && linkedWallets.includes(address));
+  const hasSessionSocial = !!(
+    sessionSocial?.discord ||
+    sessionSocial?.x ||
+    social?.discord ||
+    social?.x
+  );
+  const needsWalletLink =
+    !!address &&
+    connected &&
+    sessionLoggedIn &&
+    hasSessionSocial &&
+    !walletLinked;
 
   const refresh = useCallback(async () => {
     try {
@@ -86,18 +112,30 @@ export function WalletConnectButton({
       ]);
       const me = (await meRes.json()) as ProfileMe;
       const cluster = clusterRes ? ((await clusterRes.json()) as Cluster) : null;
+      setSessionLoggedIn(!!me.loggedIn);
+      setSessionSocial(me.profile?.social ?? null);
+
+      const sessionWallets = me.profile?.wallets ?? [];
+      const clusterWallets = cluster?.wallets ?? [];
+      const wallets = [...new Set([...sessionWallets, ...clusterWallets])];
+      setLinkedWallets(wallets);
+
       const walletSocial = cluster?.social;
-      const walletHasLink = !!(walletSocial?.discord || walletSocial?.x || (cluster?.wallets.length ?? 0) > 0);
-      if (walletHasLink && cluster) {
+      const thisWalletLinked = !!(
+        address && wallets.includes(address)
+      );
+      if (thisWalletLinked && walletSocial) {
+        setSocial(walletSocial);
+      } else if (me.profile?.social) {
+        setSocial(me.profile.social);
+      } else {
         setSocial(walletSocial ?? { discord: null, x: null });
-        setLinkedWallets(cluster.wallets);
-        return;
       }
-      setSocial(me.profile?.social ?? { discord: null, x: null });
-      setLinkedWallets(me.profile?.wallets ?? []);
     } catch {
       setSocial({ discord: null, x: null });
+      setSessionSocial(null);
       setLinkedWallets([]);
+      setSessionLoggedIn(false);
     }
   }, [address]);
 
@@ -114,8 +152,37 @@ export function WalletConnectButton({
   }, []);
 
   useEffect(() => {
+    if (consumePendingWalletLink()) {
+      setOpen(true);
+      setLinkHint(
+        "Discord/X is connected. Sign once to link this wallet so your name shows on ticket tables.",
+      );
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!needsWalletLink || !connected) return;
+    setLinkHint((prev) =>
+      prev ??
+      "Sign once to link this wallet — ticket tables only show your name after linking.",
+    );
+  }, [needsWalletLink, connected]);
+
+  const updateMenuPos = useCallback(() => {
+    const el = rootRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const top = Math.min(
+      r.bottom + 10,
+      Math.max(8, window.innerHeight - 120),
+    );
+    setMenuTop(top);
+  }, []);
+
+  useEffect(() => {
     if (!open) return;
     void refresh();
+    updateMenuPos();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setOpen(false);
     };
@@ -124,11 +191,15 @@ export function WalletConnectButton({
     };
     window.addEventListener("keydown", onKey);
     window.addEventListener("mousedown", onPointer);
+    window.addEventListener("resize", updateMenuPos);
+    window.addEventListener("scroll", updateMenuPos, true);
     return () => {
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("mousedown", onPointer);
+      window.removeEventListener("resize", updateMenuPos);
+      window.removeEventListener("scroll", updateMenuPos, true);
     };
-  }, [open, refresh]);
+  }, [open, refresh, updateMenuPos]);
 
   const face = social?.discord ?? social?.x ?? null;
 
@@ -149,10 +220,39 @@ export function WalletConnectButton({
     setError(null);
     setBusy(provider);
     try {
+      if (connected && address) markPendingWalletLink();
       const callbackUrl = window.location.href;
       await signIn(provider, { callbackUrl });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Sign-in failed");
+      setBusy(null);
+    }
+  };
+
+  const linkThisWallet = async () => {
+    if (!address || !signMessage) {
+      setError(
+        signMessage
+          ? "Connect a wallet first"
+          : "This wallet app can’t sign messages on mobile — try Phantom / Solflare in-app browser, or link from desktop.",
+      );
+      return;
+    }
+    setError(null);
+    setBusy("link");
+    try {
+      const result = await linkProfileWalletClient(address, signMessage);
+      if (!result.ok) {
+        setError(result.reason);
+        return;
+      }
+      setLinkHint(
+        result.merged
+          ? "Wallet linked — profiles merged. Your name will show on ticket tables."
+          : "Wallet linked. Your name will show on ticket tables.",
+      );
+      await refresh();
+    } finally {
       setBusy(null);
     }
   };
@@ -221,8 +321,10 @@ export function WalletConnectButton({
     }
   };
 
+  const maxMenuHeight = `min(75dvh, calc(100dvh - ${Math.max(menuTop, 8)}px - 0.75rem - env(safe-area-inset-bottom, 0px)))`;
+
   return (
-    <div ref={rootRef} className="relative">
+    <div ref={rootRef} className="relative min-w-0">
       <button
         type="button"
         aria-haspopup="menu"
@@ -239,6 +341,13 @@ export function WalletConnectButton({
       >
         {face ? <AccountAvatar profile={face} /> : null}
         <span className={`truncate text-sm font-semibold ${connected ? "font-mono" : ""}`}>{label}</span>
+        {needsWalletLink ? (
+          <span
+            className="h-2 w-2 shrink-0 rounded-full bg-accent-gold"
+            title="Wallet not linked yet"
+            aria-hidden
+          />
+        ) : null}
         <span className="flex shrink-0 items-center" aria-hidden>
           <svg
             viewBox="0 0 20 20"
@@ -258,7 +367,11 @@ export function WalletConnectButton({
         <div
           id={menuId}
           role="menu"
-          className="absolute right-0 z-[140] mt-3 w-[min(22rem,calc(100vw-2.75rem))] rounded-xl border-2 border-[#c5ddff]/80 bg-gradient-to-b from-[#1d5ed4] to-[#14398f] p-4 text-left shadow-[0_16px_40px_rgba(6,20,56,0.55)]"
+          className={`fixed left-3 right-3 ${menuPanelClass} sm:left-auto sm:right-[max(0.75rem,env(safe-area-inset-right,0px))] sm:w-[min(22rem,calc(100dvw-1.5rem))]`}
+          style={{
+            top: menuTop,
+            maxHeight: maxMenuHeight,
+          }}
         >
           {face ? (
             <div className="mb-3 flex items-center gap-3">
@@ -267,12 +380,35 @@ export function WalletConnectButton({
                 <p className="truncate text-sm font-semibold text-white">
                   {social?.discord?.username ?? `@${social?.x?.username}`}
                 </p>
-                {social?.discord && social.x ? (
-                  <p className="truncate text-xs text-muted">@{social.x.username}</p>
-                ) : (
-                  <p className="text-xs text-muted">Linked to this wallet</p>
-                )}
+                <p className="text-xs text-muted">
+                  {walletLinked
+                    ? "Wallet linked to this profile"
+                    : needsWalletLink
+                      ? "Social connected — wallet not linked yet"
+                      : "Account"}
+                </p>
               </div>
+            </div>
+          ) : null}
+
+          {needsWalletLink ? (
+            <div className="mb-3 rounded-xl border border-accent-gold/40 bg-accent-gold/10 px-3 py-3">
+              <p className="text-xs leading-snug text-white">
+                {linkHint ??
+                  "Link this wallet so your Discord/X name appears on ticket tables."}
+              </p>
+              <button
+                type="button"
+                disabled={busy === "link" || !signMessage}
+                onClick={() => void linkThisWallet()}
+                className="mt-2 w-full rounded-xl bg-accent-gold px-3 py-2.5 text-sm font-semibold text-bg-deep disabled:opacity-50"
+              >
+                {busy === "link"
+                  ? "Approve in wallet…"
+                  : !signMessage
+                    ? "Wallet can’t sign here"
+                    : "Link this wallet"}
+              </button>
             </div>
           ) : null}
 
@@ -363,7 +499,7 @@ export function WalletConnectButton({
             </div>
           </div>
 
-          {error ? <p className="mt-2 text-xs text-red-400">{error}</p> : null}
+          {error ? <p className="mt-2 text-xs text-red-300">{error}</p> : null}
         </div>
       ) : null}
     </div>

@@ -117,7 +117,7 @@ export function PurchaseSuccessModal({
 
   return (
     <div
-      className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-[200] flex items-end justify-center bg-black/60 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] backdrop-blur-sm sm:items-center sm:p-4"
       role="presentation"
       onClick={onClose}
     >
@@ -125,7 +125,7 @@ export function PurchaseSuccessModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="max-h-[min(90vh,720px)] w-full max-w-md overflow-y-auto rounded-2xl border border-border bg-bg-elevated shadow-2xl"
+        className="max-h-[min(85dvh,720px)] w-full max-w-md overflow-x-hidden overflow-y-auto overscroll-contain rounded-2xl border border-border bg-bg-elevated shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3 border-b border-border px-5 py-4">

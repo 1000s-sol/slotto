@@ -230,12 +230,46 @@ img[src^="/brand/"] {
 
 .preview-scroll-fade-bg {
   position: absolute;
-  top: 0;
-  left: 50%;
-  width: 100vw;
-  height: 100vh;
-  height: 100lvh;
-  transform: translateX(-50%);
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Wallet adapter connect modal — fit mobile portrait (safe-area + dvh). */
+.wallet-adapter-modal-wrapper {
+  overflow-x: hidden !important;
+}
+
+.wallet-adapter-modal-container {
+  margin: max(0.75rem, env(safe-area-inset-top, 0px))
+    max(0.75rem, env(safe-area-inset-right, 0px))
+    max(0.75rem, env(safe-area-inset-bottom, 0px))
+    max(0.75rem, env(safe-area-inset-left, 0px)) !important;
+  min-height: unset !important;
+  max-height: calc(100dvh - 1.5rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important;
+  max-width: min(100%, 28rem) !important;
+  width: 100% !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+}
+
+.wallet-adapter-modal-title {
+  padding: 2.5rem 1.25rem 1.25rem !important;
+  font-size: 1.15rem !important;
+  line-height: 1.35 !important;
+}
+
+@media (max-width: 480px) {
+  .wallet-adapter-modal-title {
+    padding: 2rem 1rem 1rem !important;
+  }
+}
+
+.wallet-adapter-modal-list {
+  margin: 0 0 1rem !important;
+  max-height: min(50dvh, 20rem);
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .preview-shell h2,

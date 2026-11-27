@@ -66,7 +66,8 @@ export async function readProfileSessionCookie(): Promise<string | null> {
 
 /** Short-lived token so the OAuth callback can hand the profile id to a route that sets the cookie. */
 export function buildProfileHandoffToken(userProfileId: string): string {
-  const exp = Date.now() + 2 * 60 * 1000;
+  // Mobile OAuth + wallet reconnect can take longer than 2 minutes.
+  const exp = Date.now() + 10 * 60 * 1000;
   const payload = `h:${userProfileId}.${exp}`;
   const sig = hmac(payload);
   return `${payload}.${sig}`;

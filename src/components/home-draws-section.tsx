@@ -111,14 +111,16 @@ function WalletCell({ address }: { address: string }) {
 function SocialProfileReminder() {
   return (
     <p className="border-b border-border px-5 py-2.5 text-xs text-muted">
-      Discord and X only show here if you{" "}
+      Discord and X only show here after you connect socials and{" "}
+      <span className="font-medium text-accent-cyan">Link this wallet</span> in
+      the account menu (or{" "}
       <Link
         href="/profile"
         className="font-medium text-accent-cyan hover:underline"
       >
-        link your wallet in Profile
+        Profile
       </Link>
-      .
+      ). Buying tickets alone does not attach your name.
     </p>
   );
 }

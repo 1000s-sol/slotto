@@ -1,4 +1,5 @@
-const VERIFY_MAX_AGE_MS = 5 * 60 * 1000;
+/** Longer window for mobile wallet deep-links / slow sign sheets. */
+const VERIFY_MAX_AGE_MS = 15 * 60 * 1000;
 
 export function buildProfileWalletVerifyMessage(wallet: string): string {
   const issued = new Date();
