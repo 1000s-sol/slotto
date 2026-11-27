@@ -13,6 +13,11 @@ const SALE_BANNERS: Record<string, string> = {
   CSZ420: "sale-csz420.PNG",
 };
 
+/** Known SPL mints → banner key (catalog/dex labels often aren't the ticker). */
+const SALE_BANNER_BY_MINT: Record<string, string> = {
+  EmpirdtfUMfBQXEjnNmTngeimjfizfuSBD3TN9zqzydj: "EMPIRE",
+};
+
 function socialBannerUrl(filename: string): string {
   // Discord embed crawlers often fail on apex→www 308 redirects.
   let base = getSiteUrl().replace(/\/$/, "") || "https://www.slotto.gg";
@@ -34,8 +39,32 @@ export function drawWinnerBannerUrl(): string {
   return socialBannerUrl("winner.GIF");
 }
 
-/** Token symbol → full-width Discord embed image (falls back to token logo elsewhere). */
-export function ticketSaleBannerUrl(tokenSymbol: string): string | null {
-  const file = SALE_BANNERS[tokenSymbol.trim().toUpperCase()];
+function bannerKeyFromSymbol(tokenSymbol: string): string | null {
+  const raw = tokenSymbol.trim().toUpperCase();
+  if (!raw) return null;
+  if (SALE_BANNERS[raw]) return raw;
+  // Dex/catalog labels like "Omerta - Empire City" / truncated "Omerta - Emp"
+  for (const key of Object.keys(SALE_BANNERS)) {
+    if (key === "SOL") continue;
+    if (raw.includes(key) || key.includes(raw)) return key;
+  }
+  return null;
+}
+
+/** Token symbol and/or mint → full-width Discord embed image. */
+export function ticketSaleBannerUrl(
+  tokenSymbol: string,
+  payWithMint?: string | null,
+): string | null {
+  const mint = payWithMint?.trim();
+  if (mint && mint !== "SOL") {
+    const fromMint = SALE_BANNER_BY_MINT[mint];
+    if (fromMint && SALE_BANNERS[fromMint]) {
+      return socialBannerUrl(SALE_BANNERS[fromMint]!);
+    }
+  }
+  const key = bannerKeyFromSymbol(tokenSymbol);
+  if (!key) return null;
+  const file = SALE_BANNERS[key];
   return file ? socialBannerUrl(file) : null;
 }

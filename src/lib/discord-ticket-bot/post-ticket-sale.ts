@@ -74,6 +74,7 @@ function buildTicketSaleEmbed(
     tokenSymbol: string;
     tokenName: string;
     tokenImageUrl: string | null;
+    payWith: string;
     jackpotSol: string | null;
     drawLabel: string;
     signature: string;
@@ -87,7 +88,8 @@ function buildTicketSaleEmbed(
   const bannerUrl =
     media === "full"
       ? discordImageUrl(
-          ticketSaleBannerUrl(opts.tokenSymbol) ?? opts.tokenImageUrl,
+          ticketSaleBannerUrl(opts.tokenSymbol, opts.payWith) ??
+            opts.tokenImageUrl,
           siteUrl,
         )
       : null;
@@ -95,7 +97,9 @@ function buildTicketSaleEmbed(
     title: "🎟️ New Slotto ticket purchase",
     description: `Someone just bought **${opts.count}** ${ticketWord} in draw **${opts.drawLabel}**.`,
     color: 0xf5b942,
-    thumbnail: { url: mascotThumbnailUrl() },
+    // Omit media entirely on plain retry — Discord rejects the whole message
+    // if any embed image URL fails (including the mascot thumbnail).
+    ...(media === "full" ? { thumbnail: { url: mascotThumbnailUrl() } } : {}),
     ...(bannerUrl ? { image: { url: bannerUrl } } : {}),
     author: {
       name: paidWith,
@@ -144,13 +148,27 @@ export async function notifyDiscordTicketSale(
   if (existing) return { posted: 0, skipped: true };
 
   const programId = lotteryProgramId();
-  const ok = await verifyLotteryBuySignature(
-    connection,
-    signature,
-    programId,
-    wallet,
-  );
-  if (!ok) {
+  const alreadyRecorded = await prisma.lotteryTicketPurchase.findUnique({
+    where: { signature },
+    select: { id: true },
+  });
+
+  // Prefer on-chain verify; if RPC flakes but we already persisted the buy, still notify.
+  let ok = false;
+  try {
+    ok = await verifyLotteryBuySignature(
+      connection,
+      signature,
+      programId,
+      wallet,
+    );
+  } catch (e) {
+    console.warn(
+      "[discord ticket sale] verify RPC error:",
+      e instanceof Error ? e.message : e,
+    );
+  }
+  if (!ok && !alreadyRecorded) {
     throw new Error("Transaction not verified as a confirmed ticket purchase");
   }
 
@@ -179,23 +197,39 @@ export async function notifyDiscordTicketSale(
     return { posted: 0, skipped: false };
   }
 
-  const draw = await fetchDrawById(connection, programId, input.drawId);
   let jackpotSol: string | null = null;
-  if (draw) {
-    const lamports = await fetchJackpotLamports(connection, draw.prizeVault);
-    jackpotSol = formatSolFromLamports(lamports);
+  try {
+    const draw = await fetchDrawById(connection, programId, input.drawId);
+    if (draw) {
+      const lamports = await fetchJackpotLamports(connection, draw.prizeVault);
+      jackpotSol = formatSolFromLamports(lamports);
+    }
+  } catch (e) {
+    console.warn(
+      "[discord ticket sale] jackpot lookup skipped:",
+      e instanceof Error ? e.message : e,
+    );
   }
 
   const buyerLabel = await buyerLabelForWallet(wallet);
   const siteUrl = discordSiteBase();
   const drawLabel = await formatDrawLabelForId(input.drawId);
+  let tokenSymbol =
+    input.tokenSymbol || (input.payWith === "SOL" ? "SOL" : "SPL");
+  // Prefer ticker for known banner mints (catalog/dex labels like "Omerta - Empire City").
+  if (
+    ticketSaleBannerUrl("EMPIRE", input.payWith)?.includes("sale-empire") ||
+    /empire/i.test(`${tokenSymbol} ${input.tokenName}`)
+  ) {
+    tokenSymbol = "EMPIRE";
+  }
   const embedOpts = {
     buyerLabel,
     count: input.count,
-    tokenSymbol:
-      input.tokenSymbol || (input.payWith === "SOL" ? "SOL" : "SPL"),
+    tokenSymbol,
     tokenName: input.tokenName || input.tokenSymbol || "Token",
     tokenImageUrl: input.tokenImageUrl,
+    payWith: input.payWith,
     jackpotSol,
     drawLabel,
     signature,

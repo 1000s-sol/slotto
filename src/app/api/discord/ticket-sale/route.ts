@@ -9,6 +9,8 @@ import {
 import { withLotteryServerRpc } from "@/lib/lottery/server-rpc";
 
 export const dynamic = "force-dynamic";
+/** Confirm wait + multi-guild Discord posts need headroom on serverless. */
+export const maxDuration = 60;
 
 /** After a confirmed on-chain buy, fan out an embed to all registered Discord servers. */
 export async function POST(request: Request) {
@@ -48,7 +50,8 @@ export async function POST(request: Request) {
 
   try {
     const result = await withLotteryServerRpc(async (connection) => {
-      const deadline = Date.now() + 45_000;
+      // Keep confirmation wait short so Discord posts still fit in maxDuration.
+      const deadline = Date.now() + 20_000;
       while (Date.now() < deadline) {
         const status = await connection.getSignatureStatus(signature, {
           searchTransactionHistory: true,
@@ -64,7 +67,7 @@ export async function POST(request: Request) {
         ) {
           break;
         }
-        await new Promise((r) => setTimeout(r, 1500));
+        await new Promise((r) => setTimeout(r, 1200));
       }
       return notifyDiscordTicketSale(connection, input);
     });
@@ -72,6 +75,14 @@ export async function POST(request: Request) {
   } catch (e) {
     const message = e instanceof Error ? e.message : "notify failed";
     console.warn("[discord ticket-sale]", message);
-    return NextResponse.json({ error: message }, { status: 400 });
+    // 503 so clients retry transient RPC / Discord failures.
+    const retryable =
+      /429|rate|timeout|fetch failed|ECONN|ENOTFOUND|Discord post failed|not verified/i.test(
+        message,
+      );
+    return NextResponse.json(
+      { error: message },
+      { status: retryable ? 503 : 400 },
+    );
   }
 }

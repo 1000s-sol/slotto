@@ -20,6 +20,7 @@ import {
 import { SplPoolInfoButton } from "@/components/lottery/spl-pool-info-modal";
 import { TicketCountInput } from "@/components/lottery/ticket-count-input";
 import { notifyDiscordTicketSaleClient } from "@/lib/discord-ticket-bot/notify-client";
+import { recordTicketPurchaseClient } from "@/lib/lottery/record-purchase-client";
 import { fetchWalletSocialsClient } from "@/lib/fetch-wallet-social-client";
 import type { WalletSocialPublic } from "@/lib/social-profile-url";
 import { buySolTickets } from "@/lib/lottery/buy-sol-tickets";
@@ -623,7 +624,7 @@ export function HomeLotterySection({
       const metaKey = boughtWith === "SOL" ? SOL_MINT : boughtWith;
       const meta = tokenMeta[metaKey];
       const isSolPay = boughtWith === "SOL";
-      void notifyDiscordTicketSaleClient({
+      const notifyPayload = {
         signature: sig,
         wallet: wallet.publicKey.toBase58(),
         drawId: activeDraw.drawId,
@@ -634,7 +635,16 @@ export function HomeLotterySection({
           ? "Solana"
           : meta?.projectName?.trim() || meta?.symbol || "Token",
         tokenImageUrl: meta?.imageUrl ?? null,
+      };
+      // Record paid-with independently of Discord so a notify timeout can't drop it.
+      void recordTicketPurchaseClient({
+        signature: sig,
+        wallet: notifyPayload.wallet,
+        drawId: activeDraw.drawId,
+        count,
+        payWith: boughtWith,
       });
+      void notifyDiscordTicketSaleClient(notifyPayload);
       await refresh();
       setPhase({ kind: "idle" });
       setPurchase({ count, ids, payWith: boughtWith, signature: sig });
@@ -663,7 +673,7 @@ export function HomeLotterySection({
           const metaKey = boughtWith === "SOL" ? SOL_MINT : boughtWith;
           const meta = tokenMeta[metaKey];
           const isSolPay = boughtWith === "SOL";
-          void notifyDiscordTicketSaleClient({
+          const partialPayload = {
             signature: partialSig,
             wallet: wallet.publicKey.toBase58(),
             drawId: activeDraw.drawId,
@@ -674,7 +684,15 @@ export function HomeLotterySection({
               ? "Solana"
               : meta?.projectName?.trim() || meta?.symbol || "Token",
             tokenImageUrl: meta?.imageUrl ?? null,
+          };
+          void recordTicketPurchaseClient({
+            signature: partialSig,
+            wallet: partialPayload.wallet,
+            drawId: activeDraw.drawId,
+            count,
+            payWith: boughtWith,
           });
+          void notifyDiscordTicketSaleClient(partialPayload);
           setActiveDraw(updated);
           setPhase({ kind: "idle" });
           setPurchase({

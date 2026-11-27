@@ -17,6 +17,7 @@ import { SplPoolInfoButton } from "@/components/lottery/spl-pool-info-modal";
 import { TicketCountInput } from "@/components/lottery/ticket-count-input";
 import { prepareTicketChunksForBuy } from "@/lib/lottery/prepare-ticket-chunks-client";
 import { notifyDiscordTicketSaleClient } from "@/lib/discord-ticket-bot/notify-client";
+import { recordTicketPurchaseClient } from "@/lib/lottery/record-purchase-client";
 import { buySplTickets } from "@/lib/lottery/buy-spl-tickets";
 import { isDrawBuyable, type LotteryDrawView } from "@/lib/lottery/chain";
 import { lotteryProgramId } from "@/lib/lottery/config";
@@ -304,7 +305,7 @@ export function ProjectTicketBuyPanel({
       const firstId = activeDraw.totalTickets;
       const lastId = activeDraw.totalTickets + count - 1;
       const ids = count === 1 ? `#${firstId}` : `#${firstId}–#${lastId}`;
-      void notifyDiscordTicketSaleClient({
+      const notifyPayload = {
         signature: sig,
         wallet: wallet.publicKey.toBase58(),
         drawId: activeDraw.drawId,
@@ -313,7 +314,15 @@ export function ProjectTicketBuyPanel({
         tokenSymbol: symbol,
         tokenName: projectName || symbol,
         tokenImageUrl: logoUrl,
+      };
+      void recordTicketPurchaseClient({
+        signature: sig,
+        wallet: notifyPayload.wallet,
+        drawId: activeDraw.drawId,
+        count,
+        payWith: mintKey,
       });
+      void notifyDiscordTicketSaleClient(notifyPayload);
       await refresh();
       setPhase({ kind: "idle" });
       setPurchase({ count, ids, payWith: mintKey, signature: sig });
@@ -338,7 +347,7 @@ export function ProjectTicketBuyPanel({
           const firstId = ticketsBefore;
           const lastId = ticketsBefore + count - 1;
           const ids = count === 1 ? `#${firstId}` : `#${firstId}–#${lastId}`;
-          void notifyDiscordTicketSaleClient({
+          const partialPayload = {
             signature: partialSig,
             wallet: wallet.publicKey.toBase58(),
             drawId: activeDraw.drawId,
@@ -347,7 +356,15 @@ export function ProjectTicketBuyPanel({
             tokenSymbol: symbol,
             tokenName: projectName || symbol,
             tokenImageUrl: logoUrl,
+          };
+          void recordTicketPurchaseClient({
+            signature: partialSig,
+            wallet: partialPayload.wallet,
+            drawId: activeDraw.drawId,
+            count,
+            payWith: mintKey,
           });
+          void notifyDiscordTicketSaleClient(partialPayload);
           setActiveDraw(updated);
           setPhase({ kind: "idle" });
           setPurchase({
