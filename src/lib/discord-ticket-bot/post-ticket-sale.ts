@@ -8,7 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { getSiteUrl } from "@/lib/site-metadata";
 
 import { buyerLabelForWallet } from "./buyer-label";
-import { ticketSaleBannerUrl } from "./banners";
+import { ticketSaleBannerUrl, ticketSaleTickerForPayWith } from "./banners";
 import { mascotThumbnailUrl, postEmbedToChannel } from "./discord-channel";
 import { resolveDiscordNotifyChannelIds } from "./notify-channels";
 import { verifyLotteryBuySignature } from "./verify-buy-tx";
@@ -214,15 +214,11 @@ export async function notifyDiscordTicketSale(
   const buyerLabel = await buyerLabelForWallet(wallet);
   const siteUrl = discordSiteBase();
   const drawLabel = await formatDrawLabelForId(input.drawId);
-  let tokenSymbol =
-    input.tokenSymbol || (input.payWith === "SOL" ? "SOL" : "SPL");
-  // Prefer ticker for known banner mints (catalog/dex labels like "Omerta - Empire City").
-  if (
-    ticketSaleBannerUrl("EMPIRE", input.payWith)?.includes("sale-empire") ||
-    /empire/i.test(`${tokenSymbol} ${input.tokenName}`)
-  ) {
-    tokenSymbol = "EMPIRE";
-  }
+  // Only remap ticker when this buy's mint is a known banner mint (never by label heuristics).
+  const tokenSymbol =
+    ticketSaleTickerForPayWith(input.payWith) ||
+    input.tokenSymbol ||
+    (input.payWith === "SOL" ? "SOL" : "SPL");
   const embedOpts = {
     buyerLabel,
     count: input.count,

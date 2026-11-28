@@ -13,8 +13,8 @@ const SALE_BANNERS: Record<string, string> = {
   CSZ420: "sale-csz420.PNG",
 };
 
-/** Known SPL mints → banner key (catalog/dex labels often aren't the ticker). */
-const SALE_BANNER_BY_MINT: Record<string, string> = {
+/** Known SPL mints → banner/ticker key (catalog/dex labels often aren't the ticker). */
+const SALE_BANNER_BY_MINT: Record<string, keyof typeof SALE_BANNERS> = {
   EmpirdtfUMfBQXEjnNmTngeimjfizfuSBD3TN9zqzydj: "EMPIRE",
 };
 
@@ -39,16 +39,20 @@ export function drawWinnerBannerUrl(): string {
   return socialBannerUrl("winner.GIF");
 }
 
+/** Exact ticker only — never fuzzy-match labels (that mis-attributed EMPIRE). */
 function bannerKeyFromSymbol(tokenSymbol: string): string | null {
   const raw = tokenSymbol.trim().toUpperCase();
   if (!raw) return null;
-  if (SALE_BANNERS[raw]) return raw;
-  // Dex/catalog labels like "Omerta - Empire City" / truncated "Omerta - Emp"
-  for (const key of Object.keys(SALE_BANNERS)) {
-    if (key === "SOL") continue;
-    if (raw.includes(key) || key.includes(raw)) return key;
-  }
-  return null;
+  return SALE_BANNERS[raw] ? raw : null;
+}
+
+/** Display ticker when payWith mint has a known sale banner. */
+export function ticketSaleTickerForPayWith(
+  payWithMint?: string | null,
+): string | null {
+  const mint = payWithMint?.trim();
+  if (!mint || mint === "SOL") return mint === "SOL" ? "SOL" : null;
+  return SALE_BANNER_BY_MINT[mint] ?? null;
 }
 
 /** Token symbol and/or mint → full-width Discord embed image. */
